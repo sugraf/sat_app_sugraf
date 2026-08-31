@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -29,8 +29,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#2563eb">
   
-  <!-- Configuración PWA / Modo App Nativa -->
+  <!-- Iconos e integración como App móvil -->
   <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -40,7 +42,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
     body { background: #f1f5f9; color: #1e293b; padding-bottom: 40px; }
-    header { background: #2563eb; color: white; padding: 16px; text-align: center; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    header { background: #2563eb; color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    header img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; }
     h1 { font-size: 1.15rem; font-weight: 700; }
     .container { max-width: 480px; margin: 0 auto; padding: 14px; }
     .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); margin-bottom: 14px; }
@@ -64,6 +67,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
 
   <header>
+    <img src="/logo.png" alt="Logo" onerror="this.style.display='none'">
     <h1>Servicio Técnico</h1>
   </header>
 
@@ -203,7 +207,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 def home():
     return HTML_TEMPLATE
 
-# Ruta para servir el manifest directamente
+# Endpoint para servir el archivo del logo
+@app.get("/logo.png")
+def get_logo():
+    rutas_posibles = [
+        os.path.join(os.path.dirname(__file__), "..", "logo_ejecutable.png"),
+        os.path.join(os.path.dirname(__file__), "logo_ejecutable.png"),
+        "logo_ejecutable.png"
+    ]
+    for ruta in rutas_posibles:
+        if os.path.exists(ruta):
+            return FileResponse(ruta, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Logo no encontrado")
+
+# Endpoint del manifest con la referencia al nuevo logo
 @app.get("/manifest.json")
 def get_manifest():
     manifest_data = {
@@ -215,7 +232,7 @@ def get_manifest():
         "theme_color": "#2563eb",
         "icons": [
             {
-                "src": "https://cdn-icons-png.flaticon.com/512/942/942748.png",
+                "src": "/logo.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable"
