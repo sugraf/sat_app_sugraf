@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -28,6 +28,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#2563eb">
+  
+  <!-- Configuración PWA / Modo App Nativa -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SAT App">
+  
   <title>Servicio Técnico</title>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
@@ -194,6 +202,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 @app.get("/", response_class=HTMLResponse)
 def home():
     return HTML_TEMPLATE
+
+# Ruta para servir el manifest directamente
+@app.get("/manifest.json")
+def get_manifest():
+    manifest_data = {
+        "name": "Servicio Técnico App",
+        "short_name": "SAT App",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#2563eb",
+        "icons": [
+            {
+                "src": "https://cdn-icons-png.flaticon.com/512/942/942748.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    }
+    return JSONResponse(content=manifest_data)
 
 def get_drive_service():
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
