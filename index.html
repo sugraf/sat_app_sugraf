@@ -65,18 +65,22 @@
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
     .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
 
-    /* Custom Dropdown UI */
+    /* Custom Dropdown UI idéntico a la imagen */
     .custom-select-wrapper { position: relative; margin-bottom: 14px; }
-    .custom-select-wrapper input { margin-bottom: 0; }
+    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
+    .custom-select-wrapper::after {
+      content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 0.8rem; color: #94a3b8; pointer-events: none;
+    }
     .custom-select-list {
-      display: none; position: absolute; z-index: 1000; top: calc(100% + 4px); left: 0; right: 0;
-      background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px;
+      display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0;
+      background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
       max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
     .custom-select-list.show { display: block; }
-    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
     .custom-select-item:last-child { border-bottom: none; }
-    .custom-select-item:hover { background: #f8fafc; color: #2563eb; font-weight: 500; }
+    .custom-select-item:hover { background: #f8fafc; color: #2563eb; }
   </style>
 </head>
 <body>
@@ -168,6 +172,7 @@
           
           <label>Cliente</label>
           <div class="custom-select-wrapper">
+            <!-- ATENCIÓN: Eliminado el atributo list="" -->
             <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
             <div id="dropdown-clientes" class="custom-select-list"></div>
           </div>
@@ -177,6 +182,7 @@
           
           <label>Máquina</label>
           <div class="custom-select-wrapper">
+            <!-- ATENCIÓN: Eliminado el atributo list="" -->
             <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
             <div id="dropdown-maquinas" class="custom-select-list"></div>
           </div>
@@ -282,7 +288,7 @@
         }
     }
 
-    // Custom Dropdown Logic
+    // Lógica para el desplegable visual sin bloquear el teclado
     function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
         const input = document.getElementById(inputId);
         const dropdown = document.getElementById(dropdownId);
@@ -299,6 +305,7 @@
             dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
             
             dropdown.querySelectorAll('.custom-select-item').forEach(item => {
+                // Usamos mousedown para evitar que el input pierda el foco antes de hacer clic
                 item.addEventListener('mousedown', (e) => {
                     e.preventDefault(); 
                     if (item.innerText === "No hay coincidencias") return;
@@ -321,7 +328,7 @@
         });
 
         input.addEventListener('blur', () => {
-            dropdown.classList.remove('show');
+            setTimeout(() => dropdown.classList.remove('show'), 150);
         });
     }
 
@@ -388,7 +395,6 @@
                 return dbEquipos[c].map(m => m.nombre).sort();
             }
         );
-        
       } catch(e) { }
     }
 
