@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de Avisos</title>
+  <style>
+    body { font-family: sans-serif; background: #070e1c; color: white; padding: 20px; }
+    .form-box { background: #0f1e35; padding: 20px; border-radius: 12px; max-width: 600px; margin: 0 auto; }
+    input, textarea, button { width: 100%; padding: 10px; margin: 5px 0 15px; border-radius: 5px; border: none; }
+    button { background: #4f9cd9; color: white; cursor: pointer; font-weight: bold; }
+    .custom-select-list { display: none; background: white; color: black; max-height: 150px; overflow-y: auto; position: absolute; width: calc(100% - 40px); z-index: 10; border-radius: 5px;}
+    .custom-select-list.show { display: block; }
+    .custom-select-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #ccc; }
+    .custom-select-item:hover { background: #eee; }
+    .volver { display: inline-block; margin-bottom: 20px; color: #4f9cd9; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <a href="/" class="volver">← Volver al Hub</a>
+  <div class="form-box">
+    <h2>Nuevo Aviso</h2>
+    <form id="form-nuevo">
+      <label>Fecha Entrada</label><input type="date" id="ni_fecha" required>
+      <label>Hora</label><input type="time" id="ni_hora" required>
+      
+      <div style="position: relative;">
+        <label>Cliente</label>
+        <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Buscar cliente...">
+        <div id="dropdown-clientes" class="custom-select-list"></div>
+      </div>
+
+      <label>Población / Dirección</label>
+      <input type="text" id="ni_poblacion" required>
+
+      <div style="position: relative;">
+        <label>Máquina</label>
+        <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Buscar máquina...">
+        <div id="dropdown-maquinas" class="custom-select-list"></div>
+      </div>
+
+      <label>Explicar la Incidencia</label>
+      <textarea id="ni_desc" rows="3" required></textarea>
+
+      <label><input type="checkbox" id="ni_urg" style="width: auto;"> Urgente</label>
+      <button type="submit" id="btn-save">Crear Aviso</button>
+    </form>
+  </div>
+
+  <script>
+    let dbEquipos = {};
+    const currentUser = localStorage.getItem("sugraf_user");
+    if (!currentUser) window.location.href = "/";
+    if (currentUser === "Solo Visualizar") { alert("Sin permisos."); window.location.href = "/"; }
+
+    document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
+
+    async function cargar() {
+      const res = await fetch('/api/generador/clientes-maquinas');
+      dbEquipos = await res.json();
+      setupDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (c) => {
+        document.getElementById('ni_maquina').value = '';
+        document.getElementById('ni_poblacion').value = (dbEquipos[c] && dbEquipos[c].poblacion) ? dbEquipos[c].poblacion : '';
+      });
+      setupDropdown('ni_maquina', 'dropdown-maquinas', () => {
+        const c = document.getElementById('ni_cliente').value;
+        return (dbEquipos[c] && dbEquipos[c].maquinas) ? dbEquipos[c].maquinas.map(m => m.nombre).sort() : [];
+      });
+    }
+    cargar();
+
+    function setupDropdown(inputId, dropId, getOpts, onSelect) {
+      const input = document.getElementById(inputId), drop = document.getElementById(dropId);
+      const render = (val) => {
+        const opts = getOpts().filter(o => o.toLowerCase().includes(val.toLowerCase()));
+        drop.innerHTML = opts.map(o => `<div class="custom-select-item">${o}</div>`).join('');
+        drop.querySelectorAll('.custom-select-item').forEach(i => i.onmousedown = (e) => {
+          e.preventDefault(); input.value = i.innerText; drop.classList.remove('show'); if(onSelect) onSelect(i.innerText);
+        });
+      };
+      input.onfocus = () => { render(input.value); drop.classList.add('show'); };
+      input.oninput = (e) => { render(e.target.value); drop.classList.add('show'); };
+      input.onblur = () => setTimeout(() => drop.classList.remove('show'), 150);
+    }
+
+    document.getElementById('form-nuevo').onsubmit = async (e) => {
+      e.preventDefault();
+      document.getElementById('btn-save').disabled = true;
+      const c = document.getElementById('ni_cliente').value;
+      const m = document.getElementById('ni_maquina').value;
+      const maqData = (dbEquipos[c] && dbEquipos[c].maquinas.find(x => x.nombre === m)) || {};
+      
+      const payload = {
+        fecha_entrada: document.getElementById('ni_fecha').value, cliente: c, poblacion: document.getElementById('ni_poblacion').value,
+        maquina: m, equipo: maqData.equipo || '', marca: maqData.marca || '', modelo: maqData.modelo || '',
+        f_garan: maqData.f_garan || '', f_instal: maqData.f_instal || '',
+        descripcion: document.getElementById('ni_desc').value, urgente: document.getElementById('ni_urg').checked
+      };
+
+      await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+      alert("Guardado!");
+      window.location.href = "/";
+    };
+  </script>
+</body>
+</html>
