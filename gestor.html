@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Organizador de Avisos</title>
+  <style>
+    body { font-family: sans-serif; background: #070e1c; color: white; padding: 20px; }
+    .volver { display: inline-block; margin-bottom: 20px; color: #4f9cd9; text-decoration: none; font-weight: bold; }
+    .inc-item { background: #0f1e35; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1c3357;}
+    select { padding: 5px; background: white; color: black; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <a href="/" class="volver">← Volver al Hub</a>
+  <h2>Organizador de Avisos</h2>
+  <div id="lista">Cargando...</div>
+
+  <script>
+    const currentUser = localStorage.getItem("sugraf_user");
+    if (!currentUser) window.location.href = "/";
+    const TECNICOS_PERMITIDOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
+
+    let avisos = [];
+
+    async function cargar() {
+      const res = await fetch('/api/gestor/avisos');
+      const data = await res.json();
+      avisos = data.avisos || [];
+      render();
+    }
+
+    function render() {
+      const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
+      
+      document.getElementById('lista').innerHTML = avisos.map((av, i) => {
+        const tecActual = av['REALIZADO POR'] || 'Pendiente';
+        
+        let tecOptions = `<option value="Pendiente" ${tecActual === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>`;
+        
+        // Regla: Si es uno de los 4 técnicos, solo puede seleccionarse a sí mismo o "Sin Asignar"
+        if (isTecnico) {
+            tecOptions += `<option value="${currentUser}" ${tecActual === currentUser ? 'selected' : ''}>${currentUser}</option>`;
+            // Si el aviso ya estaba asignado a otro, lo mostramos para que no desaparezca, pero no puede seleccionarlo si no es él
+            if (tecActual !== 'Pendiente' && tecActual !== currentUser) {
+                tecOptions += `<option value="${tecActual}" selected disabled>${tecActual}</option>`;
+            }
+        } else if (currentUser === "Laura") {
+            // Laura puede asignar a cualquiera
+            TECNICOS_PERMITIDOS.forEach(t => {
+                tecOptions += `<option value="${t}" ${tecActual === t ? 'selected' : ''}>${t}</option>`;
+            });
+        } else {
+             // Solo visualizar, no puede cambiar nada
+             tecOptions = `<option>${tecActual}</option>`;
+        }
+
+        const disTec = (currentUser === "Solo Visualizar") ? 'disabled' : '';
+        const disPir = (currentUser !== "Laura") ? 'disabled' : '';
+
+        return `
+        <div class="inc-item">
+          <strong>${av['CLIENTE']}</strong> - ${av['MÁQUINA']} <br><br>
+          Asignado a: <select onchange="updateTec(${i}, this.value)" ${disTec}>${tecOptions}</select>
+          | Pirineos: <select onchange="updatePir(${i}, this.value)" ${disPir}>
+            <option value="NO" ${av['PIRINEOS'] !== 'SI' ? 'selected' : ''}>NO</option>
+            <option value="SI" ${av['PIRINEOS'] === 'SI' ? 'selected' : ''}>SI</option>
+          </select>
+        </div>`;
+      }).join('');
+    }
+
+    async function updateTec(i, val) {
+      await fetch('/api/gestor/actualizar-tecnico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({aviso_index: i, valor: val})});
+    }
+    
+    async function updatePir(i, val) {
+      await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({aviso_index: i, valor: val})});
+    }
+
+    cargar();
+  </script>
+</body>
+</html>
