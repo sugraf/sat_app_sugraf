@@ -1,3 +1,4 @@
+# api/index.py
 import io
 import json
 import os
@@ -30,19 +31,19 @@ def home():
     if os.path.exists(ruta):
         with open(ruta, "r", encoding="utf-8") as f:
             return f.read()
-    return "Error: index.html no encontrado."
+    return "Error: index.html not found."
 
 @app.get("/{filename}.jpg")
 def get_jpg(filename: str):
     ruta = os.path.join(os.path.dirname(__file__), "..", f"{filename}.jpg")
     if os.path.exists(ruta): return FileResponse(ruta, media_type="image/jpeg")
-    raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    raise HTTPException(status_code=404, detail="Not found")
 
 @app.get("/{filename}.png")
 def get_png(filename: str):
     ruta = os.path.join(os.path.dirname(__file__), "..", f"{filename}.png")
     if os.path.exists(ruta): return FileResponse(ruta, media_type="image/png")
-    raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    raise HTTPException(status_code=404, detail="Not found")
 
 @app.get("/manifest.json")
 def get_manifest():
@@ -69,7 +70,7 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
-    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'DESCRIPCIÓN', 'EQUIPO', 'MARCA', 'TOTAL', 'REALIZADO POR', 'URG', 'GAR', 'MAN', 'INS']
+    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE']
     
     if archivos:
         file_id = archivos[0]['id']
@@ -103,7 +104,7 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
         meta = {'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}
         drive.files().create(body=meta, media_body=media, fields='id').execute()
         
-    return df.to_dict(orient="records")
+    return df.fillna("").to_dict(orient="records")
 
 class NuevoAviso(BaseModel):
     n_parte: str
@@ -111,6 +112,11 @@ class NuevoAviso(BaseModel):
     cliente: str
     poblacion: str
     maquina: str
+    equipo: str
+    marca: str
+    modelo: str
+    f_garan: str
+    f_instal: str
     descripcion: str
     urgente: bool
 
@@ -129,16 +135,12 @@ class ParteResolucion(BaseModel):
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        
-        # 1. Check if the bot has permission and get the file format
         try:
             file_metadata = drive.files().get(fileId=EQUIPOS_FILE_ID, fields="mimeType").execute()
         except Exception as auth_error:
-            return {"error": f"Permission denied. Ensure the bot email is invited to this specific file. Detail: {str(auth_error)}"}
+            return {"error": str(auth_error)}
             
         mime_type = file_metadata.get('mimeType')
-        
-        # 2. Download appropriately based on whether it is a Google Sheet or native Excel
         if mime_type == 'application/vnd.google-apps.spreadsheet':
             request = drive.files().export_media(fileId=EQUIPOS_FILE_ID, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         else:
@@ -147,33 +149,46 @@ def listar_clientes_maquinas():
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while not done: 
-            status, done = downloader.next_chunk()
+        while not done: downloader.next_chunk()
         fh.seek(0)
 
-        # 3. Process the dataframe
         df = pd.read_excel(fh, header=4)
         clientes_map = {}
         
+        for col in ['F.GARAN.', 'F. INSTALACION']:
+            if col in df.columns:
+                df[col] = df[col].astype(str).replace('nan', '').replace('NaT', '')
+
         for _, row in df.iterrows():
             c = str(row.get('CLIENTE', '')).strip()
             if not c or c.lower() == 'nan': continue
             
             n = str(row.get('NOMBRE', '')).strip()
+            equipo = str(row.get('EQUIPO', '')).strip().replace('nan', '')
+            marca = str(row.get('MARCA', '')).strip().replace('nan', '')
+            modelo = str(row.get('MODELO', '')).strip().replace('nan', '')
+            f_garan = str(row.get('F.GARAN.', '')).strip().replace('nan', '')
+            f_instal = str(row.get('F. INSTALACION', '')).strip().replace('nan', '')
+
             if not n or n.lower() == 'nan':
-                e = str(row.get('EQUIPO', '')).strip()
-                m = str(row.get('MARCA', '')).strip()
-                mod = str(row.get('MODELO', '')).strip()
-                n = f"{e} {m} {mod}".replace('nan', '').strip()
+                n = f"{equipo} {marca} {modelo}".strip()
                 
             if c not in clientes_map:
                 clientes_map[c] = []
-            if n and n not in clientes_map[c]:
-                clientes_map[c].append(n)
+            
+            if n and not any(m['nombre'] == n for m in clientes_map[c]):
+                clientes_map[c].append({
+                    "nombre": n,
+                    "equipo": equipo,
+                    "marca": marca,
+                    "modelo": modelo,
+                    "f_garan": f_garan[:10] if f_garan else '',
+                    "f_instal": f_instal[:10] if f_instal else ''
+                })
                 
         return clientes_map
     except Exception as e:
-        return {"error": f"File processing error: {str(e)}"}
+        return {"error": str(e)}
 
 @app.get("/api/avisos")
 def listar_avisos():
@@ -193,15 +208,14 @@ def crear_aviso(aviso: NuevoAviso):
             'CLIENTE': aviso.cliente,
             'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina,
+            'EQUIPO': aviso.equipo,
+            'MARCA': aviso.marca,
+            'MODELO': aviso.modelo,
+            'F. GARANTÍA': aviso.f_garan,
+            'F. INSTALACIÓN': aviso.f_instal,
             'DESCRIPCIÓN': aviso.descripcion,
-            'EQUIPO': '', 
-            'MARCA': '',
-            'TOTAL': 0,
             'REALIZADO POR': 'Pendiente',
-            'URG': 'SI' if aviso.urgente else 'NO',
-            'GAR': 'NO',
-            'MAN': 'NO',
-            'INS': 'NO'
+            'URGENTE': 'SI' if aviso.urgente else 'NO'
         }
         procesar_excel_avisos(drive, nuevo_aviso=fila_excel)
         return {"status": "ok"}
