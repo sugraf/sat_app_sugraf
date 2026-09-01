@@ -36,7 +36,14 @@
     input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; }
     
     /* Reset iOS para inputs de fecha y hora */
-    input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; }
+    input[type="date"], input[type="time"] { 
+      -webkit-appearance: none; 
+      appearance: none; 
+      min-width: 0; 
+      color: #1e293b !important; 
+      -webkit-text-fill-color: #1e293b !important; 
+      opacity: 1; 
+    }
     
     button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
     button.btn:hover { background: #2f6fb0; }
