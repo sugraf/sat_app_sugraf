@@ -137,13 +137,13 @@ class ParteResolucion(BaseModel):
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        # Búsqueda tolerante a fallos de nombre
-        query = f"'{FOLDER_ID_DEFAULT}' in parents and name contains 'EQUIPOS' and trashed = false"
+        # Búsqueda con el nombre exacto sin espacios extra
+        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'EQUIPOS-FECHAS.xlsx' and trashed = false"
         res = drive.files().list(q=query, fields="files(id, name)").execute()
         archivos = res.get("files", [])
         
         if not archivos:
-            return {"error": "No se encontró el archivo EQUIPOS en Drive."}
+            return {"error": "No se encontró el archivo EQUIPOS-FECHAS.xlsx en Drive."}
 
         file_id = archivos[0]['id']
         request = drive.files().get_media(fileId=file_id)
