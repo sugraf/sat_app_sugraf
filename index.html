@@ -402,11 +402,19 @@
         const res = await fetch('/api/generador/clientes-maquinas');
         if(!res.ok) return;
         dbEquipos = await res.json();
-        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { document.getElementById('ni_maquina').value = ''; });
+        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { 
+            document.getElementById('ni_maquina').value = ''; 
+            const poblacionInput = document.getElementById('ni_poblacion');
+            if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
+                poblacionInput.value = dbEquipos[sel].poblacion;
+            } else {
+                poblacionInput.value = '';
+            }
+        });
         setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
             const c = document.getElementById('ni_cliente').value;
             if(!c || !dbEquipos[c]) return [];
-            return dbEquipos[c].map(m => m.nombre).sort();
+            return dbEquipos[c].maquinas.map(m => m.nombre).sort();
         });
       } catch(e) { console.warn("Fetch Equipos error:", e); }
     }
@@ -436,7 +444,7 @@
       
       let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
       if (dbEquipos && dbEquipos[cliente]) {
-          const found = dbEquipos[cliente].find(m => m.nombre === maquinaNombre);
+          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinaNombre);
           if (found) maquinaData = found;
       }
 
