@@ -2,649 +2,113 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#ffffff">
-  <link rel="manifest" href="/manifest.json">
-  <title>Sugraf Digital Manager</title>
-  
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sugraf Digital Manager - HUB</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; }
-    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
-    .topbar-left { display: flex; align-items: center; gap: 15px; }
-    .topbar img { height: 35px; object-fit: contain; }
-    .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; color: #f4f8fc; min-height: 100vh; padding: 20px; }
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px;}
+    .topbar img { height: 35px; }
+    .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor:pointer;}
     .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 12px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: none; align-items: center; justify-content: center; gap: 6px; }
-    
-    .dropdown { position: relative; display: inline-block; cursor: pointer; }
-    .dropdown-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 140px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; border-radius: 8px; overflow: hidden; margin-top: 5px; }
-    .dropdown-content a { color: #ef4444; padding: 12px 16px; text-decoration: none; display: block; font-weight: 600; font-size: 0.9rem; text-align: left; }
-    .dropdown-content a:hover { background-color: #fee2e2; }
-    .show { display: block; }
-
-    .view { display: none; padding-bottom: 50px; }
-    .view.active { display: block; animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
     .text-center { text-align: center; margin-bottom: 30px; }
-    .text-center h1 { font-size: 2rem; color: #f4f8fc; margin-bottom: 8px; }
-    .text-center p { color: #a9bcd6; font-size: 0.95rem; line-height: 1.5; }
-
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-    .card { background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); border: 1px solid rgba(79,156,217,0.18); border-radius: 18px; padding: 25px; cursor: pointer; transition: all 0.2s; }
-    .card:hover { border-color: rgba(79,156,217,0.55); background: linear-gradient(135deg, #1c3357 0%, #152847 100%); transform: translateY(-2px); }
-    .card-icon { background: rgba(47,111,176,0.25); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 15px; border: 1px solid rgba(79,156,217,0.1); }
-    .card h3 { font-size: 1.2rem; margin-bottom: 8px; }
-    .card p { color: #a9bcd6; font-size: 0.9rem; line-height: 1.4; }
-
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
-    input[readonly], select[readonly] { background: #e2e8f0; color: #64748b; cursor: not-allowed; border: 1px dashed #cbd5e1; }
-    
-    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
-    .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
-
-    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #2f6fb0; }
-    button.btn-secondary { background: #e2e8f0; color: #475569; margin-top: 10px; }
-    button.btn-secondary:hover { background: #cbd5e1; }
-
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; }
-    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
-    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
-    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
-
-    .custom-select-wrapper { position: relative; margin-bottom: 14px; }
-    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
-    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
-    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    .custom-select-list.show { display: block; }
-    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
-    .custom-select-item:last-child { border-bottom: none; }
-    .custom-select-item:hover { background: #f8fafc; color: #2563eb; }
-    
-    .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-    .filter-bar select { padding: 8px; font-size: 0.9rem; width: auto; min-width: 150px; flex: 1; }
-
-    /* Modal Styles para la tabla vertical */
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
-    .modal-content { background-color: #fff; padding: 25px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; }
-    .vertical-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-    .vertical-table th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; width: 40%; font-weight: 600; text-transform: uppercase; font-size: 0.8rem;}
-    .vertical-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 500; word-break: break-word;}
+    .card { background: #0f1e35; border: 1px solid rgba(79,156,217,0.18); border-radius: 18px; padding: 25px; cursor: pointer; text-align: center; }
+    .card:hover { border-color: rgba(79,156,217,0.55); background: #1c3357; }
+    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 400px; margin: 10vh auto; }
+    label { display: block; margin: 15px 0 5px; font-weight: 600; font-size: 0.85rem;}
+    input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; }
+    #view-dashboard { display: none; }
   </style>
 </head>
 <body>
 
   <div class="topbar">
-    <div class="topbar-left">
-      <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
-      <button class="btn-back" id="btn-back" onclick="nav('view-dashboard')">Volver</button>
-    </div>
-    
-    <div class="topbar-right" id="zona-usuario" style="display: none;">
-      <div class="dot"></div> 
-      <div class="dropdown">
-        <span id="user-display" onclick="toggleUserMenu()">Conectado ▼</span>
-        <div id="user-menu" class="dropdown-content">
-          <a href="#" onclick="cerrarSesion()">Desconectar</a>
-        </div>
-      </div>
+    <div><img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'"></div>
+    <div class="topbar-right" id="zona-usuario" style="display: none;" onclick="cerrarSesion()">
+      <div class="dot"></div> <span id="user-display"></span> (Desconectar)
     </div>
   </div>
 
-  <div id="view-login" class="view active">
-    <div class="container" style="margin-top: 10vh;">
-      <div class="form-box" style="max-width: 400px; background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); color: white; border: 1px solid rgba(79,156,217,0.18);">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.1); text-align: center; border:none;">Acceso Hub</h2>
-        <label style="color: #a9bcd6;">Usuario</label>
-        <select id="login-user" style="background: #070e1c; color: white; border-color: #2f6fb0;">
-          <option value="Ion Volog">Ion Volog</option>
-          <option value="Francisco Antúnez">Francisco Antúnez</option>
-          <option value="Daniel Gargallo">Daniel Gargallo</option>
-          <option value="Emilio Arrieta">Emilio Arrieta</option>
-          <option value="Laura">Laura</option>
-          <option value="Solo Visualizar">Solo Visualizar</option>
-        </select>
-        <label style="color: #a9bcd6;">Contraseña</label>
-        <input type="password" id="login-pass" style="background: #070e1c; color: white; border-color: #2f6fb0;" placeholder="Introduce tu clave">
-        <button class="btn" onclick="iniciarSesion()">Entrar al Sistema</button>
-      </div>
+  <div id="view-login">
+    <div class="form-box">
+      <h2 style="text-align: center; margin-bottom: 20px;">Acceso Hub</h2>
+      <label>Usuario</label>
+      <select id="login-user">
+        <option value="Ion Volog">Ion Volog</option>
+        <option value="Francisco Antúnez">Francisco Antúnez</option>
+        <option value="Daniel Gargallo">Daniel Gargallo</option>
+        <option value="Emilio Arrieta">Emilio Arrieta</option>
+        <option value="Laura">Laura</option>
+        <option value="Solo Visualizar">Solo Visualizar</option>
+      </select>
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="Introduce tu clave">
+      <button class="btn" onclick="iniciarSesion()">Entrar al Sistema</button>
     </div>
   </div>
 
-  <div id="view-dashboard" class="view">
-    <div class="container">
-      <div class="text-center">
-        <h1>Digital Manager Hub</h1>
-        <p>Centro de gestión del Servicio Técnico.<br>Selecciona una opción para comenzar.</p>
-      </div>
-      <div class="grid">
-        <div class="card" id="card-nuevo-aviso" onclick="abrirNuevoAviso()">
-          <div class="card-icon">📝</div>
-          <h3>Introducir Aviso</h3>
-          <p>Registra un nuevo aviso.</p>
-        </div>
-        <div class="card" onclick="cargarGestionAvisos()">
-          <div class="card-icon">🤝</div>
-          <h3>Gestionar Aviso</h3>
-          <p>Asigna técnicos y gestiona el estado (Pirineos).</p>
-        </div>
-        <div class="card" onclick="cargarAvisos()">
-          <div class="card-icon">🔧</div>
-          <h3>Ver Avisos Adjudicados</h3>
-          <p>Visualiza y resuelve los avisos en curso.</p>
-        </div>
-      </div>
+  <div id="view-dashboard" class="container">
+    <div class="text-center">
+      <h1>Digital Manager Hub</h1>
+      <p>Selecciona una opción para comenzar.</p>
     </div>
-  </div>
-
-  <div id="view-gestionar" class="view">
-    <div class="container">
-      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 900px; padding: 0;">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Gestionar Avisos</h2>
-        
-        <div class="filter-bar">
-          <select id="filtro-tecnico" onchange="renderGestionAvisos()">
-            <option value="Todos">Técnico: Todos</option>
-            <option value="Pendiente">Técnico: Sin Asignar</option>
-            <option value="Ion Volog">Técnico: Ion Volog</option>
-            <option value="Francisco Antúnez">Técnico: Francisco Antúnez</option>
-            <option value="Daniel Gargallo">Técnico: Daniel Gargallo</option>
-            <option value="Emilio Arrieta">Técnico: Emilio Arrieta</option>
-          </select>
-          <select id="filtro-pirineos" onchange="renderGestionAvisos()">
-            <option value="Todos">Pirineos: Todos</option>
-            <option value="SI">Pirineos: Sí</option>
-            <option value="NO">Pirineos: No</option>
-          </select>
-        </div>
-
-        <div id="contenedor-gestionar" style="margin-top: 10px;"></div>
+    <div class="grid">
+      <div class="card" onclick="irA('generador')">
+        <h3>📝 Generador de Avisos</h3>
+        <p style="color: #a9bcd6; font-size: 0.9rem; margin-top:10px;">Crear un nuevo aviso.</p>
       </div>
-    </div>
-  </div>
-
-  <div id="view-nuevo-aviso" class="view">
-    <div class="container">
-      <div class="form-box">
-        <h2>Nuevo Aviso</h2>
-        <form id="form-nuevo-aviso">
-          <div style="display: flex; gap: 10px; margin-bottom: 14px;">
-            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
-            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
-          </div>
-          
-          <label>Cliente</label>
-          <div class="custom-select-wrapper">
-            <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
-            <div id="dropdown-clientes" class="custom-select-list"></div>
-          </div>
-          
-          <label>Población / Dirección</label>
-          <input type="text" id="ni_poblacion" required>
-          
-          <label>Máquina</label>
-          <div class="custom-select-wrapper">
-            <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
-            <div id="dropdown-maquinas" class="custom-select-list"></div>
-          </div>
-
-          <label>Explicar la Incidencia</label>
-          <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
-
-          <label>Etiquetas</label>
-          <div class="checkbox-group">
-            <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
-          </div>
-
-          <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
-        </form>
+      <div class="card" onclick="irA('gestor')">
+        <h3>🤝 Organizador de Avisos</h3>
+        <p style="color: #a9bcd6; font-size: 0.9rem; margin-top:10px;">Asignar técnicos y estado.</p>
       </div>
-    </div>
-  </div>
-
-  <div id="view-lista-avisos" class="view">
-    <div class="container">
-      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px; padding: 0;">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Avisos Adjudicados (Sin Tratar)</h2>
-        <div id="contenedor-avisos" style="margin-top: 20px;"></div>
+      <div class="card" onclick="irA('adjudicados')">
+        <h3>🔧 Mis Avisos Adjudicados</h3>
+        <p style="color: #a9bcd6; font-size: 0.9rem; margin-top:10px;">Ver tus avisos asignados.</p>
       </div>
-    </div>
-  </div>
-
-  <div id="view-resolver-aviso" class="view">
-    <div class="container">
-      <div class="form-box">
-        <h2>Resolución de Aviso</h2>
-        <form id="form-resolver">
-          <input type="hidden" id="res_index">
-          
-          <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;"><label>Fecha Intervención</label><input type="date" id="res_fecha" readonly></div>
-            <div style="flex: 1;"><label>Hora Inicio</label><input type="time" id="res_hora" readonly></div>
-          </div>
-          
-          <label>Tipo de Asistencia</label>
-          <select id="res_tipo">
-            <option value="Visita">Visita presencial</option>
-            <option value="Taller">Taller / Remoto</option>
-          </select>
-          
-          <label>Cliente</label>
-          <input type="text" id="res_cliente" readonly>
-          <label>Dirección / Población</label>
-          <input type="text" id="res_poblacion" readonly>
-          <label>Máquina / Anomalía Reportada</label>
-          <input type="text" id="res_maquina" readonly>
-          <label>Técnico</label>
-          <input type="text" id="res_tecnico" readonly>
-          
-          <label>Trabajos Realizados / Solución</label>
-          <textarea id="res_solucion" rows="4" required placeholder="Describe las piezas cambiadas o ajustes realizados..."></textarea>
-          
-          <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Aviso</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Detalles Vertical -->
-  <div id="aviso-modal" class="modal">
-    <div class="modal-content">
-      <span class="close-btn" onclick="cerrarModal()">&times;</span>
-      <h3 style="color: #0f1e35; margin-bottom: 5px;">Detalles del Aviso</h3>
-      <table class="vertical-table" id="tabla-detalles"></table>
     </div>
   </div>
 
   <script>
     const USUARIOS = {
-      "Ion Volog": "sugraf_1",
-      "Francisco Antúnez": "sugraf_2",
-      "Daniel Gargallo": "sugraf_3",
-      "Emilio Arrieta": "sugraf_4",
-      "Laura": "sugraf_5",
-      "Solo Visualizar": "sugraf_0"
+      "Ion Volog": "sugraf_1", "Francisco Antúnez": "sugraf_2", "Daniel Gargallo": "sugraf_3",
+      "Emilio Arrieta": "sugraf_4", "Laura": "sugraf_5", "Solo Visualizar": "sugraf_0"
     };
 
-    let currentUser = localStorage.getItem("sugraf_user") || null;
-    let avisosGlobales = [];
-    let dbEquipos = {}; 
-
-    function nav(viewId) {
-      try {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        const element = document.getElementById(viewId);
-        if(element) element.classList.add('active');
-        window.scrollTo(0,0);
-        
-        const btnBack = document.getElementById('btn-back');
-        if(viewId === 'view-dashboard' || viewId === 'view-login') {
-            btnBack.style.display = 'none';
-        } else {
-            btnBack.style.display = 'inline-flex';
-        }
-      } catch (err) {
-        console.error("Error in nav function:", err);
-      }
-    }
-
-    function toggleUserMenu() {
-        document.getElementById("user-menu").classList.toggle("show");
-    }
-
-    window.onclick = function(event) {
-        if (!event.target.matches('#user-display')) {
-            var dropdowns = document.getElementsByClassName("dropdown-content");
-            for (var i = 0; i < dropdowns.length; i++) {
-                var openDropdown = dropdowns[i];
-                if (openDropdown.classList.contains('show')) {
-                    openDropdown.classList.remove('show');
-                }
-            }
-        }
-        const modal = document.getElementById('aviso-modal');
-        if (event.target === modal) {
-            cerrarModal();
-        }
-    }
-
-    function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
-        const input = document.getElementById(inputId);
-        const dropdown = document.getElementById(dropdownId);
-        if(!input || !dropdown) return;
-
-        const renderOptions = (filterText = "") => {
-            const options = getOptionsCallback();
-            const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
-            
-            if (filtered.length === 0) {
-                dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
-                return;
-            }
-            dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
-            
-            dropdown.querySelectorAll('.custom-select-item').forEach(item => {
-                item.addEventListener('mousedown', (e) => {
-                    e.preventDefault(); 
-                    if (item.innerText === "No hay coincidencias") return;
-                    input.value = item.innerText;
-                    dropdown.classList.remove('show');
-                    if(onSelectCallback) onSelectCallback(item.innerText);
-                });
-            });
-        };
-
-        input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
-        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value); });
-        input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
-    }
+    let currentUser = localStorage.getItem("sugraf_user");
 
     if (currentUser) {
-      document.getElementById("user-display").innerText = currentUser + " ▼";
-      document.getElementById("zona-usuario").style.display = "flex";
-      nav('view-dashboard');
-      cargarEquiposSilencioso();
+      mostrarHub();
     }
 
     function iniciarSesion() {
       const u = document.getElementById("login-user").value;
       const p = document.getElementById("login-pass").value;
       if (USUARIOS[u] === p) {
-        currentUser = u;
         localStorage.setItem("sugraf_user", u);
-        document.getElementById("user-display").innerText = currentUser + " ▼";
-        document.getElementById("zona-usuario").style.display = "flex";
-        document.getElementById("login-pass").value = "";
-        nav('view-dashboard');
-        cargarEquiposSilencioso();
-      } else {
-        alert("Contraseña incorrecta.");
-      }
+        currentUser = u;
+        mostrarHub();
+      } else { alert("Contraseña incorrecta."); }
     }
 
     function cerrarSesion() {
-      currentUser = null;
       localStorage.removeItem("sugraf_user");
-      document.getElementById("zona-usuario").style.display = "none";
-      document.getElementById('form-nuevo-aviso').reset();
-      document.getElementById('form-resolver').reset();
-      nav('view-login');
+      location.reload();
     }
 
-    function checkPermisos(allowLaura = false) {
-      if (currentUser === "Solo Visualizar") {
-        alert("Tu usuario no tiene permisos para esta acción.");
-        return false;
-      }
-      if (!allowLaura && currentUser === "Laura") {
-        alert("Tu usuario no tiene permisos para crear o resolver avisos.");
-        return false;
-      }
-      return true;
+    function mostrarHub() {
+      document.getElementById("view-login").style.display = "none";
+      document.getElementById("view-dashboard").style.display = "block";
+      document.getElementById("zona-usuario").style.display = "flex";
+      document.getElementById("user-display").innerText = currentUser;
     }
 
-    async function cargarEquiposSilencioso() {
-      try {
-        const res = await fetch('/api/generador/clientes-maquinas');
-        if(!res.ok) return;
-        dbEquipos = await res.json();
-        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { 
-            document.getElementById('ni_maquina').value = ''; 
-            const poblacionInput = document.getElementById('ni_poblacion');
-            if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
-                poblacionInput.value = dbEquipos[sel].poblacion;
-            } else {
-                poblacionInput.value = '';
-            }
-        });
-        setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
-            const c = document.getElementById('ni_cliente').value;
-            if(!c || !dbEquipos[c]) return [];
-            return dbEquipos[c].maquinas.map(m => m.nombre).sort();
-        });
-      } catch(e) { console.warn("Fetch Equipos error:", e); }
+    function irA(modulo) {
+      window.location.href = `/vista/${modulo}`;
     }
-
-    function abrirNuevoAviso() {
-      try {
-        nav('view-nuevo-aviso');
-        const now = new Date();
-        const dateInput = document.getElementById('ni_fecha');
-        const timeInput = document.getElementById('ni_hora');
-        if(dateInput) dateInput.value = now.toISOString().split('T')[0];
-        if(timeInput) timeInput.value = now.toTimeString().split(' ')[0].substring(0, 5);
-      } catch (err) {
-        console.error("Error setting date/time in abrirNuevoAviso:", err);
-      }
-    }
-
-    document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if(!checkPermisos(false)) return;
-      
-      const btn = document.getElementById('btn-save-inc');
-      btn.innerText = "Guardando en Excel..."; btn.disabled = true;
-
-      const cliente = document.getElementById('ni_cliente').value;
-      const maquinaNombre = document.getElementById('ni_maquina').value;
-      
-      let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
-      if (dbEquipos && dbEquipos[cliente]) {
-          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinaNombre);
-          if (found) maquinaData = found;
-      }
-
-      const payload = {
-        fecha_entrada: document.getElementById('ni_fecha').value,
-        cliente: cliente,
-        poblacion: document.getElementById('ni_poblacion').value,
-        maquina: maquinaNombre,
-        equipo: maquinaData.equipo,
-        marca: maquinaData.marca,
-        modelo: maquinaData.modelo,
-        f_garan: maquinaData.f_garan,
-        f_instal: maquinaData.f_instal,
-        descripcion: document.getElementById('ni_desc').value,
-        urgente: document.getElementById('ni_urg').checked
-      };
-
-      try {
-        await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Aviso guardado en 'Avisos Sin Tratar.xlsx'");
-        document.getElementById('form-nuevo-aviso').reset();
-        nav('view-dashboard');
-      } catch (err) { alert("Error de red al guardar."); }
-      
-      btn.innerText = "Crear Aviso"; btn.disabled = false;
-    });
-
-    async function cargarGestionAvisos() {
-      nav('view-gestionar');
-      const box = document.getElementById('contenedor-gestionar');
-      box.innerHTML = "<p style='color:white;'>Cargando avisos...</p>";
-      try {
-        const res = await fetch('/api/gestor/avisos');
-        const data = await res.json();
-        avisosGlobales = data.avisos || [];
-        renderGestionAvisos();
-      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
-    }
-
-    function renderGestionAvisos() {
-      const box = document.getElementById('contenedor-gestionar');
-      const filtroTec = document.getElementById('filtro-tecnico').value;
-      const filtroPir = document.getElementById('filtro-pirineos').value;
-
-      let html = "";
-      let count = 0;
-
-      // Iterar sobre todos los avisos usando el índice 'i' para mantener la referencia exacta de la fila del Excel
-      avisosGlobales.forEach((av, i) => {
-        const matchTec = filtroTec === "Todos" || av['REALIZADO POR'] === filtroTec;
-        const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
-        
-        if(matchTec && matchPir) {
-            count++;
-            const esPirineos = av['PIRINEOS'] === 'SI';
-            const tecnicoAsignado = av['REALIZADO POR'] || 'Pendiente';
-            
-            const disablePirineos = currentUser !== "Laura" ? "disabled" : "";
-            const disableAssign = currentUser === "Solo Visualizar" ? "disabled" : "";
-
-            html += `
-              <div class="inc-item" onclick="abrirDetalles(${i})">
-                <div class="inc-title">
-                  <span style="flex:1; min-width: 200px;">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</span>
-                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
-                      Técnico: 
-                      <select onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, this.value)" ${disableAssign} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
-                        <option value="Pendiente" ${tecnicoAsignado === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>
-                        <option value="Ion Volog" ${tecnicoAsignado === 'Ion Volog' ? 'selected' : ''}>Ion Volog</option>
-                        <option value="Francisco Antúnez" ${tecnicoAsignado === 'Francisco Antúnez' ? 'selected' : ''}>Francisco Antúnez</option>
-                        <option value="Daniel Gargallo" ${tecnicoAsignado === 'Daniel Gargallo' ? 'selected' : ''}>Daniel Gargallo</option>
-                        <option value="Emilio Arrieta" ${tecnicoAsignado === 'Emilio Arrieta' ? 'selected' : ''}>Emilio Arrieta</option>
-                      </select>
-                    </span>
-                    <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
-                      Pirineos: 
-                      <select onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, this.value)" ${disablePirineos} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
-                        <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
-                        <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
-                      </select>
-                    </span>
-                  </div>
-                </div>
-                <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}</div>
-              </div>
-            `;
-        }
-      });
-
-      if (count === 0) {
-        box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos que coincidan con los filtros.</p>";
-      } else {
-        box.innerHTML = html;
-      }
-    }
-
-    function abrirDetalles(index) {
-        const av = avisosGlobales[index];
-        let html = "";
-        for (let key in av) {
-            let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? av[key] : '-';
-            html += `<tr><th>${key}</th><td>${val}</td></tr>`;
-        }
-        document.getElementById('tabla-detalles').innerHTML = html;
-        document.getElementById('aviso-modal').style.display = 'flex';
-    }
-
-    function cerrarModal() {
-        document.getElementById('aviso-modal').style.display = 'none';
-    }
-
-    async function actualizarPirineos(index, valor) {
-      try {
-        await fetch('/api/gestor/actualizar-pirineos', { 
-          method: 'POST', 
-          headers: {'Content-Type': 'application/json'}, 
-          body: JSON.stringify({ aviso_index: index, pirineos: valor }) 
-        });
-        if (avisosGlobales[index]) avisosGlobales[index]['PIRINEOS'] = valor;
-        renderGestionAvisos();
-      } catch (err) { alert("Error al actualizar la celda Pirineos."); }
-    }
-
-    async function actualizarTecnico(index, tecnico) {
-      try {
-        await fetch('/api/gestor/actualizar-tecnico', { 
-          method: 'POST', 
-          headers: {'Content-Type': 'application/json'}, 
-          body: JSON.stringify({ aviso_index: index, tecnico: tecnico }) 
-        });
-        if (avisosGlobales[index]) avisosGlobales[index]['REALIZADO POR'] = tecnico;
-        renderGestionAvisos();
-      } catch (err) { alert("Error al asignar técnico."); }
-    }
-
-    async function cargarAvisos() {
-      nav('view-lista-avisos');
-      const box = document.getElementById('contenedor-avisos');
-      box.innerHTML = "<p style='color:white;'>Leyendo Excel desde Google Drive...</p>";
-      try {
-        const res = await fetch('/api/gestor/avisos');
-        const data = await res.json();
-        avisosGlobales = data.avisos || [];
-        
-        let html = "";
-        avisosGlobales.forEach((av, i) => {
-            html += `
-            <div class="inc-item" onclick="abrirResolucion(${i})">
-                <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
-                <div class="inc-sub">Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
-            </div>`;
-        });
-        box.innerHTML = html || "<p style='color:#a9bcd6;'>No hay avisos pendientes en este momento.</p>";
-      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
-    }
-
-    function abrirResolucion(index) {
-      const av = avisosGlobales[index];
-      document.getElementById('res_index').value = index;
-      document.getElementById('res_cliente').value = av['CLIENTE'];
-      document.getElementById('res_poblacion').value = av['POBLACIÓN'];
-      document.getElementById('res_maquina').value = av['MÁQUINA'];
-      document.getElementById('res_tecnico').value = currentUser;
-
-      const now = new Date();
-      document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
-      document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
-      
-      nav('view-resolver-aviso');
-    }
-
-    document.getElementById('form-resolver').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if(!checkPermisos(false)) return;
-
-      const btn = document.getElementById('btn-resolver');
-      btn.innerText = "Procesando..."; btn.disabled = true;
-
-      const payload = {
-        aviso_index: parseInt(document.getElementById('res_index').value),
-        fecha: document.getElementById('res_fecha').value,
-        hora: document.getElementById('res_hora').value,
-        tipo_visita: document.getElementById('res_tipo').value,
-        cliente: document.getElementById('res_cliente').value,
-        poblacion: document.getElementById('res_poblacion').value,
-        maquina: document.getElementById('res_maquina').value,
-        tecnico: document.getElementById('res_tecnico').value,
-        solucion: document.getElementById('res_solucion').value
-      };
-
-      try {
-        await fetch('/api/gestor/guardar-parte', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Aviso finalizado. Se ha eliminado de 'Avisos Sin Tratar' y generado el TXT.");
-        document.getElementById('form-resolver').reset();
-        nav('view-dashboard');
-      } catch (err) { alert("Error al guardar y resolver el aviso."); }
-
-      btn.innerText = "Guardar y Cerrar Aviso"; btn.disabled = false;
-    });
   </script>
 </body>
 </html>
