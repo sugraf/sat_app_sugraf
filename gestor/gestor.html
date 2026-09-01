@@ -9,9 +9,11 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
     
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100;}
-    .topbar img { height: 35px; object-fit: contain; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 12px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-size: 13px;}
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; }
+    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
+    .topbar img { height: 35px; object-fit: contain; display: block; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
+    .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
     
@@ -40,10 +42,10 @@
 <body>
 
   <div class="topbar">
-  <div class="topbar-left">
-    <img src="/logo_grande_azul.png" alt="Sugraf Logo">
-    <a href="/" class="btn-back">Volver</a>
-  </div>
+    <div class="topbar-left">
+      <img src="/logo_grande_azul.png" alt="Sugraf Logo">
+      <a href="/" class="btn-back">Volver</a>
+    </div>
   </div>
 
   <div class="container">
