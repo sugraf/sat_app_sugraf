@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
+EQUIPOS_FILE_ID = "1mNdXqH6RLwXSIXxd9i3eexOMAkaYJKWN"
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -129,15 +130,8 @@ class ParteResolucion(BaseModel):
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'EQUIPOS-FECHAS.xlsx' and trashed = false"
-        res = drive.files().list(q=query, fields="files(id, name)").execute()
-        archivos = res.get("files", [])
         
-        if not archivos:
-            return {"error": "No se encontró el archivo EQUIPOS-FECHAS.xlsx en Drive. Comprueba los permisos."}
-
-        file_id = archivos[0]['id']
-        request = drive.files().get_media(fileId=file_id)
+        request = drive.files().get_media(fileId=EQUIPOS_FILE_ID)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
@@ -165,7 +159,7 @@ def listar_clientes_maquinas():
                 
         return clientes_map
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Error leyendo Excel: {str(e)}"}
 
 @app.get("/api/avisos")
 def listar_avisos():
