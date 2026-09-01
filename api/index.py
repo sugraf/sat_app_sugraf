@@ -130,10 +130,15 @@ def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
         
-        # Comprobar si el archivo es Google Sheets o Excel Binario
-        file_metadata = drive.files().get(fileId=EQUIPOS_FILE_ID, fields="mimeType").execute()
+        # 1. Check if the bot has permission and get the file format
+        try:
+            file_metadata = drive.files().get(fileId=EQUIPOS_FILE_ID, fields="mimeType").execute()
+        except Exception as auth_error:
+            return {"error": f"Permission denied. Ensure the bot email is invited to this specific file. Detail: {str(auth_error)}"}
+            
         mime_type = file_metadata.get('mimeType')
         
+        # 2. Download appropriately based on whether it is a Google Sheet or native Excel
         if mime_type == 'application/vnd.google-apps.spreadsheet':
             request = drive.files().export_media(fileId=EQUIPOS_FILE_ID, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         else:
@@ -142,9 +147,11 @@ def listar_clientes_maquinas():
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while not done: downloader.next_chunk()
+        while not done: 
+            status, done = downloader.next_chunk()
         fh.seek(0)
 
+        # 3. Process the dataframe
         df = pd.read_excel(fh, header=4)
         clientes_map = {}
         
@@ -166,7 +173,7 @@ def listar_clientes_maquinas():
                 
         return clientes_map
     except Exception as e:
-        return {"error": f"Error Drive: {str(e)}"}
+        return {"error": f"File processing error: {str(e)}"}
 
 @app.get("/api/avisos")
 def listar_avisos():
