@@ -9,6 +9,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from pydantic import BaseModel
+import pandas as pd
 
 app = FastAPI()
 
@@ -22,11 +23,10 @@ app.add_middleware(
 
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-# --- ENTREGAR LA INTERFAZ HTML Y LAS IMÁGENES ---
+# --- ENTREGAR LA INTERFAZ ---
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    # Sirve el archivo index.html desde la raíz
     ruta = os.path.join(os.path.dirname(__file__), "..", "index.html")
     if os.path.exists(ruta):
         with open(ruta, "r", encoding="utf-8") as f:
@@ -60,7 +60,7 @@ def get_manifest():
     }
     return JSONResponse(content=manifest_data)
 
-# --- LÓGICA DE GOOGLE DRIVE Y BASE DE DATOS JSON ---
+# --- CONEXIÓN GOOGLE DRIVE Y EXCEL ---
 
 def get_drive_service():
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
@@ -70,39 +70,52 @@ def get_drive_service():
     )
     return build("drive", "v3", credentials=creds)
 
-def get_db_file_id(drive):
-    # Busca el archivo de base de datos en Drive
-    query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'db_incidencias.json' and trashed = false"
-    res = drive.files().list(q=query, fields="files(id, name)").execute()
+def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
+    query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Avisos Sin Tratar.xlsx' and trashed = false"
+    res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
-    return archivos[0]["id"] if archivos else None
+    
+    # Columnas exactas que me pediste
+    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'TOTAL', 'REALIZADO POR', 'URG', 'GAR', 'MAN', 'INS']
+    
+    if archivos:
+        file_id = archivos[0]['id']
+        request = drive.files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done: downloader.next_chunk()
+        fh.seek(0)
+        df = pd.read_excel(fh)
+    else:
+        file_id = None
+        df = pd.DataFrame(columns=cols)
 
-def read_db(drive):
-    file_id = get_db_file_id(drive)
-    if not file_id: return []
-    request = drive.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while not done: downloader.next_chunk()
-    fh.seek(0)
-    try:
-        return json.loads(fh.read().decode('utf-8'))
-    except:
-        return []
-
-def write_db(drive, data):
-    file_id = get_db_file_id(drive)
-    media = MediaIoBaseUpload(io.BytesIO(json.dumps(data).encode('utf-8')), mimetype='application/json')
+    if nuevo_aviso:
+        nuevo_df = pd.DataFrame([nuevo_aviso])
+        df = pd.concat([df, nuevo_df], ignore_index=True)
+        
+    if borrar_n_parte:
+        df = df[df['Nº PARTE'].astype(str) != str(borrar_n_parte)]
+        
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+        
+    media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    
     if file_id:
         drive.files().update(fileId=file_id, media_body=media).execute()
     else:
-        meta = {'name': 'db_incidencias.json', 'parents': [FOLDER_ID_DEFAULT]}
+        meta = {'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}
         drive.files().create(body=meta, media_body=media, fields='id').execute()
+        
+    # Devolver lista de avisos (en formato diccionario para leer en pantalla)
+    return df.to_dict(orient="records")
 
 # --- MODELOS DE DATOS ---
 
-class NuevaIncidencia(BaseModel):
+class NuevoAviso(BaseModel):
     n_parte: str
     fecha_entrada: str
     cliente: str
@@ -128,35 +141,92 @@ class ParteResolucion(BaseModel):
 
 # --- ENDPOINTS ---
 
-@app.get("/api/incidencias")
-def listar_incidencias():
+@app.get("/api/clientes-maquinas")
+def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        data = read_db(drive)
-        return {"status": "ok", "incidencias": data}
+        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'EQUIPOS- FECHAS.xlsx' and trashed = false"
+        res = drive.files().list(q=query, fields="files(id)").execute()
+        archivos = res.get("files", [])
+        
+        if not archivos:
+            return {} # Si no está el archivo, devuelve vacío sin romper la app
+
+        file_id = archivos[0]['id']
+        request = drive.files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done: downloader.next_chunk()
+        fh.seek(0)
+
+        # Leer fila 5 (header=4 en python)
+        df = pd.read_excel(fh, header=4)
+        clientes_map = {}
+        
+        for _, row in df.iterrows():
+            c = str(row.get('CLIENTE', '')).strip()
+            if not c or c.lower() == 'nan': continue
+            
+            n = str(row.get('NOMBRE', '')).strip()
+            if not n or n.lower() == 'nan':
+                e = str(row.get('EQUIPO', '')).strip()
+                m = str(row.get('MARCA', '')).strip()
+                mod = str(row.get('MODELO', '')).strip()
+                n = f"{e} {m} {mod}".replace('nan', '').strip()
+                
+            if c not in clientes_map:
+                clientes_map[c] = []
+            if n and n not in clientes_map[c]:
+                clientes_map[c].append(n)
+                
+        return clientes_map
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/avisos")
+def listar_avisos():
+    try:
+        drive = get_drive_service()
+        avisos = procesar_excel_avisos(drive)
+        return {"status": "ok", "avisos": avisos}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/incidencias")
-def crear_incidencia(inc: NuevaIncidencia):
+@app.post("/api/avisos")
+def crear_aviso(aviso: NuevoAviso):
     try:
         drive = get_drive_service()
-        data = read_db(drive)
-        data.append(inc.dict())
-        write_db(drive, data)
+        # Mapear los datos al formato del Excel
+        fila_excel = {
+            'Nº PARTE': aviso.n_parte,
+            'F. ENTR.': aviso.fecha_entrada,
+            'CLIENTE': aviso.cliente,
+            'POBLACIÓN': aviso.poblacion,
+            'MÁQUINA': aviso.maquina,
+            'EQUIPO': '', 
+            'MARCA': aviso.marca,
+            'TOTAL': 0,
+            'REALIZADO POR': aviso.realizado_por,
+            'URG': 'SI' if aviso.urgente else 'NO',
+            'GAR': 'SI' if aviso.garantia else 'NO',
+            'MAN': 'SI' if aviso.mantenimiento else 'NO',
+            'INS': 'SI' if aviso.instalacion else 'NO'
+        }
+        procesar_excel_avisos(drive, nuevo_aviso=fila_excel)
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/guardar-parte")
-def resolver_incidencia(parte: ParteResolucion):
+def resolver_aviso(parte: ParteResolucion):
     try:
         drive = get_drive_service()
         
         # 1. Crear el Parte Final en TXT
         contenido = (
             f"=== PARTE DE TRABAJO FINALIZADO ===\n"
-            f"Nº PARTE ASOCIADO: {parte.n_parte}\n"
+            f"Nº AVISO ASOCIADO: {parte.n_parte}\n"
             f"TÉCNICO:           {parte.tecnico}\n"
             f"FECHA INTERVENCIÓN:{parte.fecha} a las {parte.hora}\n"
             f"TIPO DE VISITA:    {parte.tipo_visita.upper()}\n"
@@ -167,16 +237,13 @@ def resolver_incidencia(parte: ParteResolucion):
             f"-----------------------------------\n"
             f"TRABAJOS REALIZADOS / SOLUCIÓN:\n{parte.solucion}\n"
         )
-        
         nombre_txt = f"ParteResuelto_{parte.cliente.replace(' ', '_')}_{parte.n_parte}.txt"
         meta = {"name": nombre_txt, "parents": [FOLDER_ID_DEFAULT]}
         media = MediaIoBaseUpload(io.BytesIO(contenido.encode("utf-8")), mimetype="text/plain")
         drive.files().create(body=meta, media_body=media).execute()
 
-        # 2. Borrar la incidencia de la Base de Datos (Ya está resuelta)
-        data = read_db(drive)
-        data = [i for i in data if i.get("n_parte") != parte.n_parte]
-        write_db(drive, data)
+        # 2. Borrar el aviso de la hoja Excel "Avisos Sin Tratar.xlsx"
+        procesar_excel_avisos(drive, borrar_n_parte=parte.n_parte)
 
         return {"status": "ok"}
     except Exception as e:
