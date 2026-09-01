@@ -1,23 +1,14 @@
 import io
 import json
 import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from pydantic import BaseModel
 import pandas as pd
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter()
 
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
@@ -100,7 +91,7 @@ class ParteResolucion(BaseModel):
     tecnico: str
     solucion: str
 
-@app.get("/api/gestor/avisos")
+@router.get("/avisos")
 def listar_avisos():
     try:
         drive = get_drive_service()
@@ -108,7 +99,7 @@ def listar_avisos():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/gestor/actualizar-pirineos")
+@router.post("/actualizar-pirineos")
 def actualizar_pirineos(datos: ActualizarPirineos):
     try:
         drive = get_drive_service()
@@ -117,7 +108,7 @@ def actualizar_pirineos(datos: ActualizarPirineos):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/gestor/actualizar-tecnico")
+@router.post("/actualizar-tecnico")
 def actualizar_tecnico(datos: ActualizarTecnico):
     try:
         drive = get_drive_service()
@@ -126,7 +117,7 @@ def actualizar_tecnico(datos: ActualizarTecnico):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/gestor/guardar-parte")
+@router.post("/guardar-parte")
 def resolver_aviso(parte: ParteResolucion):
     try:
         drive = get_drive_service()
