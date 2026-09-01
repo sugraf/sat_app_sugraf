@@ -19,7 +19,7 @@
     .topbar img { height: 35px; object-fit: contain; }
     .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: none; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 12px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: none; align-items: center; justify-content: center; gap: 6px; }
     
     .dropdown { position: relative; display: inline-block; cursor: pointer; }
     .dropdown-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 140px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; border-radius: 8px; overflow: hidden; margin-top: 5px; }
@@ -71,7 +71,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
-      <button class="btn-back" id="btn-back" onclick="nav('view-dashboard')">⬅ Volver</button>
+      <button class="btn-back" id="btn-back" onclick="nav('view-dashboard')"><span>⬅</span> Volver</button>
     </div>
     
     <div class="topbar-right" id="zona-usuario" style="display: none;">
@@ -148,21 +148,21 @@
           <label>Nº Aviso</label>
           <input type="text" id="ni_parte" required>
 
-          <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
-            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required></div>
-          </div>
+          <label>Fecha Entrada</label>
+          <input type="date" id="ni_fecha" required>
           
           <label>Cliente</label>
-          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
-          <datalist id="lista-clientes"></datalist>
+          <select id="ni_cliente" required>
+            <option value="">Cargando clientes...</option>
+          </select>
           
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
           <label>Máquina</label>
-          <input type="text" id="ni_maquina" list="lista-maquinas" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
-          <datalist id="lista-maquinas"></datalist>
+          <select id="ni_maquina" required>
+            <option value="">Selecciona primero un cliente...</option>
+          </select>
 
           <label>Explicar la Incidencia</label>
           <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
@@ -245,7 +245,7 @@
       if(viewId === 'view-dashboard' || viewId === 'view-login') {
           btnBack.style.display = 'none';
       } else {
-          btnBack.style.display = 'inline-block';
+          btnBack.style.display = 'inline-flex';
       }
     }
 
@@ -309,12 +309,10 @@
       try {
         const res = await fetch('/api/clientes-maquinas');
         dbEquipos = await res.json();
-        if(dbEquipos.error) {
-            console.error(dbEquipos.error);
-            return;
-        }
-        const dlClientes = document.getElementById('lista-clientes');
-        dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+        
+        const selectCliente = document.getElementById('ni_cliente');
+        selectCliente.innerHTML = '<option value="">Selecciona un cliente...</option>' + 
+          Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
       } catch(e) { }
     }
 
@@ -322,14 +320,18 @@
       nav('view-nuevo-aviso');
       const now = new Date();
       document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
-      document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
 
-    document.getElementById('ni_cliente').addEventListener('input', (e) => {
+    document.getElementById('ni_cliente').addEventListener('change', (e) => {
       const c = e.target.value;
-      const dlMaquinas = document.getElementById('lista-maquinas');
+      const selectMaquina = document.getElementById('ni_maquina');
+      if (!c) {
+          selectMaquina.innerHTML = '<option value="">Selecciona primero un cliente...</option>';
+          return;
+      }
       const maquinas = dbEquipos[c] || [];
-      dlMaquinas.innerHTML = maquinas.map(m => `<option value="${m.nombre}">${m.nombre}</option>`).join('');
+      selectMaquina.innerHTML = '<option value="">Selecciona máquina...</option>' + 
+        maquinas.map(m => `<option value="${m.nombre}">${m.nombre}</option>`).join('');
     });
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
@@ -342,7 +344,6 @@
       const cliente = document.getElementById('ni_cliente').value;
       const maquinaNombre = document.getElementById('ni_maquina').value;
       
-      // Buscamos la info de la máquina si existe. Si el usuario puso un nombre nuevo, se envían campos en blanco.
       let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
       if (dbEquipos[cliente]) {
           const found = dbEquipos[cliente].find(m => m.nombre === maquinaNombre);
@@ -352,7 +353,6 @@
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
-        hora_entrada: document.getElementById('ni_hora').value,
         cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
         maquina: maquinaNombre,
