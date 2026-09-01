@@ -2,82 +2,170 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Organizador de Avisos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; background: #070e1c; color: white; padding: 20px; }
-    .volver { display: inline-block; margin-bottom: 20px; color: #4f9cd9; text-decoration: none; font-weight: bold; }
-    .inc-item { background: #0f1e35; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1c3357;}
-    select { padding: 5px; background: white; color: black; border-radius: 4px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100;}
+    .topbar img { height: 35px; object-fit: contain; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 12px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-size: 13px;}
+    
+    .container { max-width: 900px; margin: 0 auto; }
+    
+    .form-box { background: transparent; padding: 0; }
+    .form-box h2 { margin-bottom: 20px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; font-family: 'Space Grotesk';}
+    
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease;}
+    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
+    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+    select { padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; font-family: 'Inter'; background: #fff; cursor: pointer; color: #1e293b; font-weight: 500;}
+    select:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Modal Styles */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+    .modal-content { background-color: #fff; padding: 25px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; }
+    .vertical-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+    .vertical-table th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; width: 40%; font-weight: 600; text-transform: uppercase; font-size: 0.8rem;}
+    .vertical-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 500; word-break: break-word;}
   </style>
 </head>
 <body>
-  <a href="/" class="volver">← Volver al Hub</a>
-  <h2>Organizador de Avisos</h2>
-  <div id="lista">Cargando...</div>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <img src="/logo_grande_azul.png" alt="Sugraf Logo">
+      <a href="/" class="btn-back">Volver</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-box">
+      <h2>Organizador de Avisos</h2>
+      <div id="contenedor-gestionar">
+        <p style='color:white;'>Cargando avisos del sistema...</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="aviso-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModal()">&times;</span>
+      <h3 style="color: #0f1e35; margin-bottom: 5px;">Detalles del Aviso</h3>
+      <table class="vertical-table" id="tabla-detalles"></table>
+    </div>
+  </div>
 
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
     const TECNICOS_PERMITIDOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
 
-    let avisos = [];
+    let avisosGlobales = [];
 
-    async function cargar() {
-      const res = await fetch('/api/gestor/avisos');
-      const data = await res.json();
-      avisos = data.avisos || [];
-      render();
+    async function cargarGestionAvisos() {
+      try {
+        const res = await fetch('/api/gestor/avisos');
+        const data = await res.json();
+        avisosGlobales = data.avisos || [];
+        renderGestionAvisos();
+      } catch (e) { document.getElementById('contenedor-gestionar').innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
     }
 
-    function render() {
+    function renderGestionAvisos() {
+      const box = document.getElementById('contenedor-gestionar');
+      let html = "";
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
-      
-      document.getElementById('lista').innerHTML = avisos.map((av, i) => {
+
+      avisosGlobales.forEach((av, i) => {
+        const esPirineos = av['PIRINEOS'] === 'SI';
         const tecActual = av['REALIZADO POR'] || 'Pendiente';
         
         let tecOptions = `<option value="Pendiente" ${tecActual === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>`;
         
-        // Regla: Si es uno de los 4 técnicos, solo puede seleccionarse a sí mismo o "Sin Asignar"
         if (isTecnico) {
             tecOptions += `<option value="${currentUser}" ${tecActual === currentUser ? 'selected' : ''}>${currentUser}</option>`;
-            // Si el aviso ya estaba asignado a otro, lo mostramos para que no desaparezca, pero no puede seleccionarlo si no es él
             if (tecActual !== 'Pendiente' && tecActual !== currentUser) {
                 tecOptions += `<option value="${tecActual}" selected disabled>${tecActual}</option>`;
             }
         } else if (currentUser === "Laura") {
-            // Laura puede asignar a cualquiera
-            TECNICOS_PERMITIDOS.forEach(t => {
-                tecOptions += `<option value="${t}" ${tecActual === t ? 'selected' : ''}>${t}</option>`;
-            });
+            TECNICOS_PERMITIDOS.forEach(t => { tecOptions += `<option value="${t}" ${tecActual === t ? 'selected' : ''}>${t}</option>`; });
         } else {
-             // Solo visualizar, no puede cambiar nada
              tecOptions = `<option>${tecActual}</option>`;
         }
 
-        const disTec = (currentUser === "Solo Visualizar") ? 'disabled' : '';
-        const disPir = (currentUser !== "Laura") ? 'disabled' : '';
+        const disableAssign = (currentUser === "Solo Visualizar") ? "disabled" : "";
+        const disablePirineos = (currentUser !== "Laura") ? "disabled" : "";
 
-        return `
-        <div class="inc-item">
-          <strong>${av['CLIENTE']}</strong> - ${av['MÁQUINA']} <br><br>
-          Asignado a: <select onchange="updateTec(${i}, this.value)" ${disTec}>${tecOptions}</select>
-          | Pirineos: <select onchange="updatePir(${i}, this.value)" ${disPir}>
-            <option value="NO" ${av['PIRINEOS'] !== 'SI' ? 'selected' : ''}>NO</option>
-            <option value="SI" ${av['PIRINEOS'] === 'SI' ? 'selected' : ''}>SI</option>
-          </select>
-        </div>`;
-      }).join('');
+        html += `
+          <div class="inc-item" onclick="abrirDetalles(${i})">
+            <div class="inc-title">
+              <span style="flex:1; min-width: 200px;">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</span>
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
+                  Asignado a: 
+                  <select onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, this.value)" ${disableAssign}>
+                    ${tecOptions}
+                  </select>
+                </span>
+                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
+                  Pirineos: 
+                  <select onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, this.value)" ${disablePirineos}>
+                    <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
+                    <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
+                  </select>
+                </span>
+              </div>
+            </div>
+            <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}</div>
+          </div>
+        `;
+      });
+
+      box.innerHTML = html || "<p style='color:#a9bcd6;'>No hay avisos generados en el Excel.</p>";
     }
 
-    async function updateTec(i, val) {
-      await fetch('/api/gestor/actualizar-tecnico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({aviso_index: i, valor: val})});
-    }
-    
-    async function updatePir(i, val) {
-      await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({aviso_index: i, valor: val})});
+    function abrirDetalles(index) {
+        const av = avisosGlobales[index];
+        let html = "";
+        for (let key in av) {
+            let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? av[key] : '-';
+            html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+        }
+        document.getElementById('tabla-detalles').innerHTML = html;
+        document.getElementById('aviso-modal').style.display = 'flex';
     }
 
-    cargar();
+    function cerrarModal() {
+        document.getElementById('aviso-modal').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        if (event.target === document.getElementById('aviso-modal')) cerrarModal();
+    }
+
+    async function actualizarPirineos(index, valor) {
+      try {
+        await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, valor: valor }) });
+        avisosGlobales[index]['PIRINEOS'] = valor;
+      } catch (err) { alert("Error al actualizar la celda Pirineos."); }
+    }
+
+    async function actualizarTecnico(index, tecnico) {
+      try {
+        await fetch('/api/gestor/actualizar-tecnico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, valor: tecnico }) });
+        avisosGlobales[index]['REALIZADO POR'] = tecnico;
+      } catch (err) { alert("Error al asignar técnico."); }
+    }
+
+    cargarGestionAvisos();
   </script>
 </body>
 </html>
