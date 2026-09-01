@@ -64,6 +64,19 @@
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
     .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+
+    /* Custom Dropdown UI */
+    .custom-select-wrapper { position: relative; margin-bottom: 14px; }
+    .custom-select-wrapper input { margin-bottom: 0; }
+    .custom-select-list {
+      display: none; position: absolute; z-index: 1000; top: calc(100% + 4px); left: 0; right: 0;
+      background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px;
+      max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .custom-select-list.show { display: block; }
+    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    .custom-select-item:last-child { border-bottom: none; }
+    .custom-select-item:hover { background: #f8fafc; color: #2563eb; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -148,21 +161,25 @@
           <label>Nº Aviso</label>
           <input type="text" id="ni_parte" required>
 
-          <label>Fecha Entrada</label>
-          <input type="date" id="ni_fecha" required>
+          <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
+            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
+          </div>
           
           <label>Cliente</label>
-          <select id="ni_cliente" required>
-            <option value="">Cargando clientes...</option>
-          </select>
+          <div class="custom-select-wrapper">
+            <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
+            <div id="dropdown-clientes" class="custom-select-list"></div>
+          </div>
           
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
           <label>Máquina</label>
-          <select id="ni_maquina" required>
-            <option value="">Selecciona primero un cliente...</option>
-          </select>
+          <div class="custom-select-wrapper">
+            <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
+            <div id="dropdown-maquinas" class="custom-select-list"></div>
+          </div>
 
           <label>Explicar la Incidencia</label>
           <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
@@ -265,6 +282,49 @@
         }
     }
 
+    // Custom Dropdown Logic
+    function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
+        const input = document.getElementById(inputId);
+        const dropdown = document.getElementById(dropdownId);
+
+        const renderOptions = (filterText = "") => {
+            const options = getOptionsCallback();
+            const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
+            
+            if (filtered.length === 0) {
+                dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
+                return;
+            }
+
+            dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
+            
+            dropdown.querySelectorAll('.custom-select-item').forEach(item => {
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault(); 
+                    if (item.innerText === "No hay coincidencias") return;
+                    input.value = item.innerText;
+                    dropdown.classList.remove('show');
+                    if(onSelectCallback) onSelectCallback(item.innerText);
+                });
+            });
+        };
+
+        input.addEventListener('focus', () => {
+            renderOptions(input.value);
+            dropdown.classList.add('show');
+        });
+
+        input.addEventListener('input', (e) => {
+            renderOptions(e.target.value);
+            dropdown.classList.add('show');
+            if(onSelectCallback) onSelectCallback(e.target.value);
+        });
+
+        input.addEventListener('blur', () => {
+            dropdown.classList.remove('show');
+        });
+    }
+
     if (currentUser) {
       document.getElementById("user-display").innerText = currentUser + " ▼";
       document.getElementById("zona-usuario").style.display = "flex";
@@ -310,9 +370,25 @@
         const res = await fetch('/api/clientes-maquinas');
         dbEquipos = await res.json();
         
-        const selectCliente = document.getElementById('ni_cliente');
-        selectCliente.innerHTML = '<option value="">Selecciona un cliente...</option>' + 
-          Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+        setupCustomDropdown(
+            'ni_cliente', 
+            'dropdown-clientes', 
+            () => Object.keys(dbEquipos).sort(),
+            (selected) => {
+                document.getElementById('ni_maquina').value = '';
+            }
+        );
+
+        setupCustomDropdown(
+            'ni_maquina', 
+            'dropdown-maquinas', 
+            () => {
+                const c = document.getElementById('ni_cliente').value;
+                if(!c || !dbEquipos[c]) return [];
+                return dbEquipos[c].map(m => m.nombre).sort();
+            }
+        );
+        
       } catch(e) { }
     }
 
@@ -320,19 +396,8 @@
       nav('view-nuevo-aviso');
       const now = new Date();
       document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
+      document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
-
-    document.getElementById('ni_cliente').addEventListener('change', (e) => {
-      const c = e.target.value;
-      const selectMaquina = document.getElementById('ni_maquina');
-      if (!c) {
-          selectMaquina.innerHTML = '<option value="">Selecciona primero un cliente...</option>';
-          return;
-      }
-      const maquinas = dbEquipos[c] || [];
-      selectMaquina.innerHTML = '<option value="">Selecciona máquina...</option>' + 
-        maquinas.map(m => `<option value="${m.nombre}">${m.nombre}</option>`).join('');
-    });
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -353,6 +418,7 @@
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
+        hora_entrada: document.getElementById('ni_hora').value,
         cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
         maquina: maquinaNombre,
