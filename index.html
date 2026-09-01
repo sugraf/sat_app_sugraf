@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -149,8 +148,10 @@
           <label>Nº Aviso</label>
           <input type="text" id="ni_parte" required>
 
-          <label>Fecha Entrada</label>
-          <input type="date" id="ni_fecha" required>
+          <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
+            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required></div>
+          </div>
           
           <label>Cliente</label>
           <select id="ni_cliente" required>
@@ -321,6 +322,7 @@
       nav('view-nuevo-aviso');
       const now = new Date();
       document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
+      document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
 
     document.getElementById('ni_cliente').addEventListener('change', (e) => {
@@ -350,6 +352,7 @@
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
+        hora_entrada: document.getElementById('ni_hora').value,
         cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
         maquina: maquinaNombre,
