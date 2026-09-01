@@ -64,12 +64,12 @@ def get_drive_service():
     )
     return build("drive", "v3", credentials=creds)
 
-def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
+def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None, actualizar_pirineos_n_parte=None, nuevo_valor_pirineos=None):
     query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Avisos Sin Tratar.xlsx' and trashed = false"
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
-    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE']
+    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS']
     
     if archivos:
         file_id = archivos[0]['id']
@@ -85,6 +85,11 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
         file_id = None
         df = pd.DataFrame(columns=cols)
 
+    if 'PIRINEOS' not in df.columns:
+        df['PIRINEOS'] = 'NO'
+    
+    df['PIRINEOS'] = df['PIRINEOS'].replace('', 'NO').fillna('NO')
+
     if nuevo_aviso:
         nuevo_df = pd.DataFrame([nuevo_aviso])
         df = pd.concat([df, nuevo_df], ignore_index=True)
@@ -92,6 +97,9 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
     if borrar_n_parte:
         df = df[df['Nº PARTE'].astype(str) != str(borrar_n_parte)]
         
+    if actualizar_pirineos_n_parte:
+        df.loc[df['Nº PARTE'].astype(str) == str(actualizar_pirineos_n_parte), 'PIRINEOS'] = nuevo_valor_pirineos
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
@@ -130,6 +138,10 @@ class ParteResolucion(BaseModel):
     maquina: str
     tecnico: str
     solucion: str
+
+class ActualizarPirineos(BaseModel):
+    n_parte: str
+    pirineos: str
 
 @app.get("/api/clientes-maquinas")
 def listar_clientes_maquinas():
@@ -216,9 +228,19 @@ def crear_aviso(aviso: NuevoAviso):
             'F. INSTALACIÓN': aviso.f_instal,
             'DESCRIPCIÓN': aviso.descripcion,
             'REALIZADO POR': 'Pendiente',
-            'URGENTE': 'SI' if aviso.urgente else 'NO'
+            'URGENTE': 'SI' if aviso.urgente else 'NO',
+            'PIRINEOS': 'NO'
         }
         procesar_excel_avisos(drive, nuevo_aviso=fila_excel)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/actualizar-pirineos")
+def actualizar_pirineos(datos: ActualizarPirineos):
+    try:
+        drive = get_drive_service()
+        procesar_excel_avisos(drive, actualizar_pirineos_n_parte=datos.n_parte, nuevo_valor_pirineos=datos.pirineos)
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
