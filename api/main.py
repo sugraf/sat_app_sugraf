@@ -2,8 +2,8 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from api.generador import router as generador_router
-from api.gestor import router as gestor_router
+from api.api_generador import router as generador_router
+from api.api_gestor import router as gestor_router
 
 app = FastAPI()
 
