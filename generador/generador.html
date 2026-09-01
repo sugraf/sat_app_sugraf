@@ -27,6 +27,9 @@
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
     
+    /* Reset iOS para inputs de fecha y hora */
+    input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; }
+    
     .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
     .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
@@ -57,9 +60,9 @@
     <div class="form-box">
       <h2>Nuevo Aviso</h2>
       <form id="form-nuevo-aviso">
-        <div style="display: flex; gap: 10px; margin-bottom: 14px;">
-          <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
-          <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
+        <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 140px;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
+          <div style="flex: 1; min-width: 110px;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
         </div>
         
         <label>Cliente</label>
