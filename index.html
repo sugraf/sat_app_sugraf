@@ -42,9 +42,7 @@
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
-    
-    /* Efecto desactivado/gris para fecha y hora automáticas */
-    input[readonly], select[readonly], input.readonly-style { background: #e2e8f0; color: #64748b; cursor: not-allowed; border: 1px dashed #cbd5e1; }
+    input[readonly], select[readonly] { background: #e2e8f0; color: #64748b; cursor: not-allowed; border: 1px dashed #cbd5e1; }
     
     .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
@@ -64,7 +62,6 @@
 </head>
 <body>
 
-  <!-- TOPBAR -->
   <div class="topbar">
     <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
     <div class="topbar-right" id="zona-usuario" style="display: none;">
@@ -74,7 +71,6 @@
     </div>
   </div>
 
-  <!-- VISTA: LOGIN -->
   <div id="view-login" class="view active">
     <div class="container" style="margin-top: 10vh;">
       <div class="form-box" style="max-width: 400px; background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); color: white; border: 1px solid rgba(79,156,217,0.18);">
@@ -94,7 +90,6 @@
     </div>
   </div>
 
-  <!-- VISTA: DASHBOARD -->
   <div id="view-dashboard" class="view">
     <div class="container">
       <div class="text-center">
@@ -116,7 +111,6 @@
     </div>
   </div>
 
-  <!-- VISTA: INTRODUCIR AVISO -->
   <div id="view-nuevo-aviso" class="view">
     <div class="container">
       <div class="form-box">
@@ -127,12 +121,10 @@
           <input type="text" id="ni_parte" required>
 
           <div style="display: flex; gap: 10px;">
-            <!-- Fechas y horas en gris, readonly -->
-            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" class="readonly-style" readonly required></div>
-            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" class="readonly-style" readonly required></div>
+            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
+            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required></div>
           </div>
           
-          <!-- Lista de Clientes -->
           <label>Cliente</label>
           <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
           <datalist id="lista-clientes"></datalist>
@@ -140,31 +132,16 @@
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
-          <!-- Lista de Máquinas -->
-          <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;">
-              <label>Máquina / Anomalía</label>
-              <input type="text" id="ni_maquina" list="lista-maquinas" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
-              <datalist id="lista-maquinas"></datalist>
-            </div>
-            <div style="flex: 1;"><label>Marca</label><input type="text" id="ni_marca"></div>
-          </div>
-          
-          <label>Asignar a (Realizado por)</label>
-          <select id="ni_tecnico">
-            <option value="Ion Volog">Ion Volog</option>
-            <option value="Francisco Antúnez">Francisco Antúnez</option>
-            <option value="Daniel Gargallo">Daniel Gargallo</option>
-            <option value="Emilio Arrieta">Emilio Arrieta</option>
-            <option value="Pendiente">Pendiente de asignar</option>
-          </select>
+          <label>Máquina</label>
+          <input type="text" id="ni_maquina" list="lista-maquinas" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
+          <datalist id="lista-maquinas"></datalist>
+
+          <label>Explicar la Incidencia</label>
+          <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
 
           <label>Etiquetas</label>
           <div class="checkbox-group">
             <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
-            <label class="checkbox-item"><input type="checkbox" id="ni_gar"> Garantía</label>
-            <label class="checkbox-item"><input type="checkbox" id="ni_man"> Mantenimiento</label>
-            <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
           </div>
 
           <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
@@ -174,7 +151,6 @@
     </div>
   </div>
 
-  <!-- VISTA: LISTA DE AVISOS -->
   <div id="view-lista-avisos" class="view">
     <div class="container">
       <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
@@ -185,7 +161,6 @@
     </div>
   </div>
 
-  <!-- VISTA: RESOLVER AVISO -->
   <div id="view-resolver-aviso" class="view">
     <div class="container">
       <div class="form-box">
@@ -265,7 +240,6 @@
       }
     }
 
-    // Nueva función para desconectar
     function cerrarSesion() {
       currentUser = null;
       localStorage.removeItem("sugraf_user");
@@ -283,7 +257,6 @@
       return true;
     }
 
-    // Carga de Excel en segundo plano
     async function cargarEquiposSilencioso() {
       try {
         const res = await fetch('/api/clientes-maquinas');
@@ -295,7 +268,6 @@
         }
 
         const dlClientes = document.getElementById('lista-clientes');
-        // Se añaden etiquetas de cierre </option> para compatibilidad total móvil
         dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
       } catch(e) { console.log("Error cargando base de datos", e); }
     }
@@ -303,12 +275,10 @@
     function abrirNuevoAviso() {
       nav('view-nuevo-aviso');
       const now = new Date();
-      // Rellena la fecha (YYYY-MM-DD) y la hora (HH:MM) automáticamente
       document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
       document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
 
-    // Actualiza la lista de máquinas al escribir el cliente
     document.getElementById('ni_cliente').addEventListener('input', (e) => {
       const clienteSeleccionado = e.target.value;
       const maquinasDeCliente = dbEquipos[clienteSeleccionado] || [];
@@ -330,12 +300,8 @@
         cliente: document.getElementById('ni_cliente').value,
         poblacion: document.getElementById('ni_poblacion').value,
         maquina: document.getElementById('ni_maquina').value,
-        marca: document.getElementById('ni_marca').value,
-        realizado_por: document.getElementById('ni_tecnico').value,
-        urgente: document.getElementById('ni_urg').checked,
-        garantia: document.getElementById('ni_gar').checked,
-        mantenimiento: document.getElementById('ni_man').checked,
-        instalacion: document.getElementById('ni_ins').checked
+        descripcion: document.getElementById('ni_desc').value,
+        urgente: document.getElementById('ni_urg').checked
       };
 
       try {
