@@ -2,105 +2,197 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Generador de Avisos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; background: #070e1c; color: white; padding: 20px; }
-    .form-box { background: #0f1e35; padding: 20px; border-radius: 12px; max-width: 600px; margin: 0 auto; }
-    input, textarea, button { width: 100%; padding: 10px; margin: 5px 0 15px; border-radius: 5px; border: none; }
-    button { background: #4f9cd9; color: white; cursor: pointer; font-weight: bold; }
-    .custom-select-list { display: none; background: white; color: black; max-height: 150px; overflow-y: auto; position: absolute; width: calc(100% - 40px); z-index: 10; border-radius: 5px;}
+    /* Estilos compartidos */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+    
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100;}
+    .topbar img { height: 35px; object-fit: contain; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 12px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-size: 13px;}
+    
+    .container { max-width: 900px; margin: 0 auto;}
+    
+    /* Formulario Blanco */
+    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
+    
+    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
+    .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
+
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
+    button.btn:hover { background: #2f6fb0; }
+    
+    /* Select Personalizado */
+    .custom-select-wrapper { position: relative; margin-bottom: 14px; }
+    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
+    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
+    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .custom-select-list.show { display: block; }
-    .custom-select-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #ccc; }
-    .custom-select-item:hover { background: #eee; }
-    .volver { display: inline-block; margin-bottom: 20px; color: #4f9cd9; text-decoration: none; font-weight: bold; }
+    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
+    .custom-select-item:hover { background: #f8fafc; color: #2563eb; }
   </style>
 </head>
 <body>
-  <a href="/" class="volver">← Volver al Hub</a>
-  <div class="form-box">
-    <h2>Nuevo Aviso</h2>
-    <form id="form-nuevo">
-      <label>Fecha Entrada</label><input type="date" id="ni_fecha" required>
-      <label>Hora</label><input type="time" id="ni_hora" required>
-      
-      <div style="position: relative;">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <img src="/logo_grande_azul.png" alt="Sugraf Logo">
+      <a href="/" class="btn-back">Volver</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-box">
+      <h2>Nuevo Aviso</h2>
+      <form id="form-nuevo-aviso">
+        <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+          <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
+          <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
+        </div>
+        
         <label>Cliente</label>
-        <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Buscar cliente...">
-        <div id="dropdown-clientes" class="custom-select-list"></div>
-      </div>
-
-      <label>Población / Dirección</label>
-      <input type="text" id="ni_poblacion" required>
-
-      <div style="position: relative;">
+        <div class="custom-select-wrapper">
+          <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
+          <div id="dropdown-clientes" class="custom-select-list"></div>
+        </div>
+        
+        <label>Población / Dirección</label>
+        <input type="text" id="ni_poblacion" required>
+        
         <label>Máquina</label>
-        <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Buscar máquina...">
-        <div id="dropdown-maquinas" class="custom-select-list"></div>
-      </div>
+        <div class="custom-select-wrapper">
+          <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
+          <div id="dropdown-maquinas" class="custom-select-list"></div>
+        </div>
 
-      <label>Explicar la Incidencia</label>
-      <textarea id="ni_desc" rows="3" required></textarea>
+        <label>Explicar la Incidencia</label>
+        <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
 
-      <label><input type="checkbox" id="ni_urg" style="width: auto;"> Urgente</label>
-      <button type="submit" id="btn-save">Crear Aviso</button>
-    </form>
+        <label>Etiquetas</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
+        </div>
+
+        <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
+      </form>
+    </div>
   </div>
 
   <script>
-    let dbEquipos = {};
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
-    if (currentUser === "Solo Visualizar") { alert("Sin permisos."); window.location.href = "/"; }
+    if (currentUser === "Solo Visualizar") { alert("Tu perfil no puede crear avisos."); window.location.href = "/"; }
+
+    let dbEquipos = {};
 
     document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
 
-    async function cargar() {
-      const res = await fetch('/api/generador/clientes-maquinas');
-      dbEquipos = await res.json();
-      setupDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (c) => {
-        document.getElementById('ni_maquina').value = '';
-        document.getElementById('ni_poblacion').value = (dbEquipos[c] && dbEquipos[c].poblacion) ? dbEquipos[c].poblacion : '';
-      });
-      setupDropdown('ni_maquina', 'dropdown-maquinas', () => {
-        const c = document.getElementById('ni_cliente').value;
-        return (dbEquipos[c] && dbEquipos[c].maquinas) ? dbEquipos[c].maquinas.map(m => m.nombre).sort() : [];
-      });
-    }
-    cargar();
-
-    function setupDropdown(inputId, dropId, getOpts, onSelect) {
-      const input = document.getElementById(inputId), drop = document.getElementById(dropId);
-      const render = (val) => {
-        const opts = getOpts().filter(o => o.toLowerCase().includes(val.toLowerCase()));
-        drop.innerHTML = opts.map(o => `<div class="custom-select-item">${o}</div>`).join('');
-        drop.querySelectorAll('.custom-select-item').forEach(i => i.onmousedown = (e) => {
-          e.preventDefault(); input.value = i.innerText; drop.classList.remove('show'); if(onSelect) onSelect(i.innerText);
+    async function cargarData() {
+      const btn = document.getElementById('btn-save-inc');
+      btn.innerText = "Cargando clientes..."; btn.disabled = true;
+      try {
+        const res = await fetch('/api/generador/clientes-maquinas');
+        dbEquipos = await res.json();
+        
+        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { 
+            document.getElementById('ni_maquina').value = ''; 
+            const poblacionInput = document.getElementById('ni_poblacion');
+            if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
+                poblacionInput.value = dbEquipos[sel].poblacion;
+            } else {
+                poblacionInput.value = '';
+            }
         });
-      };
-      input.onfocus = () => { render(input.value); drop.classList.add('show'); };
-      input.oninput = (e) => { render(e.target.value); drop.classList.add('show'); };
-      input.onblur = () => setTimeout(() => drop.classList.remove('show'), 150);
+
+        setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
+            const c = document.getElementById('ni_cliente').value;
+            if(!c || !dbEquipos[c]) return [];
+            return dbEquipos[c].maquinas.map(m => m.nombre).sort();
+        });
+      } catch (err) {
+        console.error(err);
+      }
+      btn.innerText = "Crear Aviso"; btn.disabled = false;
+    }
+    
+    cargarData();
+
+    function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
+        const input = document.getElementById(inputId);
+        const dropdown = document.getElementById(dropdownId);
+        
+        const renderOptions = (filterText = "") => {
+            const options = getOptionsCallback();
+            const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
+            
+            if (filtered.length === 0) {
+                dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
+                return;
+            }
+            dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
+            
+            dropdown.querySelectorAll('.custom-select-item').forEach(item => {
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault(); 
+                    if (item.innerText === "No hay coincidencias") return;
+                    input.value = item.innerText;
+                    dropdown.classList.remove('show');
+                    if(onSelectCallback) onSelectCallback(item.innerText);
+                });
+            });
+        };
+
+        input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
+        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value); });
+        input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
     }
 
-    document.getElementById('form-nuevo').onsubmit = async (e) => {
+    document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
-      document.getElementById('btn-save').disabled = true;
-      const c = document.getElementById('ni_cliente').value;
-      const m = document.getElementById('ni_maquina').value;
-      const maqData = (dbEquipos[c] && dbEquipos[c].maquinas.find(x => x.nombre === m)) || {};
       
+      const btn = document.getElementById('btn-save-inc');
+      btn.innerText = "Guardando en Excel..."; btn.disabled = true;
+
+      const cliente = document.getElementById('ni_cliente').value;
+      const maquinaNombre = document.getElementById('ni_maquina').value;
+      
+      let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
+      if (dbEquipos && dbEquipos[cliente]) {
+          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinaNombre);
+          if (found) maquinaData = found;
+      }
+
       const payload = {
-        fecha_entrada: document.getElementById('ni_fecha').value, cliente: c, poblacion: document.getElementById('ni_poblacion').value,
-        maquina: m, equipo: maqData.equipo || '', marca: maqData.marca || '', modelo: maqData.modelo || '',
-        f_garan: maqData.f_garan || '', f_instal: maqData.f_instal || '',
-        descripcion: document.getElementById('ni_desc').value, urgente: document.getElementById('ni_urg').checked
+        fecha_entrada: document.getElementById('ni_fecha').value,
+        cliente: cliente,
+        poblacion: document.getElementById('ni_poblacion').value,
+        maquina: maquinaNombre,
+        equipo: maquinaData.equipo,
+        marca: maquinaData.marca,
+        modelo: maquinaData.modelo,
+        f_garan: maquinaData.f_garan,
+        f_instal: maquinaData.f_instal,
+        descripcion: document.getElementById('ni_desc').value,
+        urgente: document.getElementById('ni_urg').checked
       };
 
-      await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-      alert("Guardado!");
-      window.location.href = "/";
-    };
+      try {
+        await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        alert("Aviso guardado correctamente.");
+        window.location.href = "/";
+      } catch (err) { alert("Error de red al guardar."); btn.innerText = "Crear Aviso"; btn.disabled = false;}
+    });
   </script>
 </body>
 </html>
