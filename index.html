@@ -154,17 +154,15 @@
           </div>
           
           <label>Cliente</label>
-          <select id="ni_cliente" required>
-            <option value="">Cargando clientes...</option>
-          </select>
+          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
+          <datalist id="lista-clientes"></datalist>
           
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
           <label>Máquina</label>
-          <select id="ni_maquina" required>
-            <option value="">Selecciona primero un cliente...</option>
-          </select>
+          <input type="text" id="ni_maquina" list="lista-maquinas" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
+          <datalist id="lista-maquinas"></datalist>
 
           <label>Explicar la Incidencia</label>
           <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
@@ -311,10 +309,12 @@
       try {
         const res = await fetch('/api/clientes-maquinas');
         dbEquipos = await res.json();
-        
-        const selectCliente = document.getElementById('ni_cliente');
-        selectCliente.innerHTML = '<option value="">Selecciona un cliente...</option>' + 
-          Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+        if(dbEquipos.error) {
+            console.error(dbEquipos.error);
+            return;
+        }
+        const dlClientes = document.getElementById('lista-clientes');
+        dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
       } catch(e) { }
     }
 
@@ -325,16 +325,11 @@
       document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
 
-    document.getElementById('ni_cliente').addEventListener('change', (e) => {
+    document.getElementById('ni_cliente').addEventListener('input', (e) => {
       const c = e.target.value;
-      const selectMaquina = document.getElementById('ni_maquina');
-      if (!c) {
-          selectMaquina.innerHTML = '<option value="">Selecciona primero un cliente...</option>';
-          return;
-      }
+      const dlMaquinas = document.getElementById('lista-maquinas');
       const maquinas = dbEquipos[c] || [];
-      selectMaquina.innerHTML = '<option value="">Selecciona máquina...</option>' + 
-        maquinas.map(m => `<option value="${m.nombre}">${m.nombre}</option>`).join('');
+      dlMaquinas.innerHTML = maquinas.map(m => `<option value="${m.nombre}">${m.nombre}</option>`).join('');
     });
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
@@ -347,7 +342,12 @@
       const cliente = document.getElementById('ni_cliente').value;
       const maquinaNombre = document.getElementById('ni_maquina').value;
       
-      const maquinaData = dbEquipos[cliente].find(m => m.nombre === maquinaNombre) || { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
+      // Buscamos la info de la máquina si existe. Si el usuario puso un nombre nuevo, se envían campos en blanco.
+      let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
+      if (dbEquipos[cliente]) {
+          const found = dbEquipos[cliente].find(m => m.nombre === maquinaNombre);
+          if (found) maquinaData = found;
+      }
 
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
