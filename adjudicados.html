@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mis Avisos Adjudicados</title>
+  <style>
+    body { font-family: sans-serif; background: #070e1c; color: white; padding: 20px; }
+    .volver { display: inline-block; margin-bottom: 20px; color: #4f9cd9; text-decoration: none; font-weight: bold; }
+    .inc-item { background: #0f1e35; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1c3357; cursor: pointer;}
+    .inc-item:hover { background: #1c3357; }
+    .form-box { background: #0f1e35; padding: 20px; border-radius: 12px; max-width: 600px; margin: 20px auto; display: none;}
+    input, textarea, select, button { width: 100%; padding: 10px; margin: 5px 0 15px; border-radius: 5px; border: none; }
+    button { background: #4f9cd9; color: white; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <a href="/" class="volver">← Volver al Hub</a>
+  <h2>Mis Avisos Adjudicados</h2>
+  <div id="lista">Cargando...</div>
+
+  <div class="form-box" id="resolucion-box">
+    <h3>Resolver Aviso</h3>
+    <form id="form-resolver">
+      <input type="hidden" id="res_index">
+      <input type="text" id="res_cliente" readonly>
+      <input type="text" id="res_maquina" readonly>
+      <input type="text" id="res_poblacion" readonly>
+      
+      <label>Tipo Asistencia</label>
+      <select id="res_tipo"><option>Visita</option><option>Taller</option></select>
+      
+      <label>Solución</label>
+      <textarea id="res_solucion" rows="4" required></textarea>
+      
+      <button type="submit" id="btn-save">Finalizar y Crear Parte</button>
+    </form>
+  </div>
+
+  <script>
+    const currentUser = localStorage.getItem("sugraf_user");
+    if (!currentUser) window.location.href = "/";
+    
+    let misAvisos = [];
+
+    async function cargar() {
+      const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
+      const data = await res.json();
+      misAvisos = data.avisos || [];
+      
+      if(misAvisos.length === 0){
+          document.getElementById('lista').innerHTML = "<p>No tienes avisos asignados actualmente.</p>";
+      } else {
+          document.getElementById('lista').innerHTML = misAvisos.map(av => `
+            <div class="inc-item" onclick="abrir(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}')">
+              <strong>${av['CLIENTE']}</strong> - ${av['MÁQUINA']}
+            </div>
+          `).join('');
+      }
+    }
+
+    function abrir(index, c, m, p) {
+      document.getElementById('resolucion-box').style.display = 'block';
+      document.getElementById('res_index').value = index;
+      document.getElementById('res_cliente').value = c;
+      document.getElementById('res_maquina').value = m;
+      document.getElementById('res_poblacion').value = p;
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    document.getElementById('form-resolver').onsubmit = async (e) => {
+      e.preventDefault();
+      document.getElementById('btn-save').disabled = true;
+      
+      const payload = {
+        aviso_index: parseInt(document.getElementById('res_index').value),
+        fecha: new Date().toISOString().split('T')[0],
+        hora: new Date().toTimeString().substring(0,5),
+        tipo_visita: document.getElementById('res_tipo').value,
+        cliente: document.getElementById('res_cliente').value,
+        poblacion: document.getElementById('res_poblacion').value,
+        maquina: document.getElementById('res_maquina').value,
+        tecnico: currentUser,
+        solucion: document.getElementById('res_solucion').value
+      };
+
+      await fetch('/api/adjudicados/resolver', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+      alert("Aviso Finalizado!");
+      document.getElementById('resolucion-box').style.display = 'none';
+      cargar();
+      document.getElementById('btn-save').disabled = false;
+    };
+
+    cargar();
+  </script>
+</body>
+</html>
