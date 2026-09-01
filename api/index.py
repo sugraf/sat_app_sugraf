@@ -77,7 +77,8 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while not done: downloader.next_chunk()
+        while not done: 
+            status, done = downloader.next_chunk()
         fh.seek(0)
         df = pd.read_excel(fh)
     else:
@@ -108,7 +109,6 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
 class NuevoAviso(BaseModel):
     n_parte: str
     fecha_entrada: str
-    hora_entrada: str
     cliente: str
     poblacion: str
     maquina: str
@@ -149,7 +149,8 @@ def listar_clientes_maquinas():
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while not done: downloader.next_chunk()
+        while not done: 
+            status, done = downloader.next_chunk()
         fh.seek(0)
 
         df = pd.read_excel(fh, header=4)
@@ -204,7 +205,7 @@ def crear_aviso(aviso: NuevoAviso):
         drive = get_drive_service()
         fila_excel = {
             'Nº PARTE': aviso.n_parte,
-            'F. ENTR.': f"{aviso.fecha_entrada} {aviso.hora_entrada}",
+            'F. ENTR.': aviso.fecha_entrada,
             'CLIENTE': aviso.cliente,
             'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina,
