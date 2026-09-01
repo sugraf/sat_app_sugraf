@@ -28,7 +28,14 @@
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
     
     /* Reset iOS para inputs de fecha y hora */
-    input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; }
+    input[type="date"], input[type="time"] { 
+      -webkit-appearance: none; 
+      appearance: none; 
+      min-width: 0; 
+      color: #1e293b !important; 
+      -webkit-text-fill-color: #1e293b !important; 
+      opacity: 1; 
+    }
     
     .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
