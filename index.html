@@ -59,7 +59,7 @@
     button.btn-secondary { background: #e2e8f0; color: #475569; margin-top: 10px; }
     button.btn-secondary:hover { background: #cbd5e1; }
 
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; }
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; }
     .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
@@ -67,15 +67,8 @@
 
     .custom-select-wrapper { position: relative; margin-bottom: 14px; }
     .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
-    .custom-select-wrapper::after {
-      content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      font-size: 0.8rem; color: #94a3b8; pointer-events: none;
-    }
-    .custom-select-list {
-      display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0;
-      background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
-      max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    }
+    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
+    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .custom-select-list.show { display: block; }
     .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
     .custom-select-item:last-child { border-bottom: none; }
@@ -83,6 +76,14 @@
     
     .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
     .filter-bar select { padding: 8px; font-size: 0.9rem; width: auto; min-width: 150px; flex: 1; }
+
+    /* Modal Styles para la tabla vertical */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+    .modal-content { background-color: #fff; padding: 25px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; }
+    .vertical-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+    .vertical-table th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; width: 40%; font-weight: 600; text-transform: uppercase; font-size: 0.8rem;}
+    .vertical-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 500; word-break: break-word;}
   </style>
 </head>
 <body>
@@ -181,10 +182,6 @@
       <div class="form-box">
         <h2>Nuevo Aviso</h2>
         <form id="form-nuevo-aviso">
-          
-          <label>Nº Aviso</label>
-          <input type="text" id="ni_parte" required>
-
           <div style="display: flex; gap: 10px; margin-bottom: 14px;">
             <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
             <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
@@ -233,7 +230,7 @@
       <div class="form-box">
         <h2>Resolución de Aviso</h2>
         <form id="form-resolver">
-          <input type="hidden" id="res_n_parte">
+          <input type="hidden" id="res_index">
           
           <div style="display: flex; gap: 10px;">
             <div style="flex: 1;"><label>Fecha Intervención</label><input type="date" id="res_fecha" readonly></div>
@@ -261,6 +258,15 @@
           <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Aviso</button>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Detalles Vertical -->
+  <div id="aviso-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModal()">&times;</span>
+      <h3 style="color: #0f1e35; margin-bottom: 5px;">Detalles del Aviso</h3>
+      <table class="vertical-table" id="tabla-detalles"></table>
     </div>
   </div>
 
@@ -309,6 +315,10 @@
                     openDropdown.classList.remove('show');
                 }
             }
+        }
+        const modal = document.getElementById('aviso-modal');
+        if (event.target === modal) {
+            cerrarModal();
         }
     }
 
@@ -431,7 +441,6 @@
       }
 
       const payload = {
-        n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
         cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
@@ -472,79 +481,94 @@
       const filtroTec = document.getElementById('filtro-tecnico').value;
       const filtroPir = document.getElementById('filtro-pirineos').value;
 
-      let avisosFiltrados = avisosGlobales.filter(av => {
+      let html = "";
+      let count = 0;
+
+      // Iterar sobre todos los avisos usando el índice 'i' para mantener la referencia exacta de la fila del Excel
+      avisosGlobales.forEach((av, i) => {
         const matchTec = filtroTec === "Todos" || av['REALIZADO POR'] === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
-        return matchTec && matchPir;
-      });
-
-      if (avisosFiltrados.length === 0) {
-        box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos que coincidan con los filtros.</p>";
-        return;
-      }
-
-      let html = "";
-      avisosFiltrados.forEach(av => {
-        const nParte = av['Nº PARTE'];
-        const esPirineos = av['PIRINEOS'] === 'SI';
-        const tecnicoAsignado = av['REALIZADO POR'] || 'Pendiente';
         
-        const disablePirineos = currentUser !== "Laura" ? "disabled" : "";
-        const disableAssign = currentUser === "Solo Visualizar" ? "disabled" : "";
+        if(matchTec && matchPir) {
+            count++;
+            const esPirineos = av['PIRINEOS'] === 'SI';
+            const tecnicoAsignado = av['REALIZADO POR'] || 'Pendiente';
+            
+            const disablePirineos = currentUser !== "Laura" ? "disabled" : "";
+            const disableAssign = currentUser === "Solo Visualizar" ? "disabled" : "";
 
-        html += `
-          <div class="inc-item" style="cursor: default;">
-            <div class="inc-title">
-              <span style="flex:1; min-width: 200px;">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</span>
-              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
-                  Técnico: 
-                  <select onchange="actualizarTecnico('${nParte}', this.value)" ${disableAssign} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
-                    <option value="Pendiente" ${tecnicoAsignado === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>
-                    <option value="Ion Volog" ${tecnicoAsignado === 'Ion Volog' ? 'selected' : ''}>Ion Volog</option>
-                    <option value="Francisco Antúnez" ${tecnicoAsignado === 'Francisco Antúnez' ? 'selected' : ''}>Francisco Antúnez</option>
-                    <option value="Daniel Gargallo" ${tecnicoAsignado === 'Daniel Gargallo' ? 'selected' : ''}>Daniel Gargallo</option>
-                    <option value="Emilio Arrieta" ${tecnicoAsignado === 'Emilio Arrieta' ? 'selected' : ''}>Emilio Arrieta</option>
-                  </select>
-                </span>
-                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
-                  Pirineos: 
-                  <select onchange="actualizarPirineos('${nParte}', this.value)" ${disablePirineos} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
-                    <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
-                    <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
-                  </select>
-                </span>
+            html += `
+              <div class="inc-item" onclick="abrirDetalles(${i})">
+                <div class="inc-title">
+                  <span style="flex:1; min-width: 200px;">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</span>
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
+                      Técnico: 
+                      <select onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, this.value)" ${disableAssign} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
+                        <option value="Pendiente" ${tecnicoAsignado === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>
+                        <option value="Ion Volog" ${tecnicoAsignado === 'Ion Volog' ? 'selected' : ''}>Ion Volog</option>
+                        <option value="Francisco Antúnez" ${tecnicoAsignado === 'Francisco Antúnez' ? 'selected' : ''}>Francisco Antúnez</option>
+                        <option value="Daniel Gargallo" ${tecnicoAsignado === 'Daniel Gargallo' ? 'selected' : ''}>Daniel Gargallo</option>
+                        <option value="Emilio Arrieta" ${tecnicoAsignado === 'Emilio Arrieta' ? 'selected' : ''}>Emilio Arrieta</option>
+                      </select>
+                    </span>
+                    <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
+                      Pirineos: 
+                      <select onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, this.value)" ${disablePirineos} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
+                        <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
+                        <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
+                      </select>
+                    </span>
+                  </div>
+                </div>
+                <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}</div>
               </div>
-            </div>
-            <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']} | Nº: ${nParte}</div>
-          </div>
-        `;
+            `;
+        }
       });
-      box.innerHTML = html;
+
+      if (count === 0) {
+        box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos que coincidan con los filtros.</p>";
+      } else {
+        box.innerHTML = html;
+      }
     }
 
-    async function actualizarPirineos(nParte, valor) {
+    function abrirDetalles(index) {
+        const av = avisosGlobales[index];
+        let html = "";
+        for (let key in av) {
+            let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? av[key] : '-';
+            html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+        }
+        document.getElementById('tabla-detalles').innerHTML = html;
+        document.getElementById('aviso-modal').style.display = 'flex';
+    }
+
+    function cerrarModal() {
+        document.getElementById('aviso-modal').style.display = 'none';
+    }
+
+    async function actualizarPirineos(index, valor) {
       try {
         await fetch('/api/gestor/actualizar-pirineos', { 
           method: 'POST', 
           headers: {'Content-Type': 'application/json'}, 
-          body: JSON.stringify({ n_parte: nParte, pirineos: valor }) 
+          body: JSON.stringify({ aviso_index: index, pirineos: valor }) 
         });
-        const aviso = avisosGlobales.find(a => a['Nº PARTE'] == nParte);
-        if (aviso) aviso['PIRINEOS'] = valor;
+        if (avisosGlobales[index]) avisosGlobales[index]['PIRINEOS'] = valor;
         renderGestionAvisos();
       } catch (err) { alert("Error al actualizar la celda Pirineos."); }
     }
 
-    async function actualizarTecnico(nParte, tecnico) {
+    async function actualizarTecnico(index, tecnico) {
       try {
         await fetch('/api/gestor/actualizar-tecnico', { 
           method: 'POST', 
           headers: {'Content-Type': 'application/json'}, 
-          body: JSON.stringify({ n_parte: nParte, tecnico: tecnico }) 
+          body: JSON.stringify({ aviso_index: index, tecnico: tecnico }) 
         });
-        const aviso = avisosGlobales.find(a => a['Nº PARTE'] == nParte);
-        if (aviso) aviso['REALIZADO POR'] = tecnico;
+        if (avisosGlobales[index]) avisosGlobales[index]['REALIZADO POR'] = tecnico;
         renderGestionAvisos();
       } catch (err) { alert("Error al asignar técnico."); }
     }
@@ -561,9 +585,9 @@
         let html = "";
         avisosGlobales.forEach((av, i) => {
             html += `
-            <div class="inc-item" onclick="abrirResolucion(${i})" style="cursor: pointer;">
+            <div class="inc-item" onclick="abrirResolucion(${i})">
                 <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
-                <div class="inc-sub">Nº: ${av['Nº PARTE']} | Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
+                <div class="inc-sub">Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
             </div>`;
         });
         box.innerHTML = html || "<p style='color:#a9bcd6;'>No hay avisos pendientes en este momento.</p>";
@@ -572,7 +596,7 @@
 
     function abrirResolucion(index) {
       const av = avisosGlobales[index];
-      document.getElementById('res_n_parte').value = av['Nº PARTE'];
+      document.getElementById('res_index').value = index;
       document.getElementById('res_cliente').value = av['CLIENTE'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
       document.getElementById('res_maquina').value = av['MÁQUINA'];
@@ -593,7 +617,7 @@
       btn.innerText = "Procesando..."; btn.disabled = true;
 
       const payload = {
-        n_parte: document.getElementById('res_n_parte').value,
+        aviso_index: parseInt(document.getElementById('res_index').value),
         fecha: document.getElementById('res_fecha').value,
         hora: document.getElementById('res_hora').value,
         tipo_visita: document.getElementById('res_tipo').value,
