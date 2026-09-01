@@ -24,7 +24,6 @@ app.add_middleware(
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 # --- ENTREGAR LA INTERFAZ ---
-
 @app.get("/", response_class=HTMLResponse)
 def home():
     ruta = os.path.join(os.path.dirname(__file__), "..", "index.html")
@@ -36,20 +35,18 @@ def home():
 @app.get("/{filename}.jpg")
 def get_jpg(filename: str):
     ruta = os.path.join(os.path.dirname(__file__), "..", f"{filename}.jpg")
-    if os.path.exists(ruta):
-        return FileResponse(ruta, media_type="image/jpeg")
+    if os.path.exists(ruta): return FileResponse(ruta, media_type="image/jpeg")
     raise HTTPException(status_code=404, detail="Imagen no encontrada")
 
 @app.get("/{filename}.png")
 def get_png(filename: str):
     ruta = os.path.join(os.path.dirname(__file__), "..", f"{filename}.png")
-    if os.path.exists(ruta):
-        return FileResponse(ruta, media_type="image/png")
+    if os.path.exists(ruta): return FileResponse(ruta, media_type="image/png")
     raise HTTPException(status_code=404, detail="Imagen no encontrada")
 
 @app.get("/manifest.json")
 def get_manifest():
-    manifest_data = {
+    return JSONResponse(content={
         "name": "Sugraf Digital Manager",
         "short_name": "Sugraf Hub",
         "start_url": "/",
@@ -57,11 +54,9 @@ def get_manifest():
         "background_color": "#070e1c",
         "theme_color": "#ffffff",
         "icons": [{"src": "/logo_ejecutable.png", "sizes": "512x512", "type": "image/png"}]
-    }
-    return JSONResponse(content=manifest_data)
+    })
 
 # --- CONEXIÓN GOOGLE DRIVE Y EXCEL ---
-
 def get_drive_service():
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     creds_dict = json.loads(creds_raw)
@@ -75,7 +70,6 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
-    # Columnas exactas que me pediste
     cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'TOTAL', 'REALIZADO POR', 'URG', 'GAR', 'MAN', 'INS']
     
     if archivos:
@@ -110,14 +104,13 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
         meta = {'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}
         drive.files().create(body=meta, media_body=media, fields='id').execute()
         
-    # Devolver lista de avisos (en formato diccionario para leer en pantalla)
     return df.to_dict(orient="records")
 
-# --- MODELOS DE DATOS ---
-
+# --- MODELOS ---
 class NuevoAviso(BaseModel):
     n_parte: str
     fecha_entrada: str
+    hora_entrada: str
     cliente: str
     poblacion: str
     maquina: str
@@ -140,17 +133,17 @@ class ParteResolucion(BaseModel):
     solucion: str
 
 # --- ENDPOINTS ---
-
 @app.get("/api/clientes-maquinas")
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'EQUIPOS- FECHAS.xlsx' and trashed = false"
-        res = drive.files().list(q=query, fields="files(id)").execute()
+        # Búsqueda tolerante a fallos de nombre
+        query = f"'{FOLDER_ID_DEFAULT}' in parents and name contains 'EQUIPOS' and trashed = false"
+        res = drive.files().list(q=query, fields="files(id, name)").execute()
         archivos = res.get("files", [])
         
         if not archivos:
-            return {} # Si no está el archivo, devuelve vacío sin romper la app
+            return {"error": "No se encontró el archivo EQUIPOS en Drive."}
 
         file_id = archivos[0]['id']
         request = drive.files().get_media(fileId=file_id)
@@ -160,7 +153,6 @@ def listar_clientes_maquinas():
         while not done: downloader.next_chunk()
         fh.seek(0)
 
-        # Leer fila 5 (header=4 en python)
         df = pd.read_excel(fh, header=4)
         clientes_map = {}
         
@@ -188,8 +180,7 @@ def listar_clientes_maquinas():
 def listar_avisos():
     try:
         drive = get_drive_service()
-        avisos = procesar_excel_avisos(drive)
-        return {"status": "ok", "avisos": avisos}
+        return {"status": "ok", "avisos": procesar_excel_avisos(drive)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -197,10 +188,9 @@ def listar_avisos():
 def crear_aviso(aviso: NuevoAviso):
     try:
         drive = get_drive_service()
-        # Mapear los datos al formato del Excel
         fila_excel = {
             'Nº PARTE': aviso.n_parte,
-            'F. ENTR.': aviso.fecha_entrada,
+            'F. ENTR.': f"{aviso.fecha_entrada} {aviso.hora_entrada}",
             'CLIENTE': aviso.cliente,
             'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina,
@@ -222,8 +212,6 @@ def crear_aviso(aviso: NuevoAviso):
 def resolver_aviso(parte: ParteResolucion):
     try:
         drive = get_drive_service()
-        
-        # 1. Crear el Parte Final en TXT
         contenido = (
             f"=== PARTE DE TRABAJO FINALIZADO ===\n"
             f"Nº AVISO ASOCIADO: {parte.n_parte}\n"
@@ -241,10 +229,7 @@ def resolver_aviso(parte: ParteResolucion):
         meta = {"name": nombre_txt, "parents": [FOLDER_ID_DEFAULT]}
         media = MediaIoBaseUpload(io.BytesIO(contenido.encode("utf-8")), mimetype="text/plain")
         drive.files().create(body=meta, media_body=media).execute()
-
-        # 2. Borrar el aviso de la hoja Excel "Avisos Sin Tratar.xlsx"
         procesar_excel_avisos(drive, borrar_n_parte=parte.n_parte)
-
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
