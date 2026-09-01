@@ -263,13 +263,15 @@
         dbEquipos = await res.json();
         
         if(dbEquipos.error) {
-            console.warn("Aviso:", dbEquipos.error);
+            alert("⚠️ Error en Google Drive: " + dbEquipos.error);
             return;
         }
 
         const dlClientes = document.getElementById('lista-clientes');
         dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
-      } catch(e) { console.log("Error cargando base de datos", e); }
+      } catch(e) { 
+        alert("Error de conexión al cargar la base de datos de clientes."); 
+      }
     }
 
     function abrirNuevoAviso() {
