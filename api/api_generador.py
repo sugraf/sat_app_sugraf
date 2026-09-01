@@ -129,15 +129,21 @@ def listar_clientes_maquinas():
             modelo = str(row.get('MODELO', '')).strip().replace('nan', '')
             f_garan = str(row.get('F.GARAN.', '')).strip().replace('nan', '')
             f_instal = str(row.get('F. INSTALACION', '')).strip().replace('nan', '')
+            poblacion = str(row.get('POBLACIÓN', '')).strip().replace('nan', '')
 
             if not n or n.lower() == 'nan':
                 n = f"{equipo} {marca} {modelo}".strip()
                 
             if c not in clientes_map:
-                clientes_map[c] = []
+                clientes_map[c] = {
+                    "poblacion": poblacion,
+                    "maquinas": []
+                }
+            elif poblacion and not clientes_map[c]["poblacion"]:
+                 clientes_map[c]["poblacion"] = poblacion
             
-            if n and not any(m['nombre'] == n for m in clientes_map[c]):
-                clientes_map[c].append({
+            if n and not any(m['nombre'] == n for m in clientes_map[c]["maquinas"]):
+                clientes_map[c]["maquinas"].append({
                     "nombre": n,
                     "equipo": equipo,
                     "marca": marca,
