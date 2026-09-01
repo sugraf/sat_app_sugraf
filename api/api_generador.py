@@ -7,11 +7,9 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from pydantic import BaseModel
 import pandas as pd
-#holahola
 
 router = APIRouter()
 
-FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 EQUIPOS_FILE_ID = "1mNdXqH6RLwXSIXxd9i3eexOMAkaYJKWN"
 
 def get_drive_service():
@@ -22,8 +20,18 @@ def get_drive_service():
     )
     return build("drive", "v3", credentials=creds)
 
+def get_target_folder(drive):
+    try:
+        meta = drive.files().get(fileId=EQUIPOS_FILE_ID, fields="parents").execute()
+        if meta.get('parents'):
+            return meta['parents'][0]
+    except Exception:
+        pass
+    return "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
+
 def procesar_excel_avisos_generador(drive, nuevo_aviso=None):
-    query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Avisos Sin Tratar.xlsx' and trashed = false"
+    folder_id = get_target_folder(drive)
+    query = f"'{folder_id}' in parents and name = 'Avisos Sin Tratar.xlsx' and trashed = false"
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
@@ -64,7 +72,7 @@ def procesar_excel_avisos_generador(drive, nuevo_aviso=None):
     if file_id:
         drive.files().update(fileId=file_id, media_body=media).execute()
     else:
-        meta = {'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}
+        meta = {'name': 'Avisos Sin Tratar.xlsx', 'parents': [folder_id]}
         drive.files().create(body=meta, media_body=media, fields='id').execute()
         
     return df.fillna("").to_dict(orient="records")
