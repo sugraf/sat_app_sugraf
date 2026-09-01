@@ -108,7 +108,6 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
 class NuevoAviso(BaseModel):
     n_parte: str
     fecha_entrada: str
-    hora_entrada: str
     cliente: str
     poblacion: str
     maquina: str
@@ -131,7 +130,15 @@ def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
         
-        request = drive.files().get_media(fileId=EQUIPOS_FILE_ID)
+        # Comprobar si el archivo es Google Sheets o Excel Binario
+        file_metadata = drive.files().get(fileId=EQUIPOS_FILE_ID, fields="mimeType").execute()
+        mime_type = file_metadata.get('mimeType')
+        
+        if mime_type == 'application/vnd.google-apps.spreadsheet':
+            request = drive.files().export_media(fileId=EQUIPOS_FILE_ID, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        else:
+            request = drive.files().get_media(fileId=EQUIPOS_FILE_ID)
+            
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
@@ -159,7 +166,7 @@ def listar_clientes_maquinas():
                 
         return clientes_map
     except Exception as e:
-        return {"error": f"Error leyendo Excel: {str(e)}"}
+        return {"error": f"Error Drive: {str(e)}"}
 
 @app.get("/api/avisos")
 def listar_avisos():
@@ -175,7 +182,7 @@ def crear_aviso(aviso: NuevoAviso):
         drive = get_drive_service()
         fila_excel = {
             'Nº PARTE': aviso.n_parte,
-            'F. ENTR.': f"{aviso.fecha_entrada} {aviso.hora_entrada}",
+            'F. ENTR.': aviso.fecha_entrada,
             'CLIENTE': aviso.cliente,
             'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina,
