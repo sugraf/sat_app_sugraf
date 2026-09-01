@@ -58,6 +58,8 @@
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
     .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+    
+    #db-status { font-size: 0.8rem; margin-top: 6px; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -120,13 +122,12 @@
           <label>Nº Aviso</label>
           <input type="text" id="ni_parte" required>
 
-          <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
-            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" required></div>
-          </div>
+          <label>Fecha Entrada</label>
+          <input type="date" id="ni_fecha" required>
           
           <label>Cliente</label>
-          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
+          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Cargando base de datos...">
+          <div id="db-status" style="color: #f59e0b;">⏳ Conectando con Google Drive...</div>
           <datalist id="lista-clientes"></datalist>
           
           <label>Población / Dirección</label>
@@ -258,19 +259,31 @@
     }
 
     async function cargarEquiposSilencioso() {
+      const statusDiv = document.getElementById('db-status');
+      const inputCliente = document.getElementById('ni_cliente');
+      
       try {
         const res = await fetch('/api/clientes-maquinas');
         dbEquipos = await res.json();
         
         if(dbEquipos.error) {
-            alert("⚠️ Error en Google Drive: " + dbEquipos.error);
+            statusDiv.innerHTML = "❌ Error: " + dbEquipos.error;
+            statusDiv.style.color = "#ef4444";
+            inputCliente.placeholder = "Fallo al conectar base de datos";
             return;
         }
+
+        const numClientes = Object.keys(dbEquipos).length;
+        statusDiv.innerHTML = `✅ Excel leído con éxito (${numClientes} clientes)`;
+        statusDiv.style.color = "#2ea36b";
+        inputCliente.placeholder = "Escribe para buscar o desplegar...";
 
         const dlClientes = document.getElementById('lista-clientes');
         dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
       } catch(e) { 
-        alert("Error de conexión al cargar la base de datos de clientes."); 
+        statusDiv.innerHTML = "❌ Error de conexión con el servidor.";
+        statusDiv.style.color = "#ef4444";
+        inputCliente.placeholder = "Sin conexión a Drive";
       }
     }
 
@@ -278,7 +291,6 @@
       nav('view-nuevo-aviso');
       const now = new Date();
       document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
-      document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
 
     document.getElementById('ni_cliente').addEventListener('input', (e) => {
@@ -298,7 +310,6 @@
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
-        hora_entrada: document.getElementById('ni_hora').value,
         cliente: document.getElementById('ni_cliente').value,
         poblacion: document.getElementById('ni_poblacion').value,
         maquina: document.getElementById('ni_maquina').value,
