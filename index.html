@@ -7,31 +7,18 @@
   <link rel="manifest" href="/manifest.json">
   <title>Sugraf Digital Manager</title>
   
-  <!-- Tipografías de Google idénticas a tu diseño -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-      font-family: 'Inter', sans-serif; 
-      background-color: #070e1c;
-      /* Recreación de los destellos radiales de StageBgWidget */
-      background-image: 
-        radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%),
-        radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%);
-      background-attachment: fixed;
-      color: #f4f8fc; 
-      min-height: 100vh;
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; }
     h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
     
-    /* Topbar idéntico al de PyQt6 */
     .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
     .topbar img { height: 35px; object-fit: contain; }
     .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
 
-    /* Sistema de Vistas SPA */
     .view { display: none; padding-bottom: 50px; }
     .view.active { display: block; animation: fadeIn 0.3s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -41,19 +28,13 @@
     .text-center h1 { font-size: 2rem; color: #f4f8fc; margin-bottom: 8px; }
     .text-center p { color: #a9bcd6; font-size: 0.95rem; line-height: 1.5; }
 
-    /* Tarjetas estilo ModuloCard */
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-    .card { 
-      background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); 
-      border: 1px solid rgba(79,156,217,0.18); 
-      border-radius: 18px; padding: 25px; cursor: pointer; transition: all 0.2s; 
-    }
+    .card { background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); border: 1px solid rgba(79,156,217,0.18); border-radius: 18px; padding: 25px; cursor: pointer; transition: all 0.2s; }
     .card:hover { border-color: rgba(79,156,217,0.55); background: linear-gradient(135deg, #1c3357 0%, #152847 100%); transform: translateY(-2px); }
     .card-icon { background: rgba(47,111,176,0.25); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 15px; border: 1px solid rgba(79,156,217,0.1); }
     .card h3 { font-size: 1.2rem; margin-bottom: 8px; }
     .card p { color: #a9bcd6; font-size: 0.9rem; line-height: 1.4; }
 
-    /* Formularios */
     .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
@@ -70,7 +51,6 @@
     button.btn-secondary { background: #e2e8f0; color: #475569; margin-top: 10px; }
     button.btn-secondary:hover { background: #cbd5e1; }
 
-    /* Tarjeta de Lista de Incidencias */
     .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; }
     .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
@@ -116,39 +96,46 @@
         <p>Centro de gestión del Servicio Técnico.<br>Selecciona una opción para comenzar.</p>
       </div>
       <div class="grid">
-        <div class="card" onclick="nav('view-nueva-incidencia')">
+        <div class="card" onclick="abrirNuevoAviso()">
           <div class="card-icon">📝</div>
-          <h3>Introducir Incidencia</h3>
-          <p>Registra un nuevo parte desde la oficina o almacén.</p>
+          <h3>Introducir Aviso</h3>
+          <p>Registra un nuevo aviso para el equipo técnico.</p>
         </div>
-        <div class="card" onclick="cargarIncidencias()">
+        <div class="card" onclick="cargarAvisos()">
           <div class="card-icon">🔧</div>
-          <h3>Resolver Incidencia</h3>
-          <p>Abre un parte asignado y comienza tu intervención.</p>
+          <h3>Resolver Aviso</h3>
+          <p>Abre un aviso pendiente y comienza tu intervención.</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- VISTA: INTRODUCIR INCIDENCIA -->
-  <div id="view-nueva-incidencia" class="view">
+  <!-- VISTA: INTRODUCIR AVISO -->
+  <div id="view-nuevo-aviso" class="view">
     <div class="container">
       <div class="form-box">
-        <h2>Nueva Incidencia (Parte Abierto)</h2>
-        <form id="form-nueva-incidencia">
+        <h2>Nuevo Aviso</h2>
+        <form id="form-nuevo-aviso">
           <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;"><label>Nº Parte</label><input type="text" id="ni_parte" required></div>
+            <div style="flex: 1;"><label>Nº Aviso</label><input type="text" id="ni_parte" required></div>
             <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
           </div>
           
+          <!-- Lista con filtro de Clientes -->
           <label>Cliente</label>
-          <input type="text" id="ni_cliente" required>
+          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar cliente...">
+          <datalist id="lista-clientes"></datalist>
           
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
+          <!-- Lista con filtro de Máquinas dependiente del Cliente -->
           <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;"><label>Máquina / Anomalía</label><input type="text" id="ni_maquina" required></div>
+            <div style="flex: 1;">
+              <label>Máquina / Anomalía</label>
+              <input type="text" id="ni_maquina" list="lista-maquinas" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
+              <datalist id="lista-maquinas"></datalist>
+            </div>
             <div style="flex: 1;"><label>Marca</label><input type="text" id="ni_marca"></div>
           </div>
           
@@ -169,31 +156,31 @@
             <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
           </div>
 
-          <button type="submit" class="btn" id="btn-save-inc">Crear Incidencia</button>
+          <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
           <button type="button" class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- VISTA: LISTA DE INCIDENCIAS -->
-  <div id="view-lista-incidencias" class="view">
+  <!-- VISTA: LISTA DE AVISOS -->
+  <div id="view-lista-avisos" class="view">
     <div class="container">
       <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Incidencias Abiertas</h2>
-        <div id="contenedor-incidencias" style="margin-top: 20px;">
-          <!-- Aquí se inyectan las incidencias -->
+        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Avisos Sin Tratar</h2>
+        <div id="contenedor-avisos" style="margin-top: 20px;">
+          <!-- Aquí se inyectan los avisos -->
         </div>
         <button class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
       </div>
     </div>
   </div>
 
-  <!-- VISTA: RESOLVER INCIDENCIA -->
-  <div id="view-resolver-incidencia" class="view">
+  <!-- VISTA: RESOLVER AVISO -->
+  <div id="view-resolver-aviso" class="view">
     <div class="container">
       <div class="form-box">
-        <h2>Parte de Trabajo</h2>
+        <h2>Resolución de Aviso</h2>
         <form id="form-resolver">
           <input type="hidden" id="res_n_parte">
           
@@ -223,8 +210,8 @@
           <label>Trabajos Realizados / Solución</label>
           <textarea id="res_solucion" rows="4" required placeholder="Describe las piezas cambiadas o ajustes realizados..."></textarea>
           
-          <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Parte</button>
-          <button type="button" class="btn btn-secondary" onclick="nav('view-lista-incidencias')">Cancelar</button>
+          <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Aviso</button>
+          <button type="button" class="btn btn-secondary" onclick="nav('view-lista-avisos')">Cancelar</button>
         </form>
       </div>
     </div>
@@ -240,19 +227,20 @@
     };
 
     let currentUser = localStorage.getItem("sugraf_user") || null;
-    let incidenciasGlobales = [];
+    let avisosGlobales = [];
+    let dbEquipos = {}; // Guarda { "Cliente1": ["MaquinaA", "MaquinaB"] }
 
-    // Sistema de Navegación SPA
     function nav(viewId) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.getElementById(viewId).classList.add('active');
       window.scrollTo(0,0);
     }
 
-    // Comprobar sesión al abrir
+    // Inicialización al abrir
     if (currentUser) {
       document.getElementById("user-display").innerText = currentUser;
       nav('view-dashboard');
+      cargarEquiposSilencioso();
     }
 
     function iniciarSesion() {
@@ -263,6 +251,7 @@
         localStorage.setItem("sugraf_user", u);
         document.getElementById("user-display").innerText = currentUser;
         nav('view-dashboard');
+        cargarEquiposSilencioso();
       } else {
         alert("Contraseña incorrecta.");
       }
@@ -276,13 +265,39 @@
       return true;
     }
 
-    // FORMULARIO 1: Crear Incidencia
-    document.getElementById('form-nueva-incidencia').addEventListener('submit', async (e) => {
+    // --- CARGA DE EXCEL EN SEGUNDO PLANO ---
+    async function cargarEquiposSilencioso() {
+      try {
+        const res = await fetch('/api/clientes-maquinas');
+        dbEquipos = await res.json();
+        
+        // Llenar el desplegable HTML de clientes (por orden alfabético)
+        const dlClientes = document.getElementById('lista-clientes');
+        dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">`).join('');
+      } catch(e) { console.log("Error cargando base de datos de equipos", e); }
+    }
+
+    function abrirNuevoAviso() {
+      nav('view-nuevo-aviso');
+      document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
+    }
+
+    // Cuando el usuario elige o teclea un cliente, actualiza la lista de máquinas
+    document.getElementById('ni_cliente').addEventListener('input', (e) => {
+      const clienteSeleccionado = e.target.value;
+      const maquinasDeCliente = dbEquipos[clienteSeleccionado] || [];
+      
+      const dlMaquinas = document.getElementById('lista-maquinas');
+      dlMaquinas.innerHTML = maquinasDeCliente.sort().map(m => `<option value="${m}">`).join('');
+    });
+
+    // FORMULARIO 1: Crear Aviso
+    document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
       if(!checkPermisos()) return;
       
       const btn = document.getElementById('btn-save-inc');
-      btn.innerText = "Guardando..."; btn.disabled = true;
+      btn.innerText = "Guardando en Excel..."; btn.disabled = true;
 
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
@@ -299,56 +314,54 @@
       };
 
       try {
-        await fetch('/api/incidencias', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Incidencia registrada correctamente");
-        document.getElementById('form-nueva-incidencia').reset();
+        await fetch('/api/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        alert("Aviso registrado y guardado en 'Avisos Sin Tratar.xlsx'");
+        document.getElementById('form-nuevo-aviso').reset();
         nav('view-dashboard');
-      } catch (err) { alert("Error de red"); }
+      } catch (err) { alert("Error de red al guardar en Google Drive."); }
       
-      btn.innerText = "Crear Incidencia"; btn.disabled = false;
+      btn.innerText = "Crear Aviso"; btn.disabled = false;
     });
 
-    // Cargar Lista de Incidencias Abiertas
-    async function cargarIncidencias() {
-      nav('view-lista-incidencias');
-      const box = document.getElementById('contenedor-incidencias');
-      box.innerHTML = "<p style='color:white;'>Consultando base de datos...</p>";
+    // Cargar Lista de Avisos (Lee el Excel)
+    async function cargarAvisos() {
+      nav('view-lista-avisos');
+      const box = document.getElementById('contenedor-avisos');
+      box.innerHTML = "<p style='color:white;'>Leyendo Excel desde Google Drive...</p>";
       try {
-        const res = await fetch('/api/incidencias');
+        const res = await fetch('/api/avisos');
         const data = await res.json();
-        incidenciasGlobales = data.incidencias || [];
+        avisosGlobales = data.avisos || [];
         
-        if (incidenciasGlobales.length === 0) {
-          box.innerHTML = "<p style='color:#a9bcd6;'>No hay incidencias abiertas en este momento.</p>";
+        if (avisosGlobales.length === 0) {
+          box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos pendientes en este momento.</p>";
           return;
         }
 
-        box.innerHTML = incidenciasGlobales.map((inc, i) => `
+        box.innerHTML = avisosGlobales.map((av, i) => `
           <div class="inc-item" onclick="abrirResolucion(${i})">
-            <div class="inc-title">${inc.cliente} ${inc.urgente ? '<span class="badge">URGENTE</span>' : ''}</div>
-            <div class="inc-sub">Nº: ${inc.n_parte} | Asignado a: <b>${inc.realizado_por}</b> | Máquina: ${inc.maquina}</div>
+            <div class="inc-title">${av['CLIENTE']} ${av['URG'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
+            <div class="inc-sub">Nº: ${av['Nº PARTE']} | Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
           </div>
         `).join('');
-      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar incidencias.</p>"; }
+      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
     }
 
-    // FORMULARIO 2: Resolver Incidencia
+    // FORMULARIO 2: Resolver Aviso
     function abrirResolucion(index) {
-      const inc = incidenciasGlobales[index];
+      const av = avisosGlobales[index];
       
-      // Auto-rellenar campos en gris (readonly)
-      document.getElementById('res_n_parte').value = inc.n_parte;
-      document.getElementById('res_cliente').value = inc.cliente;
-      document.getElementById('res_poblacion').value = inc.poblacion;
-      document.getElementById('res_maquina').value = inc.maquina;
+      document.getElementById('res_n_parte').value = av['Nº PARTE'];
+      document.getElementById('res_cliente').value = av['CLIENTE'];
+      document.getElementById('res_poblacion').value = av['POBLACIÓN'];
+      document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_tecnico').value = currentUser;
 
-      // Autocompletar Fecha y Hora Actual
       const now = new Date();
       document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
       document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
       
-      nav('view-resolver-incidencia');
+      nav('view-resolver-aviso');
     }
 
     document.getElementById('form-resolver').addEventListener('submit', async (e) => {
@@ -372,12 +385,12 @@
 
       try {
         await fetch('/api/guardar-parte', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Parte finalizado. Incidencia cerrada y guardada en Drive.");
+        alert("Aviso finalizado. Se ha eliminado de 'Avisos Sin Tratar' y generado el TXT.");
         document.getElementById('form-resolver').reset();
         nav('view-dashboard');
-      } catch (err) { alert("Error al guardar"); }
+      } catch (err) { alert("Error al guardar y resolver el aviso."); }
 
-      btn.innerText = "Guardar y Cerrar Parte"; btn.disabled = false;
+      btn.innerText = "Guardar y Cerrar Aviso"; btn.disabled = false;
     });
   </script>
 </body>
