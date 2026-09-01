@@ -2,38 +2,90 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mis Avisos Adjudicados</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; background: #070e1c; color: white; padding: 20px; }
-    .volver { display: inline-block; margin-bottom: 20px; color: #4f9cd9; text-decoration: none; font-weight: bold; }
-    .inc-item { background: #0f1e35; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1c3357; cursor: pointer;}
-    .inc-item:hover { background: #1c3357; }
-    .form-box { background: #0f1e35; padding: 20px; border-radius: 12px; max-width: 600px; margin: 20px auto; display: none;}
-    input, textarea, select, button { width: 100%; padding: 10px; margin: 5px 0 15px; border-radius: 5px; border: none; }
-    button { background: #4f9cd9; color: white; cursor: pointer; font-weight: bold; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100;}
+    .topbar img { height: 35px; object-fit: contain; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 12px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-size: 13px;}
+    
+    .container { max-width: 900px; margin: 0 auto; }
+    
+    .header-title h2 { margin-bottom: 20px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; font-family: 'Space Grotesk';}
+    
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease;}
+    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
+    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
+    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Formulario Blanco del Detalle */
+    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 40px auto 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none; animation: fadeIn 0.3s ease;}
+    .form-box h3 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; font-family: 'Space Grotesk';}
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
+    input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; }
+    
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
+    button.btn:hover { background: #2f6fb0; }
   </style>
 </head>
 <body>
-  <a href="/" class="volver">← Volver al Hub</a>
-  <h2>Mis Avisos Adjudicados</h2>
-  <div id="lista">Cargando...</div>
 
-  <div class="form-box" id="resolucion-box">
-    <h3>Resolver Aviso</h3>
-    <form id="form-resolver">
-      <input type="hidden" id="res_index">
-      <input type="text" id="res_cliente" readonly>
-      <input type="text" id="res_maquina" readonly>
-      <input type="text" id="res_poblacion" readonly>
-      
-      <label>Tipo Asistencia</label>
-      <select id="res_tipo"><option>Visita</option><option>Taller</option></select>
-      
-      <label>Solución</label>
-      <textarea id="res_solucion" rows="4" required></textarea>
-      
-      <button type="submit" id="btn-save">Finalizar y Crear Parte</button>
-    </form>
+  <div class="topbar">
+    <div class="topbar-left">
+      <img src="/logo_grande_azul.png" alt="Sugraf Logo">
+      <a href="/" class="btn-back">Volver</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header-title">
+      <h2>Mis Avisos Adjudicados</h2>
+    </div>
+    
+    <div id="contenedor-avisos">
+      <p style='color:white;'>Buscando tus avisos...</p>
+    </div>
+
+    <!-- Panel de Resolución que aparece abajo al hacer click -->
+    <div class="form-box" id="resolucion-box">
+      <h3>Resolución de Aviso</h3>
+      <form id="form-resolver">
+        <input type="hidden" id="res_index">
+        
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;"><label>Fecha Intervención</label><input type="date" id="res_fecha" readonly></div>
+          <div style="flex: 1;"><label>Hora Inicio</label><input type="time" id="res_hora" readonly></div>
+        </div>
+        
+        <label>Tipo de Asistencia</label>
+        <select id="res_tipo">
+          <option value="Visita">Visita presencial</option>
+          <option value="Taller">Taller / Remoto</option>
+        </select>
+        
+        <label>Cliente</label>
+        <input type="text" id="res_cliente" readonly>
+        <label>Dirección / Población</label>
+        <input type="text" id="res_poblacion" readonly>
+        <label>Máquina / Anomalía Reportada</label>
+        <input type="text" id="res_maquina" readonly>
+        
+        <label>Trabajos Realizados / Solución</label>
+        <textarea id="res_solucion" rows="4" required placeholder="Describe las piezas cambiadas o ajustes realizados..."></textarea>
+        
+        <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Aviso</button>
+      </form>
+    </div>
+
   </div>
 
   <script>
@@ -42,39 +94,53 @@
     
     let misAvisos = [];
 
-    async function cargar() {
-      const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
-      const data = await res.json();
-      misAvisos = data.avisos || [];
-      
-      if(misAvisos.length === 0){
-          document.getElementById('lista').innerHTML = "<p>No tienes avisos asignados actualmente.</p>";
-      } else {
-          document.getElementById('lista').innerHTML = misAvisos.map(av => `
-            <div class="inc-item" onclick="abrir(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}')">
-              <strong>${av['CLIENTE']}</strong> - ${av['MÁQUINA']}
-            </div>
-          `).join('');
-      }
+    async function cargarAvisos() {
+      const box = document.getElementById('contenedor-avisos');
+      try {
+        const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
+        const data = await res.json();
+        misAvisos = data.avisos || [];
+        
+        if(misAvisos.length === 0){
+            box.innerHTML = "<p style='color:#a9bcd6;'>No tienes avisos pendientes en este momento.</p>";
+        } else {
+            box.innerHTML = misAvisos.map(av => `
+              <div class="inc-item" onclick="abrirResolucion(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}')">
+                  <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
+                  <div class="inc-sub">Máquina: ${av['MÁQUINA']} | Entrada: ${av['F. ENTR.']}</div>
+              </div>
+            `).join('');
+        }
+      } catch (e) { box.innerHTML = "<p style='color:red;'>Error de conexión.</p>"; }
     }
 
-    function abrir(index, c, m, p) {
+    function abrirResolucion(index, c, m, p) {
       document.getElementById('resolucion-box').style.display = 'block';
       document.getElementById('res_index').value = index;
       document.getElementById('res_cliente').value = c;
       document.getElementById('res_maquina').value = m;
       document.getElementById('res_poblacion').value = p;
-      window.scrollTo(0, document.body.scrollHeight);
+
+      const now = new Date();
+      document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
+      document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
+      
+      // Auto scroll hacia el formulario
+      setTimeout(() => {
+        document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
 
-    document.getElementById('form-resolver').onsubmit = async (e) => {
+    document.getElementById('form-resolver').addEventListener('submit', async (e) => {
       e.preventDefault();
-      document.getElementById('btn-save').disabled = true;
-      
+
+      const btn = document.getElementById('btn-resolver');
+      btn.innerText = "Procesando..."; btn.disabled = true;
+
       const payload = {
         aviso_index: parseInt(document.getElementById('res_index').value),
-        fecha: new Date().toISOString().split('T')[0],
-        hora: new Date().toTimeString().substring(0,5),
+        fecha: document.getElementById('res_fecha').value,
+        hora: document.getElementById('res_hora').value,
         tipo_visita: document.getElementById('res_tipo').value,
         cliente: document.getElementById('res_cliente').value,
         poblacion: document.getElementById('res_poblacion').value,
@@ -83,14 +149,18 @@
         solucion: document.getElementById('res_solucion').value
       };
 
-      await fetch('/api/adjudicados/resolver', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-      alert("Aviso Finalizado!");
-      document.getElementById('resolucion-box').style.display = 'none';
-      cargar();
-      document.getElementById('btn-save').disabled = false;
-    };
+      try {
+        await fetch('/api/adjudicados/resolver', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        alert("Aviso finalizado con éxito. Parte generado.");
+        document.getElementById('form-resolver').reset();
+        document.getElementById('resolucion-box').style.display = 'none';
+        cargarAvisos();
+      } catch (err) { alert("Error al guardar el aviso."); }
 
-    cargar();
+      btn.innerText = "Guardar y Cerrar Aviso"; btn.disabled = false;
+    });
+
+    cargarAvisos();
   </script>
 </body>
 </html>
