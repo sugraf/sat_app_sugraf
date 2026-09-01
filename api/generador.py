@@ -1,24 +1,14 @@
 import io
 import json
 import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from pydantic import BaseModel
 import pandas as pd
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter()
 
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 EQUIPOS_FILE_ID = "1mNdXqH6RLwXSIXxd9i3eexOMAkaYJKWN"
@@ -92,39 +82,7 @@ class NuevoAviso(BaseModel):
     descripcion: str
     urgente: bool
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    ruta = os.path.join(os.path.dirname(__file__), "..", "index.html")
-    if os.path.exists(ruta):
-        with open(ruta, "r", encoding="utf-8") as f:
-            return f.read()
-    return "Error: index.html not found."
-
-@app.get("/{filename}.jpg")
-def get_jpg(filename: str):
-    ruta = os.path.join(os.path.dirname(__file__), "..", f"{filename}.jpg")
-    if os.path.exists(ruta): return FileResponse(ruta, media_type="image/jpeg")
-    raise HTTPException(status_code=404, detail="Not found")
-
-@app.get("/{filename}.png")
-def get_png(filename: str):
-    ruta = os.path.join(os.path.dirname(__file__), "..", f"{filename}.png")
-    if os.path.exists(ruta): return FileResponse(ruta, media_type="image/png")
-    raise HTTPException(status_code=404, detail="Not found")
-
-@app.get("/manifest.json")
-def get_manifest():
-    return JSONResponse(content={
-        "name": "Sugraf Digital Manager",
-        "short_name": "Sugraf Hub",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#070e1c",
-        "theme_color": "#ffffff",
-        "icons": [{"src": "/logo_ejecutable.png", "sizes": "512x512", "type": "image/png"}]
-    })
-
-@app.get("/api/generador/clientes-maquinas")
+@router.get("/clientes-maquinas")
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
@@ -184,7 +142,7 @@ def listar_clientes_maquinas():
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/api/generador/avisos")
+@router.post("/avisos")
 def crear_aviso(aviso: NuevoAviso):
     try:
         drive = get_drive_service()
