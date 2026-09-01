@@ -59,9 +59,9 @@
     button.btn-secondary { background: #e2e8f0; color: #475569; margin-top: 10px; }
     button.btn-secondary:hover { background: #cbd5e1; }
 
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; text-align: left; }
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; }
     .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
-    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
     .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
 
@@ -80,6 +80,9 @@
     .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
     .custom-select-item:last-child { border-bottom: none; }
     .custom-select-item:hover { background: #f8fafc; color: #2563eb; }
+    
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+    .filter-bar select { padding: 8px; font-size: 0.9rem; width: auto; min-width: 150px; flex: 1; }
   </style>
 </head>
 <body>
@@ -128,7 +131,7 @@
         <p>Centro de gestión del Servicio Técnico.<br>Selecciona una opción para comenzar.</p>
       </div>
       <div class="grid">
-        <div class="card" onclick="abrirNuevoAviso()">
+        <div class="card" id="card-nuevo-aviso" onclick="abrirNuevoAviso()">
           <div class="card-icon">📝</div>
           <h3>Introducir Aviso</h3>
           <p>Registra un nuevo aviso.</p>
@@ -136,7 +139,7 @@
         <div class="card" onclick="cargarGestionAvisos()">
           <div class="card-icon">🤝</div>
           <h3>Gestionar Aviso</h3>
-          <p>Gestiona el estado y controla los avisos.</p>
+          <p>Asigna técnicos y gestiona el estado (Pirineos).</p>
         </div>
         <div class="card" onclick="cargarAvisos()">
           <div class="card-icon">🔧</div>
@@ -149,9 +152,25 @@
 
   <div id="view-gestionar" class="view">
     <div class="container">
-      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
+      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 900px; padding: 0;">
         <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Gestionar Avisos</h2>
-        <button class="btn btn-secondary" id="btn-toggle-pirineos" onclick="toggleFiltroPirineos()" style="margin-bottom: 15px; width: auto; padding: 10px 20px;">Ocultar Pirineos (Sí)</button>
+        
+        <div class="filter-bar">
+          <select id="filtro-tecnico" onchange="renderGestionAvisos()">
+            <option value="Todos">Técnico: Todos</option>
+            <option value="Pendiente">Técnico: Sin Asignar</option>
+            <option value="Ion Volog">Técnico: Ion Volog</option>
+            <option value="Francisco Antúnez">Técnico: Francisco Antúnez</option>
+            <option value="Daniel Gargallo">Técnico: Daniel Gargallo</option>
+            <option value="Emilio Arrieta">Técnico: Emilio Arrieta</option>
+          </select>
+          <select id="filtro-pirineos" onchange="renderGestionAvisos()">
+            <option value="Todos">Pirineos: Todos</option>
+            <option value="SI">Pirineos: Sí</option>
+            <option value="NO">Pirineos: No</option>
+          </select>
+        </div>
+
         <div id="contenedor-gestionar" style="margin-top: 10px;"></div>
       </div>
     </div>
@@ -202,7 +221,7 @@
 
   <div id="view-lista-avisos" class="view">
     <div class="container">
-      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
+      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px; padding: 0;">
         <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Avisos Adjudicados (Sin Tratar)</h2>
         <div id="contenedor-avisos" style="margin-top: 20px;"></div>
       </div>
@@ -258,18 +277,22 @@
     let currentUser = localStorage.getItem("sugraf_user") || null;
     let avisosGlobales = [];
     let dbEquipos = {}; 
-    let ocultarPirineos = false;
 
     function nav(viewId) {
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.getElementById(viewId).classList.add('active');
-      window.scrollTo(0,0);
-      
-      const btnBack = document.getElementById('btn-back');
-      if(viewId === 'view-dashboard' || viewId === 'view-login') {
-          btnBack.style.display = 'none';
-      } else {
-          btnBack.style.display = 'inline-flex';
+      try {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        const element = document.getElementById(viewId);
+        if(element) element.classList.add('active');
+        window.scrollTo(0,0);
+        
+        const btnBack = document.getElementById('btn-back');
+        if(viewId === 'view-dashboard' || viewId === 'view-login') {
+            btnBack.style.display = 'none';
+        } else {
+            btnBack.style.display = 'inline-flex';
+        }
+      } catch (err) {
+        console.error("Error in nav function:", err);
       }
     }
 
@@ -292,6 +315,7 @@
     function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
         const input = document.getElementById(inputId);
         const dropdown = document.getElementById(dropdownId);
+        if(!input || !dropdown) return;
 
         const renderOptions = (filterText = "") => {
             const options = getOptionsCallback();
@@ -301,7 +325,6 @@
                 dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
                 return;
             }
-
             dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
             
             dropdown.querySelectorAll('.custom-select-item').forEach(item => {
@@ -315,20 +338,9 @@
             });
         };
 
-        input.addEventListener('focus', () => {
-            renderOptions(input.value);
-            dropdown.classList.add('show');
-        });
-
-        input.addEventListener('input', (e) => {
-            renderOptions(e.target.value);
-            dropdown.classList.add('show');
-            if(onSelectCallback) onSelectCallback(e.target.value);
-        });
-
-        input.addEventListener('blur', () => {
-            setTimeout(() => dropdown.classList.remove('show'), 150);
-        });
+        input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
+        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value); });
+        input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
     }
 
     if (currentUser) {
@@ -363,8 +375,12 @@
       nav('view-login');
     }
 
-    function checkPermisos() {
-      if (currentUser === "Solo Visualizar" || currentUser === "Laura") {
+    function checkPermisos(allowLaura = false) {
+      if (currentUser === "Solo Visualizar") {
+        alert("Tu usuario no tiene permisos para esta acción.");
+        return false;
+      }
+      if (!allowLaura && currentUser === "Laura") {
         alert("Tu usuario no tiene permisos para crear o resolver avisos.");
         return false;
       }
@@ -373,33 +389,34 @@
 
     async function cargarEquiposSilencioso() {
       try {
-        const res = await fetch('/api/clientes-maquinas');
+        const res = await fetch('/api/generador/clientes-maquinas');
+        if(!res.ok) return;
         dbEquipos = await res.json();
-        
-        setupCustomDropdown(
-            'ni_cliente', 
-            'dropdown-clientes', 
-            () => Object.keys(dbEquipos).sort(),
-            (selected) => {
-                document.getElementById('ni_maquina').value = '';
-            }
-        );
+        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { document.getElementById('ni_maquina').value = ''; });
+        setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
+            const c = document.getElementById('ni_cliente').value;
+            if(!c || !dbEquipos[c]) return [];
+            return dbEquipos[c].map(m => m.nombre).sort();
+        });
+      } catch(e) { console.warn("Fetch Equipos error:", e); }
+    }
 
-        setupCustomDropdown(
-            'ni_maquina', 
-            'dropdown-maquinas', 
-            () => {
-                const c = document.getElementById('ni_cliente').value;
-                if(!c || !dbEquipos[c]) return [];
-                return dbEquipos[c].map(m => m.nombre).sort();
-            }
-        );
-      } catch(e) { }
+    function abrirNuevoAviso() {
+      try {
+        nav('view-nuevo-aviso');
+        const now = new Date();
+        const dateInput = document.getElementById('ni_fecha');
+        const timeInput = document.getElementById('ni_hora');
+        if(dateInput) dateInput.value = now.toISOString().split('T')[0];
+        if(timeInput) timeInput.value = now.toTimeString().split(' ')[0].substring(0, 5);
+      } catch (err) {
+        console.error("Error setting date/time in abrirNuevoAviso:", err);
+      }
     }
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if(!checkPermisos()) return;
+      if(!checkPermisos(false)) return;
       
       const btn = document.getElementById('btn-save-inc');
       btn.innerText = "Guardando en Excel..."; btn.disabled = true;
@@ -408,7 +425,7 @@
       const maquinaNombre = document.getElementById('ni_maquina').value;
       
       let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
-      if (dbEquipos[cliente]) {
+      if (dbEquipos && dbEquipos[cliente]) {
           const found = dbEquipos[cliente].find(m => m.nombre === maquinaNombre);
           if (found) maquinaData = found;
       }
@@ -429,106 +446,128 @@
       };
 
       try {
-        await fetch('/api/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         alert("Aviso guardado en 'Avisos Sin Tratar.xlsx'");
         document.getElementById('form-nuevo-aviso').reset();
         nav('view-dashboard');
-      } catch (err) { alert("Error de red al guardar en Google Drive."); }
+      } catch (err) { alert("Error de red al guardar."); }
       
       btn.innerText = "Crear Aviso"; btn.disabled = false;
     });
-
-    async function cargarAvisos() {
-      nav('view-lista-avisos');
-      const box = document.getElementById('contenedor-avisos');
-      box.innerHTML = "<p style='color:white;'>Leyendo Excel desde Google Drive...</p>";
-      try {
-        const res = await fetch('/api/avisos');
-        const data = await res.json();
-        avisosGlobales = data.avisos || [];
-        
-        if (avisosGlobales.length === 0) {
-          box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos pendientes en este momento.</p>";
-          return;
-        }
-        box.innerHTML = avisosGlobales.map((av, i) => `
-          <div class="inc-item" onclick="abrirResolucion(${i})">
-            <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
-            <div class="inc-sub">Nº: ${av['Nº PARTE']} | Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
-          </div>
-        `).join('');
-      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
-    }
 
     async function cargarGestionAvisos() {
       nav('view-gestionar');
       const box = document.getElementById('contenedor-gestionar');
       box.innerHTML = "<p style='color:white;'>Cargando avisos...</p>";
       try {
-        const res = await fetch('/api/avisos');
+        const res = await fetch('/api/gestor/avisos');
         const data = await res.json();
         avisosGlobales = data.avisos || [];
         renderGestionAvisos();
       } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
     }
 
-    function toggleFiltroPirineos() {
-      ocultarPirineos = !ocultarPirineos;
-      const btn = document.getElementById('btn-toggle-pirineos');
-      if(ocultarPirineos) {
-          btn.innerText = "Mostrar todos los avisos";
-          btn.style.background = "#cbd5e1";
-      } else {
-          btn.innerText = "Ocultar Pirineos (Sí)";
-          btn.style.background = "#e2e8f0";
-      }
-      renderGestionAvisos();
-    }
-
     function renderGestionAvisos() {
       const box = document.getElementById('contenedor-gestionar');
-      if (avisosGlobales.length === 0) {
-        box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos disponibles.</p>";
+      const filtroTec = document.getElementById('filtro-tecnico').value;
+      const filtroPir = document.getElementById('filtro-pirineos').value;
+
+      let avisosFiltrados = avisosGlobales.filter(av => {
+        const matchTec = filtroTec === "Todos" || av['REALIZADO POR'] === filtroTec;
+        const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
+        return matchTec && matchPir;
+      });
+
+      if (avisosFiltrados.length === 0) {
+        box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos que coincidan con los filtros.</p>";
         return;
       }
-      let html = "";
-      avisosGlobales.forEach(av => {
-        const esPirineos = av['PIRINEOS'] === 'SI';
-        if (ocultarPirineos && esPirineos) return; 
 
-        const disableSelect = currentUser !== "Laura" ? "disabled" : "";
+      let html = "";
+      avisosFiltrados.forEach(av => {
         const nParte = av['Nº PARTE'];
+        const esPirineos = av['PIRINEOS'] === 'SI';
+        const tecnicoAsignado = av['REALIZADO POR'] || 'Pendiente';
         
+        const disablePirineos = currentUser !== "Laura" ? "disabled" : "";
+        const disableAssign = currentUser === "Solo Visualizar" ? "disabled" : "";
+
         html += `
           <div class="inc-item" style="cursor: default;">
             <div class="inc-title">
-              <span>${av['CLIENTE']}</span>
-              <span style="font-size: 0.85rem; color: #475569; font-weight: normal; margin-left: 10px;">
-                Pirineos: 
-                <select onchange="actualizarPirineos('${nParte}', this.value)" ${disableSelect} style="width: auto; padding: 4px; font-size: 0.8rem; margin-left: 5px;">
-                  <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
-                  <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
-                </select>
-              </span>
+              <span style="flex:1; min-width: 200px;">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</span>
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
+                  Técnico: 
+                  <select onchange="actualizarTecnico('${nParte}', this.value)" ${disableAssign} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
+                    <option value="Pendiente" ${tecnicoAsignado === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>
+                    <option value="Ion Volog" ${tecnicoAsignado === 'Ion Volog' ? 'selected' : ''}>Ion Volog</option>
+                    <option value="Francisco Antúnez" ${tecnicoAsignado === 'Francisco Antúnez' ? 'selected' : ''}>Francisco Antúnez</option>
+                    <option value="Daniel Gargallo" ${tecnicoAsignado === 'Daniel Gargallo' ? 'selected' : ''}>Daniel Gargallo</option>
+                    <option value="Emilio Arrieta" ${tecnicoAsignado === 'Emilio Arrieta' ? 'selected' : ''}>Emilio Arrieta</option>
+                  </select>
+                </span>
+                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
+                  Pirineos: 
+                  <select onchange="actualizarPirineos('${nParte}', this.value)" ${disablePirineos} style="padding: 4px; font-size: 0.8rem; border-radius: 4px;">
+                    <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
+                    <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
+                  </select>
+                </span>
+              </div>
             </div>
             <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']} | Nº: ${nParte}</div>
           </div>
         `;
       });
-      box.innerHTML = html || "<p style='color:#a9bcd6;'>Ningún aviso coincide con el filtro.</p>";
+      box.innerHTML = html;
     }
 
     async function actualizarPirineos(nParte, valor) {
       try {
-        await fetch('/api/actualizar-pirineos', { 
+        await fetch('/api/gestor/actualizar-pirineos', { 
           method: 'POST', 
           headers: {'Content-Type': 'application/json'}, 
           body: JSON.stringify({ n_parte: nParte, pirineos: valor }) 
         });
         const aviso = avisosGlobales.find(a => a['Nº PARTE'] == nParte);
         if (aviso) aviso['PIRINEOS'] = valor;
-        if (ocultarPirineos) renderGestionAvisos();
+        renderGestionAvisos();
       } catch (err) { alert("Error al actualizar la celda Pirineos."); }
+    }
+
+    async function actualizarTecnico(nParte, tecnico) {
+      try {
+        await fetch('/api/gestor/actualizar-tecnico', { 
+          method: 'POST', 
+          headers: {'Content-Type': 'application/json'}, 
+          body: JSON.stringify({ n_parte: nParte, tecnico: tecnico }) 
+        });
+        const aviso = avisosGlobales.find(a => a['Nº PARTE'] == nParte);
+        if (aviso) aviso['REALIZADO POR'] = tecnico;
+        renderGestionAvisos();
+      } catch (err) { alert("Error al asignar técnico."); }
+    }
+
+    async function cargarAvisos() {
+      nav('view-lista-avisos');
+      const box = document.getElementById('contenedor-avisos');
+      box.innerHTML = "<p style='color:white;'>Leyendo Excel desde Google Drive...</p>";
+      try {
+        const res = await fetch('/api/gestor/avisos');
+        const data = await res.json();
+        avisosGlobales = data.avisos || [];
+        
+        let html = "";
+        avisosGlobales.forEach((av, i) => {
+            html += `
+            <div class="inc-item" onclick="abrirResolucion(${i})" style="cursor: pointer;">
+                <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
+                <div class="inc-sub">Nº: ${av['Nº PARTE']} | Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
+            </div>`;
+        });
+        box.innerHTML = html || "<p style='color:#a9bcd6;'>No hay avisos pendientes en este momento.</p>";
+      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
     }
 
     function abrirResolucion(index) {
@@ -548,7 +587,7 @@
 
     document.getElementById('form-resolver').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if(!checkPermisos()) return;
+      if(!checkPermisos(false)) return;
 
       const btn = document.getElementById('btn-resolver');
       btn.innerText = "Procesando..."; btn.disabled = true;
@@ -566,7 +605,7 @@
       };
 
       try {
-        await fetch('/api/guardar-parte', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        await fetch('/api/gestor/guardar-parte', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         alert("Aviso finalizado. Se ha eliminado de 'Avisos Sin Tratar' y generado el TXT.");
         document.getElementById('form-resolver').reset();
         nav('view-dashboard');
