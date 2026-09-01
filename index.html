@@ -3,167 +3,382 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#2563eb">
-  <link rel="manifest" href="manifest.json">
-  <title>Servicio Técnico</title>
+  <meta name="theme-color" content="#ffffff">
+  <link rel="manifest" href="/manifest.json">
+  <title>Sugraf Digital Manager</title>
+  
+  <!-- Tipografías de Google idénticas a tu diseño -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
-    body { background: #f1f5f9; color: #1e293b; padding-bottom: 40px; }
-    header { background: #2563eb; color: white; padding: 16px; text-align: center; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    h1 { font-size: 1.15rem; font-weight: 700; }
-    .container { max-width: 480px; margin: 0 auto; padding: 14px; }
-    .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); margin-bottom: 14px; }
-    label { display: block; font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 5px; text-transform: uppercase; }
-    input, textarea, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; margin-bottom: 14px; background: #fff; }
-    input:focus, textarea:focus, select:focus { outline: 2px solid #2563eb; border-color: transparent; }
-    button { width: 100%; background: #2563eb; color: white; font-weight: 700; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-    button:active { background: #1d4ed8; }
-    button:disabled { background: #94a3b8; }
-    #alerta { display: none; padding: 12px; border-radius: 8px; margin-top: 14px; text-align: center; font-weight: 600; font-size: 0.9rem; }
-    .success { background: #dcfce7; color: #15803d; }
-    .error { background: #fee2e2; color: #b91c1c; }
-    .nav-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-    .tab-btn { flex: 1; padding: 10px; background: #e2e8f0; color: #475569; border-radius: 8px; font-size: 0.9rem; text-align: center; font-weight: 600; cursor: pointer; }
-    .tab-btn.active { background: #2563eb; color: white; }
-    .hidden { display: none; }
-    .file-item { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem; }
-    .file-item:last-child { border-bottom: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: #070e1c;
+      /* Recreación de los destellos radiales de StageBgWidget */
+      background-image: 
+        radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%),
+        radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%);
+      background-attachment: fixed;
+      color: #f4f8fc; 
+      min-height: 100vh;
+    }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+    
+    /* Topbar idéntico al de PyQt6 */
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+    .topbar img { height: 35px; object-fit: contain; }
+    .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
+
+    /* Sistema de Vistas SPA */
+    .view { display: none; padding-bottom: 50px; }
+    .view.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .text-center { text-align: center; margin-bottom: 30px; }
+    .text-center h1 { font-size: 2rem; color: #f4f8fc; margin-bottom: 8px; }
+    .text-center p { color: #a9bcd6; font-size: 0.95rem; line-height: 1.5; }
+
+    /* Tarjetas estilo ModuloCard */
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .card { 
+      background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); 
+      border: 1px solid rgba(79,156,217,0.18); 
+      border-radius: 18px; padding: 25px; cursor: pointer; transition: all 0.2s; 
+    }
+    .card:hover { border-color: rgba(79,156,217,0.55); background: linear-gradient(135deg, #1c3357 0%, #152847 100%); transform: translateY(-2px); }
+    .card-icon { background: rgba(47,111,176,0.25); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 15px; border: 1px solid rgba(79,156,217,0.1); }
+    .card h3 { font-size: 1.2rem; margin-bottom: 8px; }
+    .card p { color: #a9bcd6; font-size: 0.9rem; line-height: 1.4; }
+
+    /* Formularios */
+    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
+    input[readonly], select[readonly] { background: #e2e8f0; color: #64748b; cursor: not-allowed; border-style: dashed; }
+    
+    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
+    .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
+
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
+    button.btn:hover { background: #2f6fb0; }
+    button.btn-secondary { background: #e2e8f0; color: #475569; margin-top: 10px; }
+    button.btn-secondary:hover { background: #cbd5e1; }
+
+    /* Tarjeta de Lista de Incidencias */
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; }
+    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
+    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
+    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>Servicio Técnico</h1>
-  </header>
-
-  <div class="container">
-    <div class="nav-tabs">
-      <div class="tab-btn active" id="tabCrear" onclick="cambiarVista('crear')">Nuevo Parte</div>
-      <div class="tab-btn" id="tabVer" onclick="cambiarVista('ver')">Ver Partes</div>
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <img src="/logo_grande_azul.jpg" alt="Sugraf Logo" onerror="this.style.display='none'">
+    <div class="topbar-right">
+      <div class="dot"></div> <span id="user-display">Conectado</span>
     </div>
+  </div>
 
-    <div id="vistaCrear" class="card">
-      <form id="parteForm">
-        <label>Nombre del Cliente / Empresa</label>
-        <input type="text" id="cliente" required placeholder="Ej. Restaurante El Molino">
-
-        <label>Teléfono de Contacto</label>
-        <input type="tel" id="telefono" placeholder="Ej. 600123456">
-
-        <label>Técnico Responsable</label>
-        <input type="text" id="tecnico" required placeholder="Ej. Juan Pérez">
-
-        <label>Estado del Servicio</label>
-        <select id="estado">
-          <option value="En Curso">En Curso</option>
-          <option value="Pendiente Repuesto">Pendiente Repuesto</option>
-          <option value="Finalizado">Finalizado</option>
+  <!-- VISTA: LOGIN -->
+  <div id="view-login" class="view active">
+    <div class="container" style="margin-top: 10vh;">
+      <div class="form-box" style="max-width: 400px; background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); color: white; border: 1px solid rgba(79,156,217,0.18);">
+        <h2 style="color: white; border-color: rgba(255,255,255,0.1); text-align: center; border:none;">Acceso Hub</h2>
+        <label style="color: #a9bcd6;">Usuario</label>
+        <select id="login-user" style="background: #070e1c; color: white; border-color: #2f6fb0;">
+          <option value="Ion Volog">Ion Volog</option>
+          <option value="Francisco Antúnez">Francisco Antúnez</option>
+          <option value="Daniel Gargallo">Daniel Gargallo</option>
+          <option value="Emilio Arrieta">Emilio Arrieta</option>
+          <option value="Solo Visualizar">Solo Visualizar</option>
         </select>
-
-        <label>Descripción de la Avería</label>
-        <textarea id="averia" rows="3" required placeholder="Detalles de la avería o síntoma..."></textarea>
-
-        <label>Trabajo Realizado / Solución</label>
-        <textarea id="solucion" rows="3" placeholder="Piezas cambiadas, pruebas realizadas..."></textarea>
-
-        <button type="submit" id="btnGuardar">Guardar Parte en Drive</button>
-      </form>
-
-      <div id="alerta"></div>
+        <label style="color: #a9bcd6;">Contraseña</label>
+        <input type="password" id="login-pass" style="background: #070e1c; color: white; border-color: #2f6fb0;" placeholder="Introduce tu clave">
+        <button class="btn" onclick="iniciarSesion()">Entrar al Sistema</button>
+      </div>
     </div>
+  </div>
 
-    <div id="vistaVer" class="card hidden">
-      <h3 style="margin-bottom: 12px; font-size: 1rem;">Últimos partes en Drive</h3>
-      <div id="listaArchivos">Cargando archivos...</div>
+  <!-- VISTA: DASHBOARD -->
+  <div id="view-dashboard" class="view">
+    <div class="container">
+      <div class="text-center">
+        <h1>Digital Manager Hub</h1>
+        <p>Centro de gestión del Servicio Técnico.<br>Selecciona una opción para comenzar.</p>
+      </div>
+      <div class="grid">
+        <div class="card" onclick="nav('view-nueva-incidencia')">
+          <div class="card-icon">📝</div>
+          <h3>Introducir Incidencia</h3>
+          <p>Registra un nuevo parte desde la oficina o almacén.</p>
+        </div>
+        <div class="card" onclick="cargarIncidencias()">
+          <div class="card-icon">🔧</div>
+          <h3>Resolver Incidencia</h3>
+          <p>Abre un parte asignado y comienza tu intervención.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: INTRODUCIR INCIDENCIA -->
+  <div id="view-nueva-incidencia" class="view">
+    <div class="container">
+      <div class="form-box">
+        <h2>Nueva Incidencia (Parte Abierto)</h2>
+        <form id="form-nueva-incidencia">
+          <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;"><label>Nº Parte</label><input type="text" id="ni_parte" required></div>
+            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
+          </div>
+          
+          <label>Cliente</label>
+          <input type="text" id="ni_cliente" required>
+          
+          <label>Población / Dirección</label>
+          <input type="text" id="ni_poblacion" required>
+          
+          <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;"><label>Máquina / Anomalía</label><input type="text" id="ni_maquina" required></div>
+            <div style="flex: 1;"><label>Marca</label><input type="text" id="ni_marca"></div>
+          </div>
+          
+          <label>Asignar a (Realizado por)</label>
+          <select id="ni_tecnico">
+            <option value="Ion Volog">Ion Volog</option>
+            <option value="Francisco Antúnez">Francisco Antúnez</option>
+            <option value="Daniel Gargallo">Daniel Gargallo</option>
+            <option value="Emilio Arrieta">Emilio Arrieta</option>
+            <option value="Pendiente">Pendiente de asignar</option>
+          </select>
+
+          <label>Etiquetas</label>
+          <div class="checkbox-group">
+            <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
+            <label class="checkbox-item"><input type="checkbox" id="ni_gar"> Garantía</label>
+            <label class="checkbox-item"><input type="checkbox" id="ni_man"> Mantenimiento</label>
+            <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
+          </div>
+
+          <button type="submit" class="btn" id="btn-save-inc">Crear Incidencia</button>
+          <button type="button" class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: LISTA DE INCIDENCIAS -->
+  <div id="view-lista-incidencias" class="view">
+    <div class="container">
+      <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
+        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Incidencias Abiertas</h2>
+        <div id="contenedor-incidencias" style="margin-top: 20px;">
+          <!-- Aquí se inyectan las incidencias -->
+        </div>
+        <button class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: RESOLVER INCIDENCIA -->
+  <div id="view-resolver-incidencia" class="view">
+    <div class="container">
+      <div class="form-box">
+        <h2>Parte de Trabajo</h2>
+        <form id="form-resolver">
+          <input type="hidden" id="res_n_parte">
+          
+          <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;"><label>Fecha Intervención</label><input type="date" id="res_fecha" readonly></div>
+            <div style="flex: 1;"><label>Hora Inicio</label><input type="time" id="res_hora" readonly></div>
+          </div>
+          
+          <label>Tipo de Asistencia</label>
+          <select id="res_tipo">
+            <option value="Visita">Visita presencial</option>
+            <option value="Taller">Taller / Remoto</option>
+          </select>
+          
+          <label>Cliente</label>
+          <input type="text" id="res_cliente" readonly>
+          
+          <label>Dirección / Población</label>
+          <input type="text" id="res_poblacion" readonly>
+          
+          <label>Máquina / Anomalía Reportada</label>
+          <input type="text" id="res_maquina" readonly>
+          
+          <label>Técnico</label>
+          <input type="text" id="res_tecnico" readonly>
+          
+          <label>Trabajos Realizados / Solución</label>
+          <textarea id="res_solucion" rows="4" required placeholder="Describe las piezas cambiadas o ajustes realizados..."></textarea>
+          
+          <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Parte</button>
+          <button type="button" class="btn btn-secondary" onclick="nav('view-lista-incidencias')">Cancelar</button>
+        </form>
+      </div>
     </div>
   </div>
 
   <script>
-    const FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb";
+    const USUARIOS = {
+      "Ion Volog": "sugraf_1",
+      "Francisco Antúnez": "sugraf_2",
+      "Daniel Gargallo": "sugraf_3",
+      "Emilio Arrieta": "sugraf_4",
+      "Solo Visualizar": "sugraf_0"
+    };
 
-    function cambiarVista(vista) {
-      if (vista === 'crear') {
-        document.getElementById('vistaCrear').classList.remove('hidden');
-        document.getElementById('vistaVer').classList.add('hidden');
-        document.getElementById('tabCrear').classList.add('active');
-        document.getElementById('tabVer').classList.remove('active');
+    let currentUser = localStorage.getItem("sugraf_user") || null;
+    let incidenciasGlobales = [];
+
+    // Sistema de Navegación SPA
+    function nav(viewId) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      window.scrollTo(0,0);
+    }
+
+    // Comprobar sesión al abrir
+    if (currentUser) {
+      document.getElementById("user-display").innerText = currentUser;
+      nav('view-dashboard');
+    }
+
+    function iniciarSesion() {
+      const u = document.getElementById("login-user").value;
+      const p = document.getElementById("login-pass").value;
+      if (USUARIOS[u] === p) {
+        currentUser = u;
+        localStorage.setItem("sugraf_user", u);
+        document.getElementById("user-display").innerText = currentUser;
+        nav('view-dashboard');
       } else {
-        document.getElementById('vistaCrear').classList.add('hidden');
-        document.getElementById('vistaVer').classList.remove('hidden');
-        document.getElementById('tabCrear').classList.remove('active');
-        document.getElementById('tabVer').classList.add('active');
-        cargarPartes();
+        alert("Contraseña incorrecta.");
       }
     }
 
-    document.getElementById('parteForm').addEventListener('submit', async (e) => {
+    function checkPermisos() {
+      if (currentUser === "Solo Visualizar") {
+        alert("Tu usuario es de Solo Visualización. No puedes guardar cambios.");
+        return false;
+      }
+      return true;
+    }
+
+    // FORMULARIO 1: Crear Incidencia
+    document.getElementById('form-nueva-incidencia').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = document.getElementById('btnGuardar');
-      const alerta = document.getElementById('alerta');
+      if(!checkPermisos()) return;
       
-      btn.disabled = true;
-      btn.innerText = "Guardando en Drive...";
-      alerta.style.display = 'none';
+      const btn = document.getElementById('btn-save-inc');
+      btn.innerText = "Guardando..."; btn.disabled = true;
 
       const payload = {
-        cliente: document.getElementById('cliente').value,
-        telefono: document.getElementById('telefono').value,
-        tecnico: document.getElementById('tecnico').value,
-        estado: document.getElementById('estado').value,
-        averia: document.getElementById('averia').value,
-        solucion: document.getElementById('solucion').value,
-        folder_id: FOLDER_ID
+        n_parte: document.getElementById('ni_parte').value,
+        fecha_entrada: document.getElementById('ni_fecha').value,
+        cliente: document.getElementById('ni_cliente').value,
+        poblacion: document.getElementById('ni_poblacion').value,
+        maquina: document.getElementById('ni_maquina').value,
+        marca: document.getElementById('ni_marca').value,
+        realizado_por: document.getElementById('ni_tecnico').value,
+        urgente: document.getElementById('ni_urg').checked,
+        garantia: document.getElementById('ni_gar').checked,
+        mantenimiento: document.getElementById('ni_man').checked,
+        instalacion: document.getElementById('ni_ins').checked
       };
 
       try {
-        const response = await fetch('/api/guardar-parte', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          alerta.className = "success";
-          alerta.innerText = "✓ Guardado con éxito en Google Drive";
-          alerta.style.display = 'block';
-          document.getElementById('parteForm').reset();
-        } else {
-          throw new Error(data.detail || "Error en el servidor");
-        }
-      } catch (err) {
-        alerta.className = "error";
-        alerta.innerText = "Error: " + err.message;
-        alerta.style.display = 'block';
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Guardar Parte en Drive";
-      }
+        await fetch('/api/incidencias', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        alert("Incidencia registrada correctamente");
+        document.getElementById('form-nueva-incidencia').reset();
+        nav('view-dashboard');
+      } catch (err) { alert("Error de red"); }
+      
+      btn.innerText = "Crear Incidencia"; btn.disabled = false;
     });
 
-    async function cargarPartes() {
-      const contenedor = document.getElementById('listaArchivos');
-      contenedor.innerHTML = "Cargando...";
+    // Cargar Lista de Incidencias Abiertas
+    async function cargarIncidencias() {
+      nav('view-lista-incidencias');
+      const box = document.getElementById('contenedor-incidencias');
+      box.innerHTML = "<p style='color:white;'>Consultando base de datos...</p>";
+      try {
+        const res = await fetch('/api/incidencias');
+        const data = await res.json();
+        incidenciasGlobales = data.incidencias || [];
+        
+        if (incidenciasGlobales.length === 0) {
+          box.innerHTML = "<p style='color:#a9bcd6;'>No hay incidencias abiertas en este momento.</p>";
+          return;
+        }
+
+        box.innerHTML = incidenciasGlobales.map((inc, i) => `
+          <div class="inc-item" onclick="abrirResolucion(${i})">
+            <div class="inc-title">${inc.cliente} ${inc.urgente ? '<span class="badge">URGENTE</span>' : ''}</div>
+            <div class="inc-sub">Nº: ${inc.n_parte} | Asignado a: <b>${inc.realizado_por}</b> | Máquina: ${inc.maquina}</div>
+          </div>
+        `).join('');
+      } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar incidencias.</p>"; }
+    }
+
+    // FORMULARIO 2: Resolver Incidencia
+    function abrirResolucion(index) {
+      const inc = incidenciasGlobales[index];
+      
+      // Auto-rellenar campos en gris (readonly)
+      document.getElementById('res_n_parte').value = inc.n_parte;
+      document.getElementById('res_cliente').value = inc.cliente;
+      document.getElementById('res_poblacion').value = inc.poblacion;
+      document.getElementById('res_maquina').value = inc.maquina;
+      document.getElementById('res_tecnico').value = currentUser;
+
+      // Autocompletar Fecha y Hora Actual
+      const now = new Date();
+      document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
+      document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
+      
+      nav('view-resolver-incidencia');
+    }
+
+    document.getElementById('form-resolver').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if(!checkPermisos()) return;
+
+      const btn = document.getElementById('btn-resolver');
+      btn.innerText = "Procesando..."; btn.disabled = true;
+
+      const payload = {
+        n_parte: document.getElementById('res_n_parte').value,
+        fecha: document.getElementById('res_fecha').value,
+        hora: document.getElementById('res_hora').value,
+        tipo_visita: document.getElementById('res_tipo').value,
+        cliente: document.getElementById('res_cliente').value,
+        poblacion: document.getElementById('res_poblacion').value,
+        maquina: document.getElementById('res_maquina').value,
+        tecnico: document.getElementById('res_tecnico').value,
+        solucion: document.getElementById('res_solucion').value
+      };
 
       try {
-        const res = await fetch(`/api/listar-partes?folder_id=${FOLDER_ID}`);
-        const data = await res.json();
+        await fetch('/api/guardar-parte', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        alert("Parte finalizado. Incidencia cerrada y guardada en Drive.");
+        document.getElementById('form-resolver').reset();
+        nav('view-dashboard');
+      } catch (err) { alert("Error al guardar"); }
 
-        if (data.archivos && data.archivos.length > 0) {
-          contenedor.innerHTML = data.archivos.map(f => `
-            <div class="file-item">
-              <strong>${f.name}</strong><br>
-              <span style="color:#64748b; font-size:0.75rem;">${f.createdTime ? f.createdTime.split('T')[0] : ''}</span>
-            </div>
-          `).join('');
-        } else {
-          contenedor.innerHTML = "<p style='color:#64748b;'>No hay partes guardados aún.</p>";
-        }
-      } catch (e) {
-        contenedor.innerHTML = "<p style='color:#b91c1c;'>Error al cargar los partes.</p>";
-      }
-    }
+      btn.innerText = "Guardar y Cerrar Parte"; btn.disabled = false;
+    });
   </script>
 </body>
 </html>
