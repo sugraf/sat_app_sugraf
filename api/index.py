@@ -23,7 +23,6 @@ app.add_middleware(
 
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-# --- ENTREGAR LA INTERFAZ ---
 @app.get("/", response_class=HTMLResponse)
 def home():
     ruta = os.path.join(os.path.dirname(__file__), "..", "index.html")
@@ -56,7 +55,6 @@ def get_manifest():
         "icons": [{"src": "/logo_ejecutable.png", "sizes": "512x512", "type": "image/png"}]
     })
 
-# --- CONEXIÓN GOOGLE DRIVE Y EXCEL ---
 def get_drive_service():
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     creds_dict = json.loads(creds_raw)
@@ -70,7 +68,7 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
-    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'TOTAL', 'REALIZADO POR', 'URG', 'GAR', 'MAN', 'INS']
+    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'DESCRIPCIÓN', 'EQUIPO', 'MARCA', 'TOTAL', 'REALIZADO POR', 'URG', 'GAR', 'MAN', 'INS']
     
     if archivos:
         file_id = archivos[0]['id']
@@ -106,7 +104,6 @@ def procesar_excel_avisos(drive, nuevo_aviso=None, borrar_n_parte=None):
         
     return df.to_dict(orient="records")
 
-# --- MODELOS ---
 class NuevoAviso(BaseModel):
     n_parte: str
     fecha_entrada: str
@@ -114,12 +111,8 @@ class NuevoAviso(BaseModel):
     cliente: str
     poblacion: str
     maquina: str
-    marca: str
-    realizado_por: str
+    descripcion: str
     urgente: bool
-    garantia: bool
-    mantenimiento: bool
-    instalacion: bool
 
 class ParteResolucion(BaseModel):
     n_parte: str
@@ -132,18 +125,16 @@ class ParteResolucion(BaseModel):
     tecnico: str
     solucion: str
 
-# --- ENDPOINTS ---
 @app.get("/api/clientes-maquinas")
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        # Búsqueda con el nombre exacto sin espacios extra
         query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'EQUIPOS-FECHAS.xlsx' and trashed = false"
         res = drive.files().list(q=query, fields="files(id, name)").execute()
         archivos = res.get("files", [])
         
         if not archivos:
-            return {"error": "No se encontró el archivo EQUIPOS-FECHAS.xlsx en Drive."}
+            return {"error": "No se encontró el archivo EQUIPOS-FECHAS.xlsx en Drive. Comprueba los permisos."}
 
         file_id = archivos[0]['id']
         request = drive.files().get_media(fileId=file_id)
@@ -194,14 +185,15 @@ def crear_aviso(aviso: NuevoAviso):
             'CLIENTE': aviso.cliente,
             'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina,
+            'DESCRIPCIÓN': aviso.descripcion,
             'EQUIPO': '', 
-            'MARCA': aviso.marca,
+            'MARCA': '',
             'TOTAL': 0,
-            'REALIZADO POR': aviso.realizado_por,
+            'REALIZADO POR': 'Pendiente',
             'URG': 'SI' if aviso.urgente else 'NO',
-            'GAR': 'SI' if aviso.garantia else 'NO',
-            'MAN': 'SI' if aviso.mantenimiento else 'NO',
-            'INS': 'SI' if aviso.instalacion else 'NO'
+            'GAR': 'NO',
+            'MAN': 'NO',
+            'INS': 'NO'
         }
         procesar_excel_avisos(drive, nuevo_aviso=fila_excel)
         return {"status": "ok"}
