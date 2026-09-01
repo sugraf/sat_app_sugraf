@@ -18,6 +18,8 @@
     .topbar img { height: 35px; object-fit: contain; }
     .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
+    .btn-logout { background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 6px; margin-left: 10px; font-size: 0.85rem; }
+    .btn-logout:hover { background: #fee2e2; }
 
     .view { display: none; padding-bottom: 50px; }
     .view.active { display: block; animation: fadeIn 0.3s ease; }
@@ -40,7 +42,9 @@
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
-    input[readonly], select[readonly] { background: #e2e8f0; color: #64748b; cursor: not-allowed; border-style: dashed; }
+    
+    /* Efecto desactivado/gris para fecha y hora automáticas */
+    input[readonly], select[readonly], input.readonly-style { background: #e2e8f0; color: #64748b; cursor: not-allowed; border: 1px dashed #cbd5e1; }
     
     .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
@@ -63,8 +67,10 @@
   <!-- TOPBAR -->
   <div class="topbar">
     <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
-    <div class="topbar-right">
-      <div class="dot"></div> <span id="user-display">Conectado</span>
+    <div class="topbar-right" id="zona-usuario" style="display: none;">
+      <div class="dot"></div> 
+      <span id="user-display">Conectado</span>
+      <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
     </div>
   </div>
 
@@ -116,20 +122,25 @@
       <div class="form-box">
         <h2>Nuevo Aviso</h2>
         <form id="form-nuevo-aviso">
+          
+          <label>Nº Aviso</label>
+          <input type="text" id="ni_parte" required>
+
           <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;"><label>Nº Aviso</label><input type="text" id="ni_parte" required></div>
-            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required></div>
+            <!-- Fechas y horas en gris, readonly -->
+            <div style="flex: 1;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" class="readonly-style" readonly required></div>
+            <div style="flex: 1;"><label>Hora</label><input type="time" id="ni_hora" class="readonly-style" readonly required></div>
           </div>
           
-          <!-- Lista con filtro de Clientes -->
+          <!-- Lista de Clientes -->
           <label>Cliente</label>
-          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar cliente...">
+          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
           <datalist id="lista-clientes"></datalist>
           
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
-          <!-- Lista con filtro de Máquinas dependiente del Cliente -->
+          <!-- Lista de Máquinas -->
           <div style="display: flex; gap: 10px;">
             <div style="flex: 1;">
               <label>Máquina / Anomalía</label>
@@ -168,9 +179,7 @@
     <div class="container">
       <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
         <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Avisos Sin Tratar</h2>
-        <div id="contenedor-avisos" style="margin-top: 20px;">
-          <!-- Aquí se inyectan los avisos -->
-        </div>
+        <div id="contenedor-avisos" style="margin-top: 20px;"></div>
         <button class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
       </div>
     </div>
@@ -197,13 +206,10 @@
           
           <label>Cliente</label>
           <input type="text" id="res_cliente" readonly>
-          
           <label>Dirección / Población</label>
           <input type="text" id="res_poblacion" readonly>
-          
           <label>Máquina / Anomalía Reportada</label>
           <input type="text" id="res_maquina" readonly>
-          
           <label>Técnico</label>
           <input type="text" id="res_tecnico" readonly>
           
@@ -228,7 +234,7 @@
 
     let currentUser = localStorage.getItem("sugraf_user") || null;
     let avisosGlobales = [];
-    let dbEquipos = {}; // Guarda { "Cliente1": ["MaquinaA", "MaquinaB"] }
+    let dbEquipos = {}; 
 
     function nav(viewId) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -236,9 +242,9 @@
       window.scrollTo(0,0);
     }
 
-    // Inicialización al abrir
     if (currentUser) {
       document.getElementById("user-display").innerText = currentUser;
+      document.getElementById("zona-usuario").style.display = "flex";
       nav('view-dashboard');
       cargarEquiposSilencioso();
     }
@@ -250,11 +256,23 @@
         currentUser = u;
         localStorage.setItem("sugraf_user", u);
         document.getElementById("user-display").innerText = currentUser;
+        document.getElementById("zona-usuario").style.display = "flex";
+        document.getElementById("login-pass").value = "";
         nav('view-dashboard');
         cargarEquiposSilencioso();
       } else {
         alert("Contraseña incorrecta.");
       }
+    }
+
+    // Nueva función para desconectar
+    function cerrarSesion() {
+      currentUser = null;
+      localStorage.removeItem("sugraf_user");
+      document.getElementById("zona-usuario").style.display = "none";
+      document.getElementById('form-nuevo-aviso').reset();
+      document.getElementById('form-resolver').reset();
+      nav('view-login');
     }
 
     function checkPermisos() {
@@ -265,33 +283,39 @@
       return true;
     }
 
-    // --- CARGA DE EXCEL EN SEGUNDO PLANO ---
+    // Carga de Excel en segundo plano
     async function cargarEquiposSilencioso() {
       try {
         const res = await fetch('/api/clientes-maquinas');
         dbEquipos = await res.json();
         
-        // Llenar el desplegable HTML de clientes (por orden alfabético)
+        if(dbEquipos.error) {
+            console.warn("Aviso:", dbEquipos.error);
+            return;
+        }
+
         const dlClientes = document.getElementById('lista-clientes');
-        dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">`).join('');
-      } catch(e) { console.log("Error cargando base de datos de equipos", e); }
+        // Se añaden etiquetas de cierre </option> para compatibilidad total móvil
+        dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+      } catch(e) { console.log("Error cargando base de datos", e); }
     }
 
     function abrirNuevoAviso() {
       nav('view-nuevo-aviso');
-      document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      // Rellena la fecha (YYYY-MM-DD) y la hora (HH:MM) automáticamente
+      document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
+      document.getElementById('ni_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
     }
 
-    // Cuando el usuario elige o teclea un cliente, actualiza la lista de máquinas
+    // Actualiza la lista de máquinas al escribir el cliente
     document.getElementById('ni_cliente').addEventListener('input', (e) => {
       const clienteSeleccionado = e.target.value;
       const maquinasDeCliente = dbEquipos[clienteSeleccionado] || [];
-      
       const dlMaquinas = document.getElementById('lista-maquinas');
-      dlMaquinas.innerHTML = maquinasDeCliente.sort().map(m => `<option value="${m}">`).join('');
+      dlMaquinas.innerHTML = maquinasDeCliente.sort().map(m => `<option value="${m}">${m}</option>`).join('');
     });
 
-    // FORMULARIO 1: Crear Aviso
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
       if(!checkPermisos()) return;
@@ -302,6 +326,7 @@
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
+        hora_entrada: document.getElementById('ni_hora').value,
         cliente: document.getElementById('ni_cliente').value,
         poblacion: document.getElementById('ni_poblacion').value,
         maquina: document.getElementById('ni_maquina').value,
@@ -323,7 +348,6 @@
       btn.innerText = "Crear Aviso"; btn.disabled = false;
     });
 
-    // Cargar Lista de Avisos (Lee el Excel)
     async function cargarAvisos() {
       nav('view-lista-avisos');
       const box = document.getElementById('contenedor-avisos');
@@ -337,7 +361,6 @@
           box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos pendientes en este momento.</p>";
           return;
         }
-
         box.innerHTML = avisosGlobales.map((av, i) => `
           <div class="inc-item" onclick="abrirResolucion(${i})">
             <div class="inc-title">${av['CLIENTE']} ${av['URG'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
@@ -347,10 +370,8 @@
       } catch (e) { box.innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
     }
 
-    // FORMULARIO 2: Resolver Aviso
     function abrirResolucion(index) {
       const av = avisosGlobales[index];
-      
       document.getElementById('res_n_parte').value = av['Nº PARTE'];
       document.getElementById('res_cliente').value = av['CLIENTE'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
