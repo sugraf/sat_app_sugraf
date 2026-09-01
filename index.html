@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -15,11 +16,17 @@
     h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
     
     .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+    .topbar-left { display: flex; align-items: center; gap: 15px; }
     .topbar img { height: 35px; object-fit: contain; }
     .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
-    .btn-logout { background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 6px; margin-left: 10px; font-size: 0.85rem; }
-    .btn-logout:hover { background: #fee2e2; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: none; }
+    
+    .dropdown { position: relative; display: inline-block; cursor: pointer; }
+    .dropdown-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 140px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; border-radius: 8px; overflow: hidden; margin-top: 5px; }
+    .dropdown-content a { color: #ef4444; padding: 12px 16px; text-decoration: none; display: block; font-weight: 600; font-size: 0.9rem; text-align: left; }
+    .dropdown-content a:hover { background-color: #fee2e2; }
+    .show { display: block; }
 
     .view { display: none; padding-bottom: 50px; }
     .view.active { display: block; animation: fadeIn 0.3s ease; }
@@ -53,23 +60,29 @@
     button.btn-secondary { background: #e2e8f0; color: #475569; margin-top: 10px; }
     button.btn-secondary:hover { background: #cbd5e1; }
 
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; }
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; text-align: left; }
     .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
     .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
-    
-    #db-status { font-size: 0.8rem; margin-top: 6px; font-weight: 600; }
   </style>
 </head>
 <body>
 
   <div class="topbar">
-    <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+    <div class="topbar-left">
+      <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+      <button class="btn-back" id="btn-back" onclick="nav('view-dashboard')">⬅ Volver</button>
+    </div>
+    
     <div class="topbar-right" id="zona-usuario" style="display: none;">
       <div class="dot"></div> 
-      <span id="user-display">Conectado</span>
-      <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
+      <div class="dropdown">
+        <span id="user-display" onclick="toggleUserMenu()">Conectado ▼</span>
+        <div id="user-menu" class="dropdown-content">
+          <a href="#" onclick="cerrarSesion()">Desconectar</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -102,13 +115,27 @@
         <div class="card" onclick="abrirNuevoAviso()">
           <div class="card-icon">📝</div>
           <h3>Introducir Aviso</h3>
-          <p>Registra un nuevo aviso para el equipo técnico.</p>
+          <p>Registra un nuevo aviso.</p>
+        </div>
+        <div class="card" onclick="nav('view-adjudicar')">
+          <div class="card-icon">🤝</div>
+          <h3>Adjudicar Aviso</h3>
+          <p>Asigna técnicos a los avisos pendientes.</p>
         </div>
         <div class="card" onclick="cargarAvisos()">
           <div class="card-icon">🔧</div>
-          <h3>Resolver Aviso</h3>
-          <p>Abre un aviso pendiente y comienza tu intervención.</p>
+          <h3>Ver Avisos Adjudicados</h3>
+          <p>Visualiza y resuelve los avisos en curso.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-adjudicar" class="view">
+    <div class="container">
+      <div class="form-box" style="text-align:center;">
+        <h2>Adjudicar Aviso</h2>
+        <p>Función en desarrollo.</p>
       </div>
     </div>
   </div>
@@ -126,16 +153,17 @@
           <input type="date" id="ni_fecha" required>
           
           <label>Cliente</label>
-          <input type="text" id="ni_cliente" list="lista-clientes" autocomplete="off" required placeholder="Cargando base de datos...">
-          <div id="db-status" style="color: #f59e0b;">⏳ Conectando con Google Drive...</div>
-          <datalist id="lista-clientes"></datalist>
+          <select id="ni_cliente" required>
+            <option value="">Cargando clientes...</option>
+          </select>
           
           <label>Población / Dirección</label>
           <input type="text" id="ni_poblacion" required>
           
           <label>Máquina</label>
-          <input type="text" id="ni_maquina" list="lista-maquinas" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
-          <datalist id="lista-maquinas"></datalist>
+          <select id="ni_maquina" required>
+            <option value="">Selecciona primero un cliente...</option>
+          </select>
 
           <label>Explicar la Incidencia</label>
           <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
@@ -146,7 +174,6 @@
           </div>
 
           <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
-          <button type="button" class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
         </form>
       </div>
     </div>
@@ -155,9 +182,8 @@
   <div id="view-lista-avisos" class="view">
     <div class="container">
       <div class="form-box" style="background: transparent; box-shadow: none; max-width: 800px;">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Avisos Sin Tratar</h2>
+        <h2 style="color: white; border-color: rgba(255,255,255,0.2);">Avisos Adjudicados (Sin Tratar)</h2>
         <div id="contenedor-avisos" style="margin-top: 20px;"></div>
-        <button class="btn btn-secondary" onclick="nav('view-dashboard')">Volver al Hub</button>
       </div>
     </div>
   </div>
@@ -193,7 +219,6 @@
           <textarea id="res_solucion" rows="4" required placeholder="Describe las piezas cambiadas o ajustes realizados..."></textarea>
           
           <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Aviso</button>
-          <button type="button" class="btn btn-secondary" onclick="nav('view-lista-avisos')">Cancelar</button>
         </form>
       </div>
     </div>
@@ -216,10 +241,33 @@
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.getElementById(viewId).classList.add('active');
       window.scrollTo(0,0);
+      
+      const btnBack = document.getElementById('btn-back');
+      if(viewId === 'view-dashboard' || viewId === 'view-login') {
+          btnBack.style.display = 'none';
+      } else {
+          btnBack.style.display = 'inline-block';
+      }
+    }
+
+    function toggleUserMenu() {
+        document.getElementById("user-menu").classList.toggle("show");
+    }
+
+    window.onclick = function(event) {
+        if (!event.target.matches('#user-display')) {
+            var dropdowns = document.getElementsByClassName("dropdown-content");
+            for (var i = 0; i < dropdowns.length; i++) {
+                var openDropdown = dropdowns[i];
+                if (openDropdown.classList.contains('show')) {
+                    openDropdown.classList.remove('show');
+                }
+            }
+        }
     }
 
     if (currentUser) {
-      document.getElementById("user-display").innerText = currentUser;
+      document.getElementById("user-display").innerText = currentUser + " ▼";
       document.getElementById("zona-usuario").style.display = "flex";
       nav('view-dashboard');
       cargarEquiposSilencioso();
@@ -231,7 +279,7 @@
       if (USUARIOS[u] === p) {
         currentUser = u;
         localStorage.setItem("sugraf_user", u);
-        document.getElementById("user-display").innerText = currentUser;
+        document.getElementById("user-display").innerText = currentUser + " ▼";
         document.getElementById("zona-usuario").style.display = "flex";
         document.getElementById("login-pass").value = "";
         nav('view-dashboard');
@@ -259,32 +307,14 @@
     }
 
     async function cargarEquiposSilencioso() {
-      const statusDiv = document.getElementById('db-status');
-      const inputCliente = document.getElementById('ni_cliente');
-      
       try {
         const res = await fetch('/api/clientes-maquinas');
         dbEquipos = await res.json();
         
-        if(dbEquipos.error) {
-            statusDiv.innerHTML = "❌ Error: " + dbEquipos.error;
-            statusDiv.style.color = "#ef4444";
-            inputCliente.placeholder = "Fallo al conectar base de datos";
-            return;
-        }
-
-        const numClientes = Object.keys(dbEquipos).length;
-        statusDiv.innerHTML = `✅ Excel leído con éxito (${numClientes} clientes)`;
-        statusDiv.style.color = "#2ea36b";
-        inputCliente.placeholder = "Escribe para buscar o desplegar...";
-
-        const dlClientes = document.getElementById('lista-clientes');
-        dlClientes.innerHTML = Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
-      } catch(e) { 
-        statusDiv.innerHTML = "❌ Error de conexión con el servidor.";
-        statusDiv.style.color = "#ef4444";
-        inputCliente.placeholder = "Sin conexión a Drive";
-      }
+        const selectCliente = document.getElementById('ni_cliente');
+        selectCliente.innerHTML = '<option value="">Selecciona un cliente...</option>' + 
+          Object.keys(dbEquipos).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+      } catch(e) { }
     }
 
     function abrirNuevoAviso() {
@@ -293,11 +323,16 @@
       document.getElementById('ni_fecha').value = now.toISOString().split('T')[0];
     }
 
-    document.getElementById('ni_cliente').addEventListener('input', (e) => {
-      const clienteSeleccionado = e.target.value;
-      const maquinasDeCliente = dbEquipos[clienteSeleccionado] || [];
-      const dlMaquinas = document.getElementById('lista-maquinas');
-      dlMaquinas.innerHTML = maquinasDeCliente.sort().map(m => `<option value="${m}">${m}</option>`).join('');
+    document.getElementById('ni_cliente').addEventListener('change', (e) => {
+      const c = e.target.value;
+      const selectMaquina = document.getElementById('ni_maquina');
+      if (!c) {
+          selectMaquina.innerHTML = '<option value="">Selecciona primero un cliente...</option>';
+          return;
+      }
+      const maquinas = dbEquipos[c] || [];
+      selectMaquina.innerHTML = '<option value="">Selecciona máquina...</option>' + 
+        maquinas.map(m => `<option value="${m.nombre}">${m.nombre}</option>`).join('');
     });
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
@@ -307,19 +342,29 @@
       const btn = document.getElementById('btn-save-inc');
       btn.innerText = "Guardando en Excel..."; btn.disabled = true;
 
+      const cliente = document.getElementById('ni_cliente').value;
+      const maquinaNombre = document.getElementById('ni_maquina').value;
+      
+      const maquinaData = dbEquipos[cliente].find(m => m.nombre === maquinaNombre) || { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
+
       const payload = {
         n_parte: document.getElementById('ni_parte').value,
         fecha_entrada: document.getElementById('ni_fecha').value,
-        cliente: document.getElementById('ni_cliente').value,
+        cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
-        maquina: document.getElementById('ni_maquina').value,
+        maquina: maquinaNombre,
+        equipo: maquinaData.equipo,
+        marca: maquinaData.marca,
+        modelo: maquinaData.modelo,
+        f_garan: maquinaData.f_garan,
+        f_instal: maquinaData.f_instal,
         descripcion: document.getElementById('ni_desc').value,
         urgente: document.getElementById('ni_urg').checked
       };
 
       try {
         await fetch('/api/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Aviso registrado y guardado en 'Avisos Sin Tratar.xlsx'");
+        alert("Aviso guardado en 'Avisos Sin Tratar.xlsx'");
         document.getElementById('form-nuevo-aviso').reset();
         nav('view-dashboard');
       } catch (err) { alert("Error de red al guardar en Google Drive."); }
@@ -342,7 +387,7 @@
         }
         box.innerHTML = avisosGlobales.map((av, i) => `
           <div class="inc-item" onclick="abrirResolucion(${i})">
-            <div class="inc-title">${av['CLIENTE']} ${av['URG'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
+            <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
             <div class="inc-sub">Nº: ${av['Nº PARTE']} | Asignado a: <b>${av['REALIZADO POR']}</b> | Máquina: ${av['MÁQUINA']}</div>
           </div>
         `).join('');
