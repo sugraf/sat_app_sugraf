@@ -35,7 +35,7 @@ def procesar_excel_avisos_generador(drive, nuevo_aviso=None):
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
-    cols = ['Nº PARTE', 'F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS']
+    cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS']
     
     if archivos:
         file_id = archivos[0]['id']
@@ -78,7 +78,6 @@ def procesar_excel_avisos_generador(drive, nuevo_aviso=None):
     return df.fillna("").to_dict(orient="records")
 
 class NuevoAviso(BaseModel):
-    n_parte: str
     fecha_entrada: str
     cliente: str
     poblacion: str
@@ -156,7 +155,6 @@ def crear_aviso(aviso: NuevoAviso):
     try:
         drive = get_drive_service()
         fila_excel = {
-            'Nº PARTE': aviso.n_parte,
             'F. ENTR.': aviso.fecha_entrada,
             'CLIENTE': aviso.cliente,
             'POBLACIÓN': aviso.poblacion,
