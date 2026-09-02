@@ -7,91 +7,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #070e1c; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
-        padding: 20px;
-    }
-    
-    .topbar { 
-        background: #ffffff; 
-        height: 60px; 
-        display: flex; 
-        align-items: center; 
-        padding: 0 20px; 
-        justify-content: space-between; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        position: sticky; 
-        top: 0; 
-        z-index: 100; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { 
-        background: #f1f5f9; 
-        border: 1px solid #cbd5e1; 
-        padding: 0 15px; 
-        height: 35px; 
-        border-radius: 6px; 
-        font-weight: 600; 
-        color: #1e293b !important; 
-        cursor: pointer; 
-        display: inline-flex; 
-        align-items: center; 
-        justify-content: center; 
-        text-decoration: none; 
-        font-size: 14px; 
-        transition: 0.2s; 
-        box-sizing: border-box; 
-    }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
     .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
+    .header-title h2 { margin-bottom: 20px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; font-family: 'Space Grotesk', sans-serif;}
     
-    .header-title h2 { 
-        margin-bottom: 20px; 
-        color: white; 
-        border-bottom: 1px solid rgba(255,255,255,0.2); 
-        padding-bottom: 10px; 
-        font-family: 'Space Grotesk', sans-serif;
-    }
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 12px; margin-bottom: 12px; transition: all 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
+    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1);}
     
-    .inc-item { 
-        background: #f8fafc; 
-        border: 1px solid #e2e8f0; 
-        padding: 18px; 
-        border-radius: 12px; 
-        margin-bottom: 12px; 
-        transition: all 0.2s; 
-        text-align: left; 
-        cursor: pointer; 
-        animation: fadeIn 0.3s ease;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    .inc-item:hover { 
-        border-color: #4f9cd9; 
-        background: #eff6ff; 
-        transform: translateY(-2px); 
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-    }
-    
-    .inc-title { 
-        font-weight: 700; 
-        color: #0f1e35; 
-        font-size: 1.05rem; 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        flex-wrap: wrap; 
-        gap: 10px; 
-    }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
     
     .badge-container { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 10px;}
@@ -102,53 +31,16 @@
     .bg-ins { background: #e0e7ff; color: #1d4ed8; border: 1px solid #93c5fd; }
     .bg-rev { background: #f3e8ff; color: #4338ca; border: 1px solid #c4b5fd; }
     
-    .btn-delete {
-        background: #fee2e2;
-        border: 1px solid #fca5a5;
-        color: #b91c1c;
-        border-radius: 6px;
-        padding: 5px 10px;
-        cursor: pointer;
-        transition: 0.2s;
-        font-size: 1.1rem;
-        margin-right: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+    .btn-delete { background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: 0.2s; font-size: 1.1rem; margin-right: 8px; display: flex; align-items: center; justify-content: center;}
     .btn-delete:hover { background: #fca5a5; color: white; }
 
-    select.filter-sel { 
-        padding: 10px 12px; 
-        border: 1px solid #cbd5e1; 
-        border-radius: 8px; 
-        font-size: 0.9rem; 
-        background: #fff; 
-        cursor: pointer; 
-        color: #1e293b; 
-        font-weight: 500; 
-        min-width: 160px; 
-        flex: 1;
-        transition: 0.2s;
-    }
+    select.filter-sel { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; background: #fff; cursor: pointer; color: #1e293b; font-weight: 500; min-width: 160px; flex: 1; transition: 0.2s;}
     select.filter-sel:focus { outline: none; border-color: #4f9cd9; }
-    
-    select.action-sel { 
-        padding: 6px 10px; 
-        border: 1px solid #cbd5e1; 
-        border-radius: 6px; 
-        font-size: 0.85rem; 
-        font-family: 'Inter', sans-serif; 
-        background: #fff; 
-        cursor: pointer; 
-        color: #1e293b; 
-        font-weight: 500;
-    }
+    select.action-sel { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; font-family: 'Inter', sans-serif; background: #fff; cursor: pointer; color: #1e293b; font-weight: 500;}
     select.action-sel:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Modal Styles */
     .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
     .modal-content { background-color: #fff; padding: 30px; border-radius: 16px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; transition: 0.2s;}
@@ -231,9 +123,7 @@
       
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
 
-      let filtrados = avisosGlobales.map((av, index) => ({...av, original_index: index}));
-
-      filtrados = filtrados.filter(av => {
+      let filtrados = avisosGlobales.filter(av => {
         const matchTec = filtroTec === "Todos" || (av['REALIZADO POR'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
         const matchGar = filtroGar === "Todos" || av['GARANTÍA'] === filtroGar;
@@ -249,6 +139,7 @@
       let html = "";
       filtrados.forEach((av) => {
         const i = av.original_index;
+        const fuente = av.fuente;
         const esPirineos = av['PIRINEOS'] === 'SI';
         const tecActual = av['REALIZADO POR'] || 'Pendiente';
         
@@ -271,30 +162,32 @@
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        
+        let fileStatusBadge = fuente === 'tratados' ? `<span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">Adjudicado</span>` : '';
 
         let btnDelete = "";
         if (currentUser === "master") {
-            btnDelete = `<button class="btn-delete" onclick="event.stopPropagation(); eliminarAviso(${i})" title="Eliminar aviso">🗑️</button>`;
+            btnDelete = `<button class="btn-delete" onclick="event.stopPropagation(); eliminarAviso(${i}, '${fuente}')" title="Eliminar aviso">🗑️</button>`;
         }
 
         html += `
-          <div class="inc-item" onclick="abrirDetalles(${i})">
+          <div class="inc-item" onclick="abrirDetalles(${i}, '${fuente}')">
             <div class="inc-title">
               <span style="flex:1; min-width: 200px; display:flex; align-items:center;">
                   ${btnDelete}
                   ${av['CLIENTE']} 
-                  <span class="badge-container">${badgesHtml}</span>
+                  <span class="badge-container">${badgesHtml} ${fileStatusBadge}</span>
               </span>
               <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
                   <strong style="color: #0f1e35;">Asignado a:</strong>
-                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, this.value)">
+                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, '${fuente}', this.value)">
                     ${tecOptions}
                   </select>
                 </span>
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
                   <strong style="color: #0f1e35;">Pirineos:</strong>
-                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, this.value)" ${disablePirineos}>
+                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, '${fuente}', this.value)" ${disablePirineos}>
                     <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
                     <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
                   </select>
@@ -309,10 +202,11 @@
       box.innerHTML = html || "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos que coincidan con los filtros.</p>";
     }
 
-    function abrirDetalles(index) {
-        const av = avisosGlobales[index];
+    function abrirDetalles(index, fuente) {
+        const av = avisosGlobales.find(a => a.original_index === index && a.fuente === fuente);
         let html = "";
         for (let key in av) {
+            if (key === 'fuente' || key === 'original_index') continue;
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? av[key] : '-';
             html += `<tr><th>${key}</th><td>${val}</td></tr>`;
         }
@@ -323,26 +217,24 @@
     function cerrarModal() { document.getElementById('aviso-modal').style.display = 'none'; }
     window.onclick = function(event) { if (event.target === document.getElementById('aviso-modal')) cerrarModal(); }
 
-    async function actualizarPirineos(index, valor) {
+    async function actualizarPirineos(index, fuente, valor) {
       try {
-        await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, valor: valor }) });
-        avisosGlobales[index]['PIRINEOS'] = valor;
-        renderGestionAvisos();
+        await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) });
+        cargarGestionAvisos();
       } catch (err) { alert("Error al actualizar la celda Pirineos."); }
     }
 
-    async function actualizarTecnico(index, tecnico) {
+    async function actualizarTecnico(index, fuente, tecnico) {
       try {
-        await fetch('/api/gestor/actualizar-tecnico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, valor: tecnico }) });
-        avisosGlobales[index]['REALIZADO POR'] = tecnico;
-        renderGestionAvisos();
+        await fetch('/api/gestor/actualizar-tecnico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: tecnico }) });
+        cargarGestionAvisos();
       } catch (err) { alert("Error al asignar técnico."); }
     }
 
-    async function eliminarAviso(index) {
+    async function eliminarAviso(index, fuente) {
         if (confirm("¿Estás seguro de que quieres ELIMINAR este aviso permanentemente?")) {
             try {
-                await fetch('/api/gestor/eliminar-aviso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, valor: "" }) });
+                await fetch('/api/gestor/eliminar-aviso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "" }) });
                 cargarGestionAvisos();
             } catch (err) { alert("Error al eliminar el aviso."); }
         }
