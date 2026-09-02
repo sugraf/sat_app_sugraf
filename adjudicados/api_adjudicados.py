@@ -76,6 +76,7 @@ class UpdateParte(BaseModel):
     maquina: str
     tecnico: str
     tipo_asistencia: str
+    pirineos: str
 
 def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '': 
@@ -95,6 +96,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
     
     df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
+    df.loc[idx, 'PIRINEOS'] = parte.pirineos
     df.loc[idx, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
     df.loc[idx, 'HORA ENTRADA'] = parte.hora_entrada
     df.loc[idx, 'HORA SALIDA'] = parte.hora_salida
@@ -125,11 +127,15 @@ def get_mis_avisos(tecnico: str):
             
             tipo_asis = row.get('TIPO ASISTENCIA', '').strip()
             if not tipo_asis: tipo_asis = 'Presencial'
+
+            pirineos_val = row.get('PIRINEOS', '').strip()
+            if not pirineos_val: pirineos_val = 'NO'
             
             row_dict = row.to_dict()
             row_dict['REALIZADO POR'] = asignado
             row_dict['ESTADO'] = estado
             row_dict['TIPO ASISTENCIA'] = tipo_asis
+            row_dict['PIRINEOS'] = pirineos_val
             row_dict['aviso_index'] = index
 
             if tecnico == 'master':
@@ -156,28 +162,8 @@ def guardar_progreso(parte: UpdateParte):
 def resolver_aviso(parte: UpdateParte):
     try:
         drive = get_drive_service()
-        horas = procesar_actualizacion_tratados(drive, parte, "Cerrado")
-        
-        contenido = (
-            f"=== PARTE DE TRABAJO FINALIZADO ===\n"
-            f"TÉCNICO:           {parte.tecnico}\n"
-            f"MODALIDAD:         {parte.tipo_asistencia.upper()}\n"
-            f"FECHA REALIZACIÓN: {parte.fecha_realizacion}\n"
-            f"HORARIO:           {parte.hora_entrada} - {parte.hora_salida} ({horas}h)\n"
-            f"ESTADO RESOLUCIÓN: {parte.resuelto_pendiente.upper()}\n"
-            f"-----------------------------------\n"
-            f"CLIENTE:   {parte.cliente}\n"
-            f"DIRECCIÓN: {parte.poblacion}\n"
-            f"MÁQUINA:   {parte.maquina}\n"
-            f"-----------------------------------\n"
-            f"PIEZAS NECESARIAS:\n{parte.piezas}\n"
-            f"-----------------------------------\n"
-            f"TRABAJOS REALIZADOS / SOLUCIÓN:\n{parte.solucion}\n"
-        )
-        nombre_txt = f"ParteResuelto_{parte.cliente.replace(' ', '_')}_{parte.fecha_realizacion}.txt"
-        media_txt = MediaIoBaseUpload(io.BytesIO(contenido.encode("utf-8")), mimetype="text/plain")
-        drive.files().create(body={"name": nombre_txt, "parents": [FOLDER_ID]}, media_body=media_txt).execute()
-        
+        # Solo actualiza el estado en el excel y guarda los campos.
+        procesar_actualizacion_tratados(drive, parte, "Cerrado")
         return {"status": "ok"}
     except Exception as e: 
         raise HTTPException(status_code=500, detail=str(e))
