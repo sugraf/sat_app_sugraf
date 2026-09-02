@@ -22,17 +22,27 @@ def get_drive_service():
 
 def get_excel(drive, name, cols):
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
-    res = drive.files().list(q=query, fields="files(id)").execute()
+    res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
     if res.get("files"):
-        file_id = res.get("files")[0]['id']
-        req = drive.files().get_media(fileId=file_id)
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, req)
-        done = False
-        while not done: _, done = downloader.next_chunk()
-        fh.seek(0)
-        df = pd.read_excel(fh)
+        file_info = res.get("files")[0]
+        file_id = file_info['id']
+        mime_type = file_info.get('mimeType', '')
         
+        try:
+            if mime_type == 'application/vnd.google-apps.spreadsheet':
+                req = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            else:
+                req = drive.files().get_media(fileId=file_id)
+            
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, req)
+            done = False
+            while not done: _, done = downloader.next_chunk()
+            fh.seek(0)
+            df = pd.read_excel(fh)
+        except Exception:
+            df = pd.DataFrame(columns=cols)
+            
         for c in cols:
             if c not in df.columns: df[c] = ''
         return file_id, df
@@ -70,7 +80,6 @@ def listar():
             a['fuente'] = 'tratados'
             a['original_index'] = i
 
-        # El organizador ve todo
         return {"avisos": avisos_sin + avisos_tra}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -92,11 +101,9 @@ def update_pirineos(data: UpdateIndex):
 def update_tecnico(data: UpdateIndex):
     try:
         drive = get_drive_service()
-        # Lógica de salto entre Excels
         if data.fuente == 'sin_tratar':
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
             if data.valor != 'Pendiente':
-                # Mover a Tratados
                 row = df_sin.iloc[data.aviso_index].copy()
                 df_sin = df_sin.drop(index=data.aviso_index).reset_index(drop=True)
                 save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
@@ -112,10 +119,9 @@ def update_tecnico(data: UpdateIndex):
                 df_sin.at[data.aviso_index, 'REALIZADO POR'] = data.valor
                 save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
                 
-        else: # Viene de tratados
+        else: 
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
             if data.valor == 'Pendiente':
-                # Devolver a Sin Tratar
                 row = df_tra.iloc[data.aviso_index].copy()
                 df_tra = df_tra.drop(index=data.aviso_index).reset_index(drop=True)
                 save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
