@@ -22,25 +22,20 @@ def get_drive_service():
     ))
 
 def get_excel(drive, name, cols):
-    """Función de lectura robusta idéntica a la del gestor"""
+    """Lógica corregida para leer directamente como se hace en avisos sin tratar"""
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
-    res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
-    if res.get("files"):
-        file_info = res.get("files")[0]
-        file_id = file_info['id']
-        mime_type = file_info.get('mimeType', '')
-        
+    res = drive.files().list(q=query, fields="files(id)").execute()
+    archivos = res.get("files", [])
+    
+    if archivos:
+        file_id = archivos[0]['id']
         try:
-            # Si es un Google Sheet, lo exportamos como xlsx, si no, lo descargamos normal
-            if mime_type == 'application/vnd.google-apps.spreadsheet':
-                req = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            else:
-                req = drive.files().get_media(fileId=file_id)
-            
+            request = drive.files().get_media(fileId=file_id)
             fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, req)
+            downloader = MediaIoBaseDownload(fh, request)
             done = False
-            while not done: _, done = downloader.next_chunk()
+            while not done: 
+                _, done = downloader.next_chunk()
             fh.seek(0)
             df = pd.read_excel(fh)
         except Exception:
@@ -48,14 +43,16 @@ def get_excel(drive, name, cols):
             
         # Asegurarnos de que tenga todas las columnas requeridas
         for c in cols:
-            if c not in df.columns: df[c] = ''
+            if c not in df.columns: 
+                df[c] = ''
         return file_id, df
     else:
         return None, pd.DataFrame(columns=cols)
 
 def save_excel(drive, file_id, name, df):
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer: 
+        df.to_excel(writer, index=False)
     media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     if file_id:
         drive.files().update(fileId=file_id, media_body=media).execute()
@@ -108,7 +105,6 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
 def get_mis_avisos(tecnico: str):
     try:
         drive = get_drive_service()
-        # Usar la nueva función robusta
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
         
         if 'ESTADO' not in df.columns: df['ESTADO'] = 'Vacío'
