@@ -30,8 +30,6 @@ def get_excel(drive, name, cols):
         file_id = file_info['id']
         mime_type = file_info.get('mimeType', '')
         
-        # Eliminado el bloque try-except silencioso. Si falla la lectura, queremos ver el error real
-        # en lugar de sobrescribir el archivo con un DataFrame vacío.
         if mime_type == 'application/vnd.google-apps.spreadsheet':
             request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         else:
@@ -44,14 +42,16 @@ def get_excel(drive, name, cols):
             _, done = downloader.next_chunk()
         fh.seek(0)
         
-        df = pd.read_excel(fh, engine='openpyxl')
+        df = pd.read_excel(fh, engine='openpyxl', dtype=object)
         
         for c in cols:
             if c not in df.columns: 
                 df[c] = ''
+                
+        df = df.astype(object)
         return file_id, df
     else:
-        return None, pd.DataFrame(columns=cols)
+        return None, pd.DataFrame(columns=cols, dtype=object)
 
 def save_excel(drive, file_id, name, df):
     output = io.BytesIO()
@@ -94,7 +94,6 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     idx = int(parte.aviso_index)
     horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
     
-    # Asignación directa con .loc asegura que se guarden los datos incluso si el index cambia
     df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
     df.loc[idx, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
     df.loc[idx, 'HORA ENTRADA'] = parte.hora_entrada
@@ -151,7 +150,6 @@ def guardar_progreso(parte: UpdateParte):
         procesar_actualizacion_tratados(drive, parte, "Abierto")
         return {"status": "ok"}
     except Exception as e: 
-        # Propagamos el error exacto al frontend para visualizar dónde falla
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/resolver")
