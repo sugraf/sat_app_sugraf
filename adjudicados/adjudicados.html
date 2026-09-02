@@ -86,11 +86,22 @@
         <input type="hidden" id="res_poblacion">
         <input type="hidden" id="res_maquina">
         
-        <label>Modalidad de Asistencia</label>
-        <select id="res_tipo_asistencia">
-          <option value="Presencial">📍 Presencial (Visita al cliente)</option>
-          <option value="Telemático">💻 Telemático (Control remoto / Teléfono)</option>
-        </select>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 140px;">
+            <label>Modalidad de Asistencia</label>
+            <select id="res_tipo_asistencia">
+              <option value="Presencial">📍 Presencial (Visita al cliente)</option>
+              <option value="Telemático">💻 Telemático (Control remoto / Teléfono)</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 100px;">
+            <label>Pirineos</label>
+            <select id="res_pirineos">
+              <option value="NO">No</option>
+              <option value="SI">Sí</option>
+            </select>
+          </div>
+        </div>
 
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 140px;"><label>Fecha Realización</label><input type="date" id="res_fecha"></div>
@@ -172,6 +183,7 @@
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
 
         return `
         <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
@@ -195,10 +207,11 @@
         }
 
         const abiertos = aMostrar.filter(a => a['ESTADO'] === 'Abierto');
+        const cerrados = aMostrar.filter(a => a['ESTADO'] === 'Cerrado');
         const noAbiertos = aMostrar.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
 
-        if(abiertos.length === 0 && noAbiertos.length === 0){
-            box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos pendientes asignados a este técnico.</p>";
+        if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
+            box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos asignados a este técnico.</p>";
             return;
         } 
         
@@ -210,6 +223,10 @@
         if (noAbiertos.length > 0) {
             finalHtml += `<div class="section-divider">⚪ Avisos Pendientes de Empezar</div>`;
             finalHtml += noAbiertos.map(av => generateCard(av)).join('');
+        }
+        if (cerrados.length > 0) {
+            finalHtml += `<div class="section-divider">⚫ Avisos Cerrados</div>`;
+            finalHtml += cerrados.map(av => generateCard(av)).join('');
         }
 
         box.innerHTML = finalHtml;
@@ -227,6 +244,7 @@
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
+      document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
       
       let f = av['FECHA REALIZACIÓN'];
       document.getElementById('res_fecha').value = f && f.includes('-') ? f.substring(0, 10) : new Date().toISOString().split('T')[0];
@@ -248,6 +266,7 @@
         return {
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
+            pirineos: document.getElementById('res_pirineos').value,
             fecha_realizacion: document.getElementById('res_fecha').value,
             hora_entrada: document.getElementById('res_hora_ent').value,
             hora_salida: document.getElementById('res_hora_sal').value,
@@ -294,7 +313,7 @@
           return;
       }
         
-      if(!confirm("¿Estás seguro de que quieres CERRAR definitivamente este aviso? Se generará el TXT y desaparecerá de la lista.")) return;
+      if(!confirm("¿Estás seguro de que quieres CERRAR definitivamente este aviso? Se pasará a la lista de cerrados.")) return;
 
       const btn = document.getElementById('btn-cerrar');
       btn.innerText = "Procesando..."; btn.disabled = true;
@@ -311,7 +330,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
         
-        alert("Aviso cerrado y parte TXT generado con éxito.");
+        alert("Aviso marcado como cerrado con éxito.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
       } catch (err) { 
