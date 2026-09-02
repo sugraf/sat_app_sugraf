@@ -12,6 +12,7 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
+# Definimos las columnas que debe tener obligatoriamente Avisos Tratados
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
 
 def get_drive_service():
@@ -19,6 +20,47 @@ def get_drive_service():
     return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     ))
+
+def get_excel(drive, name, cols):
+    """Función de lectura robusta idéntica a la del gestor"""
+    query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
+    res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
+    if res.get("files"):
+        file_info = res.get("files")[0]
+        file_id = file_info['id']
+        mime_type = file_info.get('mimeType', '')
+        
+        try:
+            # Si es un Google Sheet, lo exportamos como xlsx, si no, lo descargamos normal
+            if mime_type == 'application/vnd.google-apps.spreadsheet':
+                req = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            else:
+                req = drive.files().get_media(fileId=file_id)
+            
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, req)
+            done = False
+            while not done: _, done = downloader.next_chunk()
+            fh.seek(0)
+            df = pd.read_excel(fh)
+        except Exception:
+            df = pd.DataFrame(columns=cols)
+            
+        # Asegurarnos de que tenga todas las columnas requeridas
+        for c in cols:
+            if c not in df.columns: df[c] = ''
+        return file_id, df
+    else:
+        return None, pd.DataFrame(columns=cols)
+
+def save_excel(drive, file_id, name, df):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
+    media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    if file_id:
+        drive.files().update(fileId=file_id, media_body=media).execute()
+    else:
+        drive.files().create(body={'name': name, 'parents': [FOLDER_ID]}, media_body=media).execute()
 
 class UpdateParte(BaseModel):
     aviso_index: int
@@ -44,23 +86,8 @@ def calcular_horas(h_in, h_out):
         return ""
 
 def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
-    query = f"'{FOLDER_ID}' in parents and name = 'Avisos Tratados.xlsx' and trashed = false"
-    res = drive.files().list(q=query, fields="files(id)").execute()
-    if not res.get("files"): raise Exception("No se encuentra Avisos Tratados.xlsx")
+    file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
     
-    file_id = res.get("files")[0]['id']
-    req = drive.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, req)
-    done = False
-    while not done: _, done = downloader.next_chunk()
-    fh.seek(0)
-    df = pd.read_excel(fh)
-    
-    # Aseguramos columnas
-    for c in COLS_TRA:
-        if c not in df.columns: df[c] = ''
-
     if 0 <= parte.aviso_index < len(df):
         horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
         
@@ -73,11 +100,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
         df.at[parte.aviso_index, 'SOLUCIÓN'] = parte.solucion
         df.at[parte.aviso_index, 'ESTADO'] = estado
         
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
-        media_xls = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        drive.files().update(fileId=file_id, media_body=media_xls).execute()
-        
+        save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
         return horas_totales
     raise Exception("Index fuera de rango")
 
@@ -85,19 +108,9 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
 def get_mis_avisos(tecnico: str):
     try:
         drive = get_drive_service()
-        query = f"'{FOLDER_ID}' in parents and name = 'Avisos Tratados.xlsx' and trashed = false"
-        res = drive.files().list(q=query, fields="files(id)").execute()
-        if not res.get("files"): return {"avisos": []}
+        # Usar la nueva función robusta
+        fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
         
-        req = drive.files().get_media(fileId=res.get("files")[0]['id'])
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, req)
-        done = False
-        while not done: _, done = downloader.next_chunk()
-        fh.seek(0)
-        df = pd.read_excel(fh)
-        
-        if 'REALIZADO POR' not in df.columns: return {"avisos": []}
         if 'ESTADO' not in df.columns: df['ESTADO'] = 'Vacío'
         df['REALIZADO POR'] = df['REALIZADO POR'].fillna('Pendiente')
         df['ESTADO'] = df['ESTADO'].replace('', 'Vacío').fillna('Vacío')
@@ -117,7 +130,8 @@ def get_mis_avisos(tecnico: str):
                     avisos_mios.append(dic)
                 
         return {"avisos": avisos_mios}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/guardar-progreso")
 def guardar_progreso(parte: UpdateParte):
