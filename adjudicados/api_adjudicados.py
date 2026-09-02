@@ -12,7 +12,6 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-# Definimos las columnas que debe tener obligatoriamente Avisos Tratados
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
 
 def get_drive_service():
@@ -22,7 +21,6 @@ def get_drive_service():
     ))
 
 def get_excel(drive, name, cols):
-    """Lógica corregida para leer directamente como se hace en avisos sin tratar"""
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
@@ -41,7 +39,6 @@ def get_excel(drive, name, cols):
         except Exception:
             df = pd.DataFrame(columns=cols)
             
-        # Asegurarnos de que tenga todas las columnas requeridas
         for c in cols:
             if c not in df.columns: 
                 df[c] = ''
@@ -78,7 +75,7 @@ def calcular_horas(h_in, h_out):
         t1 = datetime.strptime(h_in, "%H:%M")
         t2 = datetime.strptime(h_out, "%H:%M")
         diff = t2 - t1
-        return str(diff)[:-3] # Devuelve "H:MM"
+        return str(diff)[:-3] 
     except:
         return ""
 
@@ -143,7 +140,6 @@ def resolver_aviso(parte: UpdateParte):
         drive = get_drive_service()
         horas = procesar_actualizacion_tratados(drive, parte, "Cerrado")
         
-        # Generar TXT
         contenido = (
             f"=== PARTE DE TRABAJO FINALIZADO ===\n"
             f"TÉCNICO:           {parte.tecnico}\n"
