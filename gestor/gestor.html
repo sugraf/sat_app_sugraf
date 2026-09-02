@@ -12,7 +12,7 @@
     .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
     .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
@@ -24,7 +24,16 @@
     .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
-    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+    
+    /* Configuración de Badges por color */
+    .badge-container { display: inline-flex; gap: 5px; flex-wrap: wrap; margin-left: 10px;}
+    .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;}
+    .bg-urg { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .bg-gar { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .bg-man { background: #fef9c3; color: #166534; border: 1px solid #fde047; }
+    .bg-ins { background: #e0e7ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+    .bg-rev { background: #f3e8ff; color: #4338ca; border: 1px solid #c4b5fd; }
+    
     select { padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; font-family: 'Inter'; background: #fff; cursor: pointer; color: #1e293b; font-weight: 500;}
     select:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
     
@@ -105,11 +114,22 @@
 
         const disableAssign = (currentUser === "Solo Visualizar") ? "disabled" : "";
         const disablePirineos = (currentUser !== "Laura") ? "disabled" : "";
+        
+        // Constructor de Badges
+        let badgesHtml = "";
+        if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
+        if(av['GARANTÍA'] === 'SI') badgesHtml += `<span class="badge bg-gar">Garantía</span>`;
+        if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
+        if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
+        if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
 
         html += `
           <div class="inc-item" onclick="abrirDetalles(${i})">
             <div class="inc-title">
-              <span style="flex:1; min-width: 200px;">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</span>
+              <span style="flex:1; min-width: 200px;">
+                  ${av['CLIENTE']} 
+                  <span class="badge-container">${badgesHtml}</span>
+              </span>
               <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
                   Asignado a: 
