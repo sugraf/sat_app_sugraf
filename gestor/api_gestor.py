@@ -12,7 +12,7 @@ router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
-COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
+COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -39,15 +39,15 @@ def get_excel(drive, name, cols):
             done = False
             while not done: _, done = downloader.next_chunk()
             fh.seek(0)
-            df = pd.read_excel(fh)
+            df = pd.read_excel(fh, dtype=object)
         except Exception:
-            df = pd.DataFrame(columns=cols)
+            df = pd.DataFrame(columns=cols, dtype=object)
             
         for c in cols:
             if c not in df.columns: df[c] = ''
         return file_id, df
     else:
-        return None, pd.DataFrame(columns=cols)
+        return None, pd.DataFrame(columns=cols, dtype=object)
 
 def save_excel(drive, file_id, name, df):
     output = io.BytesIO()
@@ -92,7 +92,7 @@ def update_pirineos(data: UpdateIndex):
         
         fid, df = get_excel(drive, filename, cols)
         if 0 <= data.aviso_index < len(df):
-            df.at[data.aviso_index, 'PIRINEOS'] = data.valor
+            df.loc[data.aviso_index, 'PIRINEOS'] = data.valor
             save_excel(drive, fid, filename, df)
         return {"status": "ok"}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
@@ -105,38 +105,71 @@ def update_tecnico(data: UpdateIndex):
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
             if data.valor != 'Pendiente':
                 row = df_sin.iloc[data.aviso_index].copy()
+                fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+                
+                # Evitar duplicados comprobando que no exista ya la fila idéntica
+                is_dup = False
+                c = str(row.get('CLIENTE', ''))
+                m = str(row.get('MÁQUINA', ''))
+                f = str(row.get('F. ENTR.', ''))
+                for _, t_row in df_tra.iterrows():
+                    if str(t_row.get('CLIENTE', '')) == c and str(t_row.get('MÁQUINA', '')) == m and str(t_row.get('F. ENTR.', '')) == f:
+                        is_dup = True
+                        break
+                        
+                if not is_dup:
+                    for col in COLS_TRA:
+                        if col not in row: row[col] = ''
+                    row['REALIZADO POR'] = data.valor
+                    row['ESTADO'] = 'Vacío'
+                    df_tra = pd.concat([df_tra, pd.DataFrame([row])], ignore_index=True)
+                    save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
+                
                 df_sin = df_sin.drop(index=data.aviso_index).reset_index(drop=True)
                 save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
-                
-                fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-                row['REALIZADO POR'] = data.valor
-                for c in COLS_TRA:
-                    if c not in row: row[c] = ''
-                row['ESTADO'] = 'Vacío'
-                df_tra = pd.concat([df_tra, pd.DataFrame([row])], ignore_index=True)
-                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
             else:
-                df_sin.at[data.aviso_index, 'REALIZADO POR'] = data.valor
+                df_sin.loc[data.aviso_index, 'REALIZADO POR'] = data.valor
                 save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
                 
         else: 
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+            row = df_tra.iloc[data.aviso_index].copy()
+            
+            # Bloqueo de reasignación/desasignación si el técnico ya lo ha abierto o cerrado
+            estado = str(row.get('ESTADO', '')).strip()
+            if estado in ['Abierto', 'Cerrado'] and data.valor != row.get('REALIZADO POR', ''):
+                raise HTTPException(status_code=400, detail="No se puede quitar ni reasignar un aviso que ya ha sido empezado o finalizado por un técnico.")
+
             if data.valor == 'Pendiente':
-                row = df_tra.iloc[data.aviso_index].copy()
-                df_tra = df_tra.drop(index=data.aviso_index).reset_index(drop=True)
-                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
-                
                 fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
                 row_sin = {k: row.get(k, '') for k in COLS_SIN}
                 row_sin['REALIZADO POR'] = 'Pendiente'
-                df_sin = pd.concat([df_sin, pd.DataFrame([row_sin])], ignore_index=True)
-                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+                
+                # Evitar duplicados comprobando que no exista ya
+                is_dup = False
+                c = str(row_sin.get('CLIENTE', ''))
+                m = str(row_sin.get('MÁQUINA', ''))
+                f = str(row_sin.get('F. ENTR.', ''))
+                for _, s_row in df_sin.iterrows():
+                    if str(s_row.get('CLIENTE', '')) == c and str(s_row.get('MÁQUINA', '')) == m and str(s_row.get('F. ENTR.', '')) == f:
+                        is_dup = True
+                        break
+                        
+                if not is_dup:
+                    df_sin = pd.concat([df_sin, pd.DataFrame([row_sin])], ignore_index=True)
+                    save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+
+                df_tra = df_tra.drop(index=data.aviso_index).reset_index(drop=True)
+                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
             else:
-                df_tra.at[data.aviso_index, 'REALIZADO POR'] = data.valor
+                df_tra.loc[data.aviso_index, 'REALIZADO POR'] = data.valor
                 save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
 
         return {"status": "ok"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as he:
+        raise he
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/eliminar-aviso")
 def eliminar_aviso(data: UpdateIndex):
@@ -147,7 +180,16 @@ def eliminar_aviso(data: UpdateIndex):
         
         fid, df = get_excel(drive, filename, cols)
         if 0 <= data.aviso_index < len(df):
+            if data.fuente == 'tratados':
+                row = df.iloc[data.aviso_index]
+                estado = str(row.get('ESTADO', '')).strip()
+                if estado in ['Abierto', 'Cerrado']:
+                    raise HTTPException(status_code=400, detail="No se puede eliminar un aviso que ya ha sido empezado o cerrado. Ciérralo y archívalo.")
+
             df = df.drop(index=data.aviso_index).reset_index(drop=True)
             save_excel(drive, fid, filename, df)
         return {"status": "ok"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as he:
+        raise he
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
