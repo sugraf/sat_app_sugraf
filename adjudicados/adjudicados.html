@@ -129,6 +129,8 @@
       const box = document.getElementById('contenedor-avisos');
       try {
         const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
+        if (!res.ok) throw new Error("Error leyendo de Google Drive");
+        
         const data = await res.json();
         misAvisos = data.avisos || [];
         
@@ -137,7 +139,10 @@
             renderBotonesMaster();
         }
         renderAvisos();
-      } catch (e) { box.innerHTML = "<p style='color:red;'>Error de conexión.</p>"; }
+      } catch (e) { 
+        console.error(e);
+        box.innerHTML = "<p style='color:#ef4444; font-size:1.1rem;'>Hubo un problema de conexión al leer el Excel. Revisa el registro del servidor.</p>"; 
+      }
     }
 
     function renderBotonesMaster() {
@@ -184,7 +189,6 @@
 
         const abiertos = aMostrar.filter(a => a['ESTADO'] === 'Abierto');
         const noAbiertos = aMostrar.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
-        // Los cerrados no se muestran, o se podrían mostrar en otra sección si quisieras.
 
         if(abiertos.length === 0 && noAbiertos.length === 0){
             box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos pendientes asignados a este técnico.</p>";
