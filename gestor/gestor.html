@@ -9,9 +9,9 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
         font-family: 'Inter', sans-serif; 
-        background-color: #070e1c; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); 
+        background-color: #10263B; 
+        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
+                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
         background-attachment: fixed; 
         color: #f4f8fc; 
         min-height: 100vh; 
@@ -76,15 +76,15 @@
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .inc-item:hover { 
-        border-color: #4f9cd9; 
-        background: #eff6ff; 
+        border-color: #006858; 
+        background: #f0fdf4; 
         transform: translateY(-2px); 
         box-shadow: 0 6px 12px rgba(0,0,0,0.1);
     }
     
     .inc-title { 
         font-weight: 700; 
-        color: #0f1e35; 
+        color: #10263B; 
         font-size: 1.05rem; 
         display: flex; 
         justify-content: space-between; 
@@ -131,7 +131,7 @@
         flex: 1;
         transition: 0.2s;
     }
-    select.filter-sel:focus { outline: none; border-color: #4f9cd9; }
+    select.filter-sel:focus { outline: none; border-color: #006858; }
     
     select.action-sel { 
         padding: 6px 10px; 
@@ -145,6 +145,7 @@
         font-weight: 500;
         transition: 0.2s;
     }
+    select.action-sel:focus { outline: none; border-color: #006858; }
     select.action-sel:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -164,7 +165,7 @@
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande_azul.png" alt="Sugraf Logo">
+      <img src="/logo_grande.png" alt="Sugraf Logo">
       <a href="/" class="btn-back">Volver</a>
     </div>
   </div>
@@ -203,7 +204,7 @@
   <div id="aviso-modal" class="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="cerrarModal()">&times;</span>
-      <h3 style="color: #0f1e35; margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif;">Detalles del Aviso</h3>
+      <h3 style="color: #10263B; margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif;">Detalles del Aviso</h3>
       <table class="vertical-table" id="tabla-detalles"></table>
     </div>
   </div>
@@ -257,7 +258,6 @@
         const tecActual = av['REALIZADO POR'] || 'Pendiente';
         const estadoAviso = av['ESTADO'] || '';
         
-        // Deshabilitar el selector si el técnico ya lo ha Abierto o Cerrado
         const disableSelect = (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado') ? "disabled" : "";
         const titleText = disableSelect ? 'title="El aviso ya ha sido abierto por el técnico y no se puede reasignar."' : '';
         
@@ -296,13 +296,13 @@
               </span>
               <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
-                  <strong style="color: #0f1e35;">Asignado a:</strong>
+                  <strong style="color: #10263B;">Asignado a:</strong>
                   <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, '${fuente}', this)" ${disableSelect} ${titleText}>
                     ${tecOptions}
                   </select>
                 </span>
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
-                  <strong style="color: #0f1e35;">Pirineos:</strong>
+                  <strong style="color: #10263B;">Pirineos:</strong>
                   <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, '${fuente}', this)" ${disablePirineos}>
                     <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
                     <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
@@ -337,7 +337,7 @@
     async function actualizarPirineos(index, fuente, selectElement) {
       const valor = selectElement.value;
       selectElement.disabled = true;
-      selectElement.style.color = "#94a3b8"; // Poner texto en gris como estado de "pensando"
+      selectElement.style.color = "#94a3b8"; 
       try {
         await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) });
         cargarGestionAvisos();
@@ -347,7 +347,7 @@
     async function actualizarTecnico(index, fuente, selectElement) {
       const valor = selectElement.value;
       selectElement.disabled = true;
-      selectElement.style.color = "#94a3b8"; // Poner texto en gris como estado de "pensando"
+      selectElement.style.color = "#94a3b8"; 
       
       try {
         const res = await fetch('/api/gestor/actualizar-tecnico', { 
