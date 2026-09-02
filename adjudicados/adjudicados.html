@@ -224,9 +224,16 @@
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
-      document.getElementById('res_fecha').value = av['FECHA REALIZACIÓN'] || new Date().toISOString().split('T')[0];
-      document.getElementById('res_hora_ent').value = av['HORA ENTRADA'] || '';
-      document.getElementById('res_hora_sal').value = av['HORA SALIDA'] || '';
+      
+      let f = av['FECHA REALIZACIÓN'];
+      document.getElementById('res_fecha').value = f && f.includes('-') ? f.substring(0, 10) : new Date().toISOString().split('T')[0];
+      
+      let hent = av['HORA ENTRADA'];
+      document.getElementById('res_hora_ent').value = hent ? String(hent).substring(0, 5) : '';
+      
+      let hsal = av['HORA SALIDA'];
+      document.getElementById('res_hora_sal').value = hsal ? String(hsal).substring(0, 5) : '';
+      
       document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
       document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
@@ -256,11 +263,23 @@
       btn.innerText = "Guardando..."; btn.disabled = true;
 
       try {
-        await fetch('/api/adjudicados/guardar-progreso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(buildPayload()) });
+        const res = await fetch('/api/adjudicados/guardar-progreso', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(buildPayload()) 
+        });
+        
+        if (!res.ok) {
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+        
         alert("Progreso guardado. El aviso ahora está ABIERTO.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
-      } catch (err) { alert("Error al guardar."); }
+      } catch (err) { 
+        alert("Error al guardar. Revisa la consola."); 
+        console.error(err);
+      }
 
       btn.innerText = "Guardar Progreso"; btn.disabled = false;
     }
@@ -277,11 +296,23 @@
       btn.innerText = "Procesando..."; btn.disabled = true;
 
       try {
-        await fetch('/api/adjudicados/resolver', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(buildPayload()) });
+        const res = await fetch('/api/adjudicados/resolver', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(buildPayload()) 
+        });
+        
+        if (!res.ok) {
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+        
         alert("Aviso cerrado y parte TXT generado con éxito.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
-      } catch (err) { alert("Error al cerrar el aviso."); }
+      } catch (err) { 
+        alert("Error al cerrar el aviso."); 
+        console.error(err);
+      }
 
       btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
     }
