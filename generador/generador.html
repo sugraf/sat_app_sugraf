@@ -6,12 +6,20 @@
   <title>Generador de Avisos</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    /* Estilos compartidos originales */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #10263B; 
+        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
+                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
+        background-attachment: fixed; 
+        color: #f4f8fc; 
+        min-height: 100vh; 
+        padding: 20px;
+    }
     h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
     
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; }
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
     .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
@@ -19,15 +27,13 @@
     
     .container { max-width: 900px; margin: 0 auto;}
     
-    /* Formulario Blanco */
     .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    .form-box h2 { margin-bottom: 20px; color: #10263B; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; transition: 0.2s;}
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #006858; background: #fff; }
     
-    /* Reset iOS para inputs de fecha y hora */
     input[type="date"], input[type="time"] { 
       -webkit-appearance: none; 
       appearance: none; 
@@ -39,21 +45,19 @@
     
     .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
-    .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
+    .checkbox-item input { width: auto; margin: 0; accent-color: #006858; width: 18px; height: 18px; }
 
-    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #2f6fb0; }
+    button.btn { background: #006858; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
+    button.btn:hover { background: #004d40; }
     
-    /* Select Personalizado original */
     .custom-select-wrapper { position: relative; margin-bottom: 14px; }
     .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
     .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
     .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .custom-select-list.show { display: block; }
     .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
-    .custom-select-item:hover { background: #f8fafc; color: #2563eb; }
+    .custom-select-item:hover { background: #f0fdf4; color: #006858; }
 
-    /* Estilos nuevos para las pildoras de las máquinas */
     .pill { background: #e2e8f0; color: #1e293b; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; border: 1px solid #cbd5e1;}
     .pill b { cursor: pointer; color: #ef4444; font-size: 1rem; transition: color 0.2s;}
     .pill b:hover { color: #b91c1c; }
@@ -63,7 +67,7 @@
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande_azul.png" alt="Sugraf Logo">
+      <img src="/logo_grande.png" alt="Sugraf Logo">
       <a href="/" class="btn-back">Volver</a>
     </div>
   </div>
@@ -132,7 +136,6 @@
         dbEquipos = await res.json();
         
         setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel, isClick) => { 
-            // Reiniciamos las maquinas al cambiar de cliente
             maquinasSel = [];
             renderMaquinas();
             document.getElementById('ni_maquina').value = ''; 
@@ -151,7 +154,6 @@
             if(!c || !dbEquipos[c]) return [];
             return dbEquipos[c].maquinas.map(m => m.nombre).sort();
         }, (sel, isClick) => {
-            // Si el usuario hace click en el dropdown, lo añadimos directamente
             if(isClick) {
                 addMaquina(sel);
             }
@@ -164,7 +166,6 @@
     
     cargarData();
 
-    // Función original de CustomDropdown intacta, con un pequeño añadido booleano para diferenciar "click" de "teclear"
     function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
         const input = document.getElementById(inputId);
         const dropdown = document.getElementById(dropdownId);
@@ -185,7 +186,7 @@
                     if (item.innerText === "No hay coincidencias") return;
                     input.value = item.innerText;
                     dropdown.classList.remove('show');
-                    if(onSelectCallback) onSelectCallback(item.innerText, true); // true = esClick
+                    if(onSelectCallback) onSelectCallback(item.innerText, true);
                 });
             });
         };
@@ -195,7 +196,6 @@
         input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
     }
 
-    /* Funciones nuevas para la gestión de múltiples máquinas */
     function addMaquinaManual() {
         const v = document.getElementById('ni_maquina').value.trim();
         if(v) addMaquina(v);
@@ -244,7 +244,6 @@
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      // Añadir la máquina escrita en el input si el usuario olvidó darle a "+"
       const v = document.getElementById('ni_maquina').value.trim();
       if(v && !maquinasSel.includes(v)) { addMaquina(v); }
       if (maquinasSel.length === 0) { alert("Debes seleccionar al menos una máquina."); return; }
@@ -254,7 +253,6 @@
 
       const cliente = document.getElementById('ni_cliente').value;
       
-      // Cogemos los datos del equipo de la primera máquina para rellenar los datos secundarios en el excel
       let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
       if (dbEquipos && dbEquipos[cliente]) {
           const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinasSel[0]);
@@ -265,7 +263,7 @@
         fecha_entrada: document.getElementById('ni_fecha').value,
         cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
-        maquina: maquinasSel.join(" y "), // Se unen con la "y"
+        maquina: maquinasSel.join(" y "),
         equipo: maquinaData.equipo,
         marca: maquinaData.marca,
         modelo: maquinaData.modelo,
