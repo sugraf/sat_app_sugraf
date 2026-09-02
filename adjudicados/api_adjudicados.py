@@ -12,7 +12,8 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
+# Se ha añadido 'TIPO ASISTENCIA' a las columnas obligatorias
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -68,12 +69,13 @@ class UpdateParte(BaseModel):
     poblacion: str
     maquina: str
     tecnico: str
+    tipo_asistencia: str  # Nuevo campo para Presencial/Telemático
 
 def calcular_horas(h_in, h_out):
-    if not h_in or not h_out: return ""
+    if not h_in or not h_out or str(h_in) == 'nan' or str(h_out) == 'nan': return ""
     try:
-        t1 = datetime.strptime(h_in, "%H:%M")
-        t2 = datetime.strptime(h_out, "%H:%M")
+        t1 = datetime.strptime(str(h_in)[:5], "%H:%M")
+        t2 = datetime.strptime(str(h_out)[:5], "%H:%M")
         diff = t2 - t1
         return str(diff)[:-3] 
     except:
@@ -85,6 +87,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     if 0 <= parte.aviso_index < len(df):
         horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
         
+        df.at[parte.aviso_index, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
         df.at[parte.aviso_index, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
         df.at[parte.aviso_index, 'HORA ENTRADA'] = parte.hora_entrada
         df.at[parte.aviso_index, 'HORA SALIDA'] = parte.hora_salida
@@ -105,20 +108,31 @@ def get_mis_avisos(tecnico: str):
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
         
         if 'ESTADO' not in df.columns: df['ESTADO'] = 'Vacío'
+        if 'TIPO ASISTENCIA' not in df.columns: df['TIPO ASISTENCIA'] = 'Presencial'
+        
         df['REALIZADO POR'] = df['REALIZADO POR'].fillna('Pendiente')
         df['ESTADO'] = df['ESTADO'].replace('', 'Vacío').fillna('Vacío')
+        
+        # Conversión estricta a string para evitar que JSON formatee NaNs o Fechas mal y rompa el HTML
+        df = df.astype(str).replace({'nan': '', 'NaT': '', 'None': '', '<NA>': ''})
+        
+        # Limpieza de formatos de hora (en caso de que Pandas haya leído HH:MM:SS)
+        if 'HORA ENTRADA' in df.columns:
+            df['HORA ENTRADA'] = df['HORA ENTRADA'].apply(lambda x: x[:5] if len(str(x)) >= 5 and ":" in str(x) else x)
+        if 'HORA SALIDA' in df.columns:
+            df['HORA SALIDA'] = df['HORA SALIDA'].apply(lambda x: x[:5] if len(str(x)) >= 5 and ":" in str(x) else x)
         
         avisos_mios = []
         for index, row in df.iterrows():
             asignado = str(row['REALIZADO POR'])
             if tecnico == 'master':
-                if asignado != 'Pendiente' and asignado != 'nan' and asignado != '':
-                    dic = row.fillna("").to_dict()
+                if asignado not in ['Pendiente', 'nan', '']:
+                    dic = row.to_dict()
                     dic['aviso_index'] = index
                     avisos_mios.append(dic)
             else:
                 if asignado == tecnico:
-                    dic = row.fillna("").to_dict()
+                    dic = row.to_dict()
                     dic['aviso_index'] = index
                     avisos_mios.append(dic)
                 
@@ -143,6 +157,7 @@ def resolver_aviso(parte: UpdateParte):
         contenido = (
             f"=== PARTE DE TRABAJO FINALIZADO ===\n"
             f"TÉCNICO:           {parte.tecnico}\n"
+            f"MODALIDAD:         {parte.tipo_asistencia.upper()}\n"
             f"FECHA REALIZACIÓN: {parte.fecha_realizacion}\n"
             f"HORARIO:           {parte.hora_entrada} - {parte.hora_salida} ({horas}h)\n"
             f"ESTADO RESOLUCIÓN: {parte.resuelto_pendiente.upper()}\n"
