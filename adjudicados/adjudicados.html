@@ -92,11 +92,11 @@
           <div style="flex: 1; min-width: 140px;">
             <label>Modalidad de Asistencia</label>
             <select id="res_tipo_asistencia">
-              <option value="Presencial">📍 Presencial (Visita al cliente)</option>
-              <option value="Telemático">💻 Telemático (Control remoto / Teléfono)</option>
+              <option value="Presencial">Presencial</option>
+              <option value="Telemático">Telemático</option>
             </select>
           </div>
-          <div style="flex: 1; min-width: 100px;">
+          <div style="flex: 1; min-width: 100px;" id="div_pirineos">
             <label>Pirineos</label>
             <select id="res_pirineos">
               <option value="NO">No</option>
@@ -211,7 +211,6 @@
         let noAbiertos = [];
         
         if (currentUser === 'master') {
-            // El master visualiza todos los cerrados pendientes de archivar incondicionalmente
             cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             if (filtroTecnicoMaster) {
                 const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster && a['ESTADO'] !== 'Cerrado');
@@ -283,6 +282,13 @@
       document.getElementById('res_cliente').value = av['CLIENTE'];
       document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
+      
+      // Control de visibilidad del desplegable Pirineos para perfiles diferentes a master
+      if (currentUser !== 'master') {
+          document.getElementById('div_pirineos').style.display = 'none';
+      } else {
+          document.getElementById('div_pirineos').style.display = 'block';
+      }
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
       document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
