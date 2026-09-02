@@ -21,22 +21,14 @@ def get_drive_service():
     ))
 
 def get_excel(drive, name, cols):
-    # Restauramos la lectura robusta que verifica el mimeType (Google Sheet vs Excel) para evitar que falle silenciosamente y devuelva un dataframe vacío.
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
-    res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
+    res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
     
     if archivos:
-        file_info = archivos[0]
-        file_id = file_info['id']
-        mime_type = file_info.get('mimeType', '')
-        
+        file_id = archivos[0]['id']
         try:
-            if mime_type == 'application/vnd.google-apps.spreadsheet':
-                request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            else:
-                request = drive.files().get_media(fileId=file_id)
-                
+            request = drive.files().get_media(fileId=file_id)
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
             done = False
@@ -94,20 +86,19 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     if 0 <= parte.aviso_index < len(df):
         horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
         
-        # Uso explícito de .loc para asegurar que la reasignación en Pandas modifica el DataFrame directamente
-        df.loc[parte.aviso_index, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
-        df.loc[parte.aviso_index, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
-        df.loc[parte.aviso_index, 'HORA ENTRADA'] = parte.hora_entrada
-        df.loc[parte.aviso_index, 'HORA SALIDA'] = parte.hora_salida
-        df.loc[parte.aviso_index, 'HORAS TOTALES'] = horas_totales
-        df.loc[parte.aviso_index, 'RESUELTO O PENDIENTE'] = parte.resuelto_pendiente
-        df.loc[parte.aviso_index, 'PIEZAS NECESARIAS'] = parte.piezas
-        df.loc[parte.aviso_index, 'SOLUCIÓN'] = parte.solucion
-        df.loc[parte.aviso_index, 'ESTADO'] = estado
+        df.at[parte.aviso_index, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
+        df.at[parte.aviso_index, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
+        df.at[parte.aviso_index, 'HORA ENTRADA'] = parte.hora_entrada
+        df.at[parte.aviso_index, 'HORA SALIDA'] = parte.hora_salida
+        df.at[parte.aviso_index, 'HORAS TOTALES'] = horas_totales
+        df.at[parte.aviso_index, 'RESUELTO O PENDIENTE'] = parte.resuelto_pendiente
+        df.at[parte.aviso_index, 'PIEZAS NECESARIAS'] = parte.piezas
+        df.at[parte.aviso_index, 'SOLUCIÓN'] = parte.solucion
+        df.at[parte.aviso_index, 'ESTADO'] = estado
         
         save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
         return horas_totales
-    raise Exception(f"Index {parte.aviso_index} fuera de rango. Filas actuales: {len(df)}")
+    raise Exception("Index fuera de rango")
 
 @router.get("/mis-avisos")
 def get_mis_avisos(tecnico: str):
@@ -121,24 +112,17 @@ def get_mis_avisos(tecnico: str):
         df['REALIZADO POR'] = df['REALIZADO POR'].fillna('Pendiente')
         df['ESTADO'] = df['ESTADO'].replace('', 'Vacío').fillna('Vacío')
         
-        df = df.astype(str).replace({'nan': '', 'NaT': '', 'None': '', '<NA>': ''})
-        
-        if 'HORA ENTRADA' in df.columns:
-            df['HORA ENTRADA'] = df['HORA ENTRADA'].apply(lambda x: x[:5] if len(str(x)) >= 5 and ":" in str(x) else x)
-        if 'HORA SALIDA' in df.columns:
-            df['HORA SALIDA'] = df['HORA SALIDA'].apply(lambda x: x[:5] if len(str(x)) >= 5 and ":" in str(x) else x)
-
         avisos_mios = []
         for index, row in df.iterrows():
             asignado = str(row['REALIZADO POR'])
             if tecnico == 'master':
-                if asignado not in ['Pendiente', 'nan', '']:
-                    dic = row.to_dict()
+                if asignado != 'Pendiente' and asignado != 'nan' and asignado != '':
+                    dic = row.fillna("").to_dict()
                     dic['aviso_index'] = index
                     avisos_mios.append(dic)
             else:
                 if asignado == tecnico:
-                    dic = row.to_dict()
+                    dic = row.fillna("").to_dict()
                     dic['aviso_index'] = index
                     avisos_mios.append(dic)
                 
@@ -152,8 +136,7 @@ def guardar_progreso(parte: UpdateParte):
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Abierto")
         return {"status": "ok"}
-    except Exception as e: 
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/resolver")
 def resolver_aviso(parte: UpdateParte):
