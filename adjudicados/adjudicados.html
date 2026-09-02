@@ -39,7 +39,6 @@
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Formulario Blanco del Detalle */
     .form-box { background: white; border-radius: 16px; padding: 30px; color: #1e293b; max-width: 600px; margin: 40px auto 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none; animation: fadeIn 0.3s ease;}
     .form-box h3 { margin-bottom: 25px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
     
@@ -69,7 +68,6 @@
       <h2>Mis Avisos Adjudicados</h2>
     </div>
 
-    <!-- Panel de botones para MASTER -->
     <div id="master-panel" style="display:none; margin-bottom: 25px;">
       <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:12px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">Selecciona un técnico para ver sus avisos:</p>
       <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
@@ -279,6 +277,8 @@
 
       btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
     }
+    
+    cargarAvisos();
   </script>
 </body>
 </html>
