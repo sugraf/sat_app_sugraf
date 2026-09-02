@@ -143,6 +143,7 @@
         cursor: pointer; 
         color: #1e293b; 
         font-weight: 500;
+        transition: 0.2s;
     }
     select.action-sel:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
     
@@ -254,6 +255,11 @@
         const fuente = av.fuente;
         const esPirineos = av['PIRINEOS'] === 'SI';
         const tecActual = av['REALIZADO POR'] || 'Pendiente';
+        const estadoAviso = av['ESTADO'] || '';
+        
+        // Deshabilitar el selector si el técnico ya lo ha Abierto o Cerrado
+        const disableSelect = (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado') ? "disabled" : "";
+        const titleText = disableSelect ? 'title="El aviso ya ha sido abierto por el técnico y no se puede reasignar."' : '';
         
         let tecOptions = `<option value="Pendiente" ${tecActual === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>`;
         
@@ -291,13 +297,13 @@
               <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
                   <strong style="color: #0f1e35;">Asignado a:</strong>
-                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, '${fuente}', this.value)">
+                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, '${fuente}', this)" ${disableSelect} ${titleText}>
                     ${tecOptions}
                   </select>
                 </span>
                 <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
                   <strong style="color: #0f1e35;">Pirineos:</strong>
-                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, '${fuente}', this.value)" ${disablePirineos}>
+                  <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, '${fuente}', this)" ${disablePirineos}>
                     <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
                     <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
                   </select>
@@ -328,29 +334,37 @@
     function cerrarModal() { document.getElementById('aviso-modal').style.display = 'none'; }
     window.onclick = function(event) { if (event.target === document.getElementById('aviso-modal')) cerrarModal(); }
 
-    async function actualizarPirineos(index, fuente, valor) {
+    async function actualizarPirineos(index, fuente, selectElement) {
+      const valor = selectElement.value;
+      selectElement.disabled = true;
+      selectElement.style.color = "#94a3b8"; // Poner texto en gris como estado de "pensando"
       try {
         await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) });
         cargarGestionAvisos();
-      } catch (err) { alert("Error al actualizar la celda Pirineos."); }
+      } catch (err) { alert("Error al actualizar la celda Pirineos."); cargarGestionAvisos(); }
     }
 
-    async function actualizarTecnico(index, fuente, tecnico) {
+    async function actualizarTecnico(index, fuente, selectElement) {
+      const valor = selectElement.value;
+      selectElement.disabled = true;
+      selectElement.style.color = "#94a3b8"; // Poner texto en gris como estado de "pensando"
+      
       try {
         const res = await fetch('/api/gestor/actualizar-tecnico', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: tecnico }) 
+            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) 
         });
         if (!res.ok) {
             const err = await res.json();
             alert(err.detail || "Error al asignar técnico.");
-            cargarGestionAvisos(); // Refrescar para devolver el dropdown a su estado original
+            cargarGestionAvisos(); 
             return;
         }
         cargarGestionAvisos();
       } catch (err) { 
         alert("Error al asignar técnico."); 
+        cargarGestionAvisos();
       }
     }
 
