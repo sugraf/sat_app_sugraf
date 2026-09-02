@@ -212,7 +212,6 @@
     if (!currentUser) window.location.href = "/";
     const TECNICOS_PERMITIDOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
 
-    // Fijamos las columnas estrictas para igualar la vista original del gestor
     const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'];
 
     let avisosGlobales = [];
@@ -338,15 +337,36 @@
 
     async function actualizarTecnico(index, fuente, tecnico) {
       try {
-        await fetch('/api/gestor/actualizar-tecnico', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: tecnico }) });
+        const res = await fetch('/api/gestor/actualizar-tecnico', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: tecnico }) 
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            alert(err.detail || "Error al asignar técnico.");
+            cargarGestionAvisos(); // Refrescar para devolver el dropdown a su estado original
+            return;
+        }
         cargarGestionAvisos();
-      } catch (err) { alert("Error al asignar técnico."); }
+      } catch (err) { 
+        alert("Error al asignar técnico."); 
+      }
     }
 
     async function eliminarAviso(index, fuente) {
         if (confirm("¿Estás seguro de que quieres ELIMINAR este aviso permanentemente?")) {
             try {
-                await fetch('/api/gestor/eliminar-aviso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "" }) });
+                const res = await fetch('/api/gestor/eliminar-aviso', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "" }) 
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(err.detail || "Error al eliminar el aviso.");
+                    return;
+                }
                 cargarGestionAvisos();
             } catch (err) { alert("Error al eliminar el aviso."); }
         }
