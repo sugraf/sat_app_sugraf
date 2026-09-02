@@ -2,169 +2,92 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#ffffff">
-  <link rel="manifest" href="/manifest.json">
-  <title>Sugraf Digital Manager - Hub</title>
-  
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sugraf Digital Manager - HUB</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; }
-    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
-    .topbar-left { display: flex; align-items: center; gap: 15px; }
-    .topbar img { height: 35px; object-fit: contain; }
-    .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; color: #f4f8fc; min-height: 100vh; padding: 20px; }
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px;}
+    .topbar img { height: 35px; }
+    .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor:pointer;}
     .dot { width: 7px; height: 7px; background: #2ea36b; border-radius: 50%; }
-    
-    .dropdown { position: relative; display: inline-block; cursor: pointer; }
-    .dropdown-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 140px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; border-radius: 8px; overflow: hidden; margin-top: 5px; }
-    .dropdown-content a { color: #ef4444; padding: 12px 16px; text-decoration: none; display: block; font-weight: 600; font-size: 0.9rem; text-align: left; }
-    .dropdown-content a:hover { background-color: #fee2e2; }
-    .show { display: block; }
-
-    .view { display: none; padding-bottom: 50px; }
-    .view.active { display: block; animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
     .text-center { text-align: center; margin-bottom: 30px; }
-    .text-center h1 { font-size: 2rem; color: #f4f8fc; margin-bottom: 8px; }
-    .text-center p { color: #a9bcd6; font-size: 0.95rem; line-height: 1.5; }
-
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-    .card { background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); border: 1px solid rgba(79,156,217,0.18); border-radius: 18px; padding: 25px; cursor: pointer; transition: all 0.2s; }
-    .card:hover { border-color: rgba(79,156,217,0.55); background: linear-gradient(135deg, #1c3357 0%, #152847 100%); transform: translateY(-2px); }
-    .card-icon { background: rgba(47,111,176,0.25); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 15px; border: 1px solid rgba(79,156,217,0.1); }
-    .card h3 { font-size: 1.2rem; margin-bottom: 8px; color: white;}
-    .card p { color: #a9bcd6; font-size: 0.9rem; line-height: 1.4; }
-
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 400px; margin: 10vh auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
-    input:focus, select:focus { outline: none; border-color: #4f9cd9; background: #fff; }
-    
-    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #2f6fb0; }
+    .card { background: #0f1e35; border: 1px solid rgba(79,156,217,0.18); border-radius: 18px; padding: 25px; cursor: pointer; text-align: center; }
+    .card:hover { border-color: rgba(79,156,217,0.55); background: #1c3357; }
+    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 400px; margin: 10vh auto; }
+    label { display: block; margin: 15px 0 5px; font-weight: 600; font-size: 0.85rem;}
+    input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; }
+    #view-dashboard { display: none; }
   </style>
 </head>
 <body>
 
   <div class="topbar">
-    <div class="topbar-left">
-      <img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'">
-    </div>
-    
-    <div class="topbar-right" id="zona-usuario" style="display: none;">
-      <div class="dot"></div> 
-      <div class="dropdown">
-        <span id="user-display" onclick="toggleUserMenu()">Conectado ▼</span>
-        <div id="user-menu" class="dropdown-content">
-          <a href="#" onclick="cerrarSesion()">Desconectar</a>
-        </div>
-      </div>
+    <div><img src="/logo_grande_azul.png" alt="Sugraf Logo" onerror="this.style.display='none'"></div>
+    <div class="topbar-right" id="zona-usuario" style="display: none;" onclick="cerrarSesion()">
+      <div class="dot"></div> <span id="user-display"></span> (Desconectar)
     </div>
   </div>
 
-  <div id="view-login" class="view active">
-    <div class="container">
-      <div class="form-box" style="background: linear-gradient(135deg, #152847 0%, #0f1e35 100%); color: white; border: 1px solid rgba(79,156,217,0.18);">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.1); text-align: center; border:none;">Acceso Hub</h2>
-        <label style="color: #a9bcd6;">Usuario</label>
-        <select id="login-user" style="background: #070e1c; color: white; border-color: #2f6fb0;">
-          <option value="Ion Volog">Ion Volog</option>
-          <option value="Francisco Antúnez">Francisco Antúnez</option>
-          <option value="Daniel Gargallo">Daniel Gargallo</option>
-          <option value="Emilio Arrieta">Emilio Arrieta</option>
-          <option value="Laura">Laura</option>
-          <option value="Solo Visualizar">Solo Visualizar</option>
-        </select>
-        <label style="color: #a9bcd6;">Contraseña</label>
-        <input type="password" id="login-pass" style="background: #070e1c; color: white; border-color: #2f6fb0;" placeholder="Introduce tu clave">
-        <button class="btn" onclick="iniciarSesion()">Entrar al Sistema</button>
-      </div>
+  <div id="view-login">
+    <div class="form-box">
+      <h2 style="text-align: center; margin-bottom: 20px;">Acceso Hub</h2>
+      <label>Usuario</label>
+      <select id="login-user">
+        <option value="Ion Volog">Ion Volog</option>
+        <option value="Francisco Antúnez">Francisco Antúnez</option>
+        <option value="Daniel Gargallo">Daniel Gargallo</option>
+        <option value="Emilio Arrieta">Emilio Arrieta</option>
+        <option value="master">master</option>
+      </select>
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="Introduce tu clave">
+      <button class="btn" onclick="iniciarSesion()">Entrar al Sistema</button>
     </div>
   </div>
 
-  <div id="view-dashboard" class="view">
-    <div class="container">
-      <div class="text-center">
-        <h1>Digital Manager Hub</h1>
-        <p>Centro de gestión del Servicio Técnico.<br>Selecciona una opción para comenzar.</p>
+  <div id="view-dashboard" class="container">
+    <div class="text-center">
+      <h1>Digital Manager Hub</h1>
+      <p>Selecciona una opción para comenzar.</p>
+    </div>
+    <div class="grid">
+      <div class="card" onclick="irA('generador')">
+        <h3>📝 Generador de Avisos</h3>
+        <p style="color: #a9bcd6; font-size: 0.9rem; margin-top:10px;">Crear un nuevo aviso.</p>
       </div>
-      <div class="grid">
-        <div class="card" onclick="irA('generador')">
-          <div class="card-icon">📝</div>
-          <h3>Introducir Aviso</h3>
-          <p>Registra un nuevo aviso en el sistema general.</p>
-        </div>
-        <div class="card" onclick="irA('gestor')">
-          <div class="card-icon">🤝</div>
-          <h3>Organizador de Avisos</h3>
-          <p>Asignación de técnicos y gestión de Pirineos.</p>
-        </div>
-        <div class="card" onclick="irA('adjudicados')">
-          <div class="card-icon">🔧</div>
-          <h3>Avisos Adjudicados</h3>
-          <p>Visualiza y resuelve los avisos asignados a ti.</p>
-        </div>
+      <div class="card" onclick="irA('gestor')">
+        <h3>🤝 Organizador de Avisos</h3>
+        <p style="color: #a9bcd6; font-size: 0.9rem; margin-top:10px;">Asignar técnicos y estado.</p>
+      </div>
+      <div class="card" onclick="irA('adjudicados')">
+        <h3>🔧 Mis Avisos Adjudicados</h3>
+        <p style="color: #a9bcd6; font-size: 0.9rem; margin-top:10px;">Ver tus avisos asignados.</p>
       </div>
     </div>
   </div>
 
   <script>
     const USUARIOS = {
-      "Ion Volog": "sugraf_1",
-      "Francisco Antúnez": "sugraf_2",
-      "Daniel Gargallo": "sugraf_3",
-      "Emilio Arrieta": "sugraf_4",
-      "Laura": "sugraf_5",
-      "Solo Visualizar": "sugraf_0"
+      "Ion Volog": "sugraf_1", "Francisco Antúnez": "sugraf_2", "Daniel Gargallo": "sugraf_3",
+      "Emilio Arrieta": "sugraf_4", "master": "sugraf_5"
     };
 
-    let currentUser = localStorage.getItem("sugraf_user") || null;
-
-    if (currentUser) {
-      document.getElementById("user-display").innerText = currentUser + " ▼";
-      document.getElementById("zona-usuario").style.display = "flex";
-      document.getElementById("view-login").classList.remove("active");
-      document.getElementById("view-dashboard").classList.add("active");
-    }
-
-    function toggleUserMenu() {
-        document.getElementById("user-menu").classList.toggle("show");
-    }
-
-    window.onclick = function(event) {
-        if (!event.target.matches('#user-display')) {
-            var dropdowns = document.getElementsByClassName("dropdown-content");
-            for (var i = 0; i < dropdowns.length; i++) {
-                if (dropdowns[i].classList.contains('show')) {
-                    dropdowns[i].classList.remove('show');
-                }
-            }
-        }
-    }
+    let currentUser = localStorage.getItem("sugraf_user");
+    if (currentUser) mostrarHub();
 
     function iniciarSesion() {
       const u = document.getElementById("login-user").value;
       const p = document.getElementById("login-pass").value;
       if (USUARIOS[u] === p) {
-        currentUser = u;
         localStorage.setItem("sugraf_user", u);
-        document.getElementById("user-display").innerText = currentUser + " ▼";
-        document.getElementById("zona-usuario").style.display = "flex";
-        document.getElementById("login-pass").value = "";
-        
-        document.getElementById("view-login").classList.remove("active");
-        document.getElementById("view-dashboard").classList.add("active");
-      } else {
-        alert("Contraseña incorrecta.");
-      }
+        currentUser = u;
+        mostrarHub();
+      } else { alert("Contraseña incorrecta."); }
     }
 
     function cerrarSesion() {
@@ -172,9 +95,14 @@
       location.reload();
     }
 
-    function irA(modulo) {
-      window.location.href = `/vista/${modulo}`;
+    function mostrarHub() {
+      document.getElementById("view-login").style.display = "none";
+      document.getElementById("view-dashboard").style.display = "block";
+      document.getElementById("zona-usuario").style.display = "flex";
+      document.getElementById("user-display").innerText = currentUser;
     }
+
+    function irA(modulo) { window.location.href = `/vista/${modulo}`; }
   </script>
 </body>
 </html>
