@@ -1,3 +1,4 @@
+<!-- gestor/gestor.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,41 +8,153 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #070e1c; 
+        background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), 
+                          radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); 
+        background-attachment: fixed; 
+        color: #f4f8fc; 
+        min-height: 100vh; 
+        padding: 20px;
+    }
     
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; }
+    .topbar { 
+        background: #ffffff; 
+        height: 60px; 
+        display: flex; 
+        align-items: center; 
+        padding: 0 20px; 
+        justify-content: space-between; 
+        border-radius: 8px; 
+        margin-bottom: 20px; 
+        position: sticky; 
+        top: 0; 
+        z-index: 100; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
+    .btn-back { 
+        background: #f1f5f9; 
+        border: 1px solid #cbd5e1; 
+        padding: 0 15px; 
+        height: 35px; 
+        border-radius: 6px; 
+        font-weight: 600; 
+        color: #1e293b !important; 
+        cursor: pointer; 
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center; 
+        text-decoration: none; 
+        font-size: 14px; 
+        transition: 0.2s; 
+        box-sizing: border-box; 
+    }
     .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
     
-    .form-box { background: transparent; padding: 0; }
-    .form-box h2 { margin-bottom: 20px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; font-family: 'Space Grotesk';}
+    .header-title h2 { 
+        margin-bottom: 20px; 
+        color: white; 
+        border-bottom: 1px solid rgba(255,255,255,0.2); 
+        padding-bottom: 10px; 
+        font-family: 'Space Grotesk', sans-serif;
+    }
     
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease;}
-    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
-    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
+    .inc-item { 
+        background: #f8fafc; 
+        border: 1px solid #e2e8f0; 
+        padding: 18px; 
+        border-radius: 12px; 
+        margin-bottom: 12px; 
+        transition: all 0.2s; 
+        text-align: left; 
+        cursor: pointer; 
+        animation: fadeIn 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .inc-item:hover { 
+        border-color: #4f9cd9; 
+        background: #eff6ff; 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
     
-    .badge-container { display: inline-flex; gap: 5px; flex-wrap: wrap; margin-left: 10px;}
-    .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;}
+    .inc-title { 
+        font-weight: 700; 
+        color: #0f1e35; 
+        font-size: 1.05rem; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        flex-wrap: wrap; 
+        gap: 10px; 
+    }
+    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
+    
+    .badge-container { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 10px;}
+    .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;}
     .bg-urg { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
     .bg-gar { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
     .bg-man { background: #fef9c3; color: #166534; border: 1px solid #fde047; }
     .bg-ins { background: #e0e7ff; color: #1d4ed8; border: 1px solid #93c5fd; }
     .bg-rev { background: #f3e8ff; color: #4338ca; border: 1px solid #c4b5fd; }
     
-    select.filter-sel { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: #fff; cursor: pointer; color: #1e293b; font-weight: 500; min-width: 140px; flex: 1;}
-    select.action-sel { padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; font-family: 'Inter'; background: #fff; cursor: pointer; color: #1e293b; font-weight: 500;}
+    .btn-delete {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        color: #b91c1c;
+        border-radius: 6px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 1.1rem;
+        margin-right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-delete:hover { background: #fca5a5; color: white; }
+
+    select.filter-sel { 
+        padding: 10px 12px; 
+        border: 1px solid #cbd5e1; 
+        border-radius: 8px; 
+        font-size: 0.9rem; 
+        background: #fff; 
+        cursor: pointer; 
+        color: #1e293b; 
+        font-weight: 500; 
+        min-width: 160px; 
+        flex: 1;
+        transition: 0.2s;
+    }
+    select.filter-sel:focus { outline: none; border-color: #4f9cd9; }
+    
+    select.action-sel { 
+        padding: 6px 10px; 
+        border: 1px solid #cbd5e1; 
+        border-radius: 6px; 
+        font-size: 0.85rem; 
+        font-family: 'Inter', sans-serif; 
+        background: #fff; 
+        cursor: pointer; 
+        color: #1e293b; 
+        font-weight: 500;
+    }
     select.action-sel:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
-    .modal-content { background-color: #fff; padding: 25px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; }
+    /* Modal Styles */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .modal-content { background-color: #fff; padding: 30px; border-radius: 16px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; transition: 0.2s;}
+    .close-btn:hover { color: #1e293b; }
+    
     .vertical-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
     .vertical-table th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; width: 40%; font-weight: 600; text-transform: uppercase; font-size: 0.8rem;}
     .vertical-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 500; word-break: break-word;}
@@ -57,40 +170,40 @@
   </div>
 
   <div class="container">
-    <div class="form-box">
+    <div class="header-title">
       <h2>Organizador de Avisos</h2>
+    </div>
       
-      <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-        <select id="filtro-tecnico" class="filter-sel" onchange="renderGestionAvisos()">
-          <option value="Todos">Técnico: Todos</option>
-          <option value="Pendiente">Sin Asignar</option>
-          <option value="Ion Volog">Ion Volog</option>
-          <option value="Francisco Antúnez">Francisco Antúnez</option>
-          <option value="Daniel Gargallo">Daniel Gargallo</option>
-          <option value="Emilio Arrieta">Emilio Arrieta</option>
-        </select>
-        <select id="filtro-pirineos" class="filter-sel" onchange="renderGestionAvisos()">
-          <option value="Todos">Pirineos: Todos</option>
-          <option value="SI">En Pirineos</option>
-          <option value="NO">No Pirineos</option>
-        </select>
-        <select id="filtro-garantia" class="filter-sel" onchange="renderGestionAvisos()">
-          <option value="Todos">Garantía: Todos</option>
-          <option value="SI">Con Garantía</option>
-          <option value="NO">Sin Garantía</option>
-        </select>
-      </div>
+    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+      <select id="filtro-tecnico" class="filter-sel" onchange="renderGestionAvisos()">
+        <option value="Todos">Técnico: Todos</option>
+        <option value="Pendiente">Sin Asignar</option>
+        <option value="Ion Volog">Ion Volog</option>
+        <option value="Francisco Antúnez">Francisco Antúnez</option>
+        <option value="Daniel Gargallo">Daniel Gargallo</option>
+        <option value="Emilio Arrieta">Emilio Arrieta</option>
+      </select>
+      <select id="filtro-pirineos" class="filter-sel" onchange="renderGestionAvisos()">
+        <option value="Todos">Pirineos: Todos</option>
+        <option value="SI">En Pirineos</option>
+        <option value="NO">No Pirineos</option>
+      </select>
+      <select id="filtro-garantia" class="filter-sel" onchange="renderGestionAvisos()">
+        <option value="Todos">Garantía: Todos</option>
+        <option value="SI">Con Garantía</option>
+        <option value="NO">Sin Garantía</option>
+      </select>
+    </div>
 
-      <div id="contenedor-gestionar">
-        <p style='color:white;'>Cargando avisos del sistema...</p>
-      </div>
+    <div id="contenedor-gestionar">
+      <p style='color:white;'>Cargando avisos del sistema...</p>
     </div>
   </div>
 
   <div id="aviso-modal" class="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="cerrarModal()">&times;</span>
-      <h3 style="color: #0f1e35; margin-bottom: 5px;">Detalles del Aviso</h3>
+      <h3 style="color: #0f1e35; margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif;">Detalles del Aviso</h3>
       <table class="vertical-table" id="tabla-detalles"></table>
     </div>
   </div>
@@ -119,7 +232,6 @@
       
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
 
-      // Preparamos los avisos arrastrando su índice original para no romper los updates/deletes
       let filtrados = avisosGlobales.map((av, index) => ({...av, original_index: index}));
 
       filtrados = filtrados.filter(av => {
@@ -129,7 +241,6 @@
         return matchTec && matchPir && matchGar;
       });
 
-      // Ordenar: Los NO asignados ('Pendiente') primero
       filtrados.sort((a, b) => {
           const aPendiente = (a['REALIZADO POR'] === 'Pendiente' || !a['REALIZADO POR']) ? 0 : 1;
           const bPendiente = (b['REALIZADO POR'] === 'Pendiente' || !b['REALIZADO POR']) ? 0 : 1;
@@ -164,7 +275,7 @@
 
         let btnDelete = "";
         if (currentUser === "master") {
-            btnDelete = `<button onclick="event.stopPropagation(); eliminarAviso(${i})" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#ef4444; margin-right:5px;" title="Eliminar aviso">🗑️</button>`;
+            btnDelete = `<button class="btn-delete" onclick="event.stopPropagation(); eliminarAviso(${i})" title="Eliminar aviso">🗑️</button>`;
         }
 
         html += `
@@ -176,14 +287,14 @@
                   <span class="badge-container">${badgesHtml}</span>
               </span>
               <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
-                  Asignado a: 
+                <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
+                  <strong style="color: #0f1e35;">Asignado a:</strong>
                   <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, this.value)">
                     ${tecOptions}
                   </select>
                 </span>
-                <span style="font-size: 0.85rem; color: #475569; font-weight: normal;">
-                  Pirineos: 
+                <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
+                  <strong style="color: #0f1e35;">Pirineos:</strong>
                   <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, this.value)" ${disablePirineos}>
                     <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
                     <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
@@ -196,7 +307,7 @@
         `;
       });
 
-      box.innerHTML = html || "<p style='color:#a9bcd6;'>No hay avisos que coincidan con los filtros.</p>";
+      box.innerHTML = html || "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos que coincidan con los filtros.</p>";
     }
 
     function abrirDetalles(index) {
