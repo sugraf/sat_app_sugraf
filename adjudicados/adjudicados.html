@@ -26,7 +26,7 @@
 
     .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 12px; margin-bottom: 12px; transition: all 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
     .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
-    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; align-items: center; flex-wrap: wrap;}
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
     .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; text-transform: uppercase; }
     .bg-urg { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
@@ -52,7 +52,7 @@
     button.btn:hover { background: #2f6fb0; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 156, 217, 0.3);}
     button.btn-secondary { background: #1e293b; margin-top: 25px;}
     button.btn-secondary:hover { background: #0f1e35; }
-    button.btn-archive { background: #2ea36b; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; margin-top: 10px; transition: 0.2s;}
+    button.btn-archive { background: #2ea36b; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.2s; margin-left: 15px;}
     button.btn-archive:hover { background: #1e8250; }
   </style>
 </head>
@@ -185,17 +185,21 @@
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
         
         let actionBtn = "";
         if (currentUser === 'master' && av['ESTADO'] === 'Cerrado') {
-            actionBtn = `<div><button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button></div>`;
+            actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
 
         return `
         <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
-            <div class="inc-title">${av['CLIENTE']} <span style="margin-left:auto">${badgesHtml}</span></div>
-            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']}</div>
-            ${actionBtn}
+            <div class="inc-title">
+                ${av['CLIENTE']} 
+                ${actionBtn}
+                <span style="margin-left:auto">${badgesHtml}</span>
+            </div>
+            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['REALIZADO POR']}</div>
         </div>
         `;
     }
@@ -207,6 +211,7 @@
         let noAbiertos = [];
         
         if (currentUser === 'master') {
+            // El master visualiza todos los cerrados pendientes de archivar incondicionalmente
             cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             if (filtroTecnicoMaster) {
                 const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster && a['ESTADO'] !== 'Cerrado');
