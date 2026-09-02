@@ -52,6 +52,8 @@
     button.btn:hover { background: #2f6fb0; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 156, 217, 0.3);}
     button.btn-secondary { background: #1e293b; margin-top: 25px;}
     button.btn-secondary:hover { background: #0f1e35; }
+    button.btn-archive { background: #2ea36b; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; margin-top: 10px; transition: 0.2s;}
+    button.btn-archive:hover { background: #1e8250; }
   </style>
 </head>
 <body>
@@ -69,7 +71,7 @@
     </div>
 
     <div id="master-panel" style="display:none; margin-bottom: 25px;">
-      <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:12px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">Selecciona un técnico para ver sus avisos:</p>
+      <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:12px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">Selecciona un técnico para ver sus avisos en progreso:</p>
       <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
     </div>
     
@@ -183,39 +185,54 @@
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
-        if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
+        
+        let actionBtn = "";
+        if (currentUser === 'master' && av['ESTADO'] === 'Cerrado') {
+            actionBtn = `<div><button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button></div>`;
+        }
 
         return `
         <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
-            <div class="inc-title">${av['CLIENTE']} ${badgesHtml}</div>
+            <div class="inc-title">${av['CLIENTE']} <span style="margin-left:auto">${badgesHtml}</span></div>
             <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']}</div>
+            ${actionBtn}
         </div>
         `;
     }
 
     function renderAvisos() {
         const box = document.getElementById('contenedor-avisos');
-        let aMostrar = misAvisos;
+        let abiertos = [];
+        let cerrados = [];
+        let noAbiertos = [];
         
         if (currentUser === 'master') {
+            cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             if (filtroTecnicoMaster) {
-                aMostrar = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
-            } else {
-                box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>Por favor, selecciona a un técnico de la botonera superior para visualizar sus avisos en curso.</p>";
-                return;
+                const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster && a['ESTADO'] !== 'Cerrado');
+                abiertos = techAvisos.filter(a => a['ESTADO'] === 'Abierto');
+                noAbiertos = techAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
             }
+        } else {
+            abiertos = misAvisos.filter(a => a['ESTADO'] === 'Abierto');
+            cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
+            noAbiertos = misAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
         }
 
-        const abiertos = aMostrar.filter(a => a['ESTADO'] === 'Abierto');
-        const cerrados = aMostrar.filter(a => a['ESTADO'] === 'Cerrado');
-        const noAbiertos = aMostrar.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
-
         if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
-            box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos asignados a este técnico.</p>";
+            if (currentUser === 'master' && !filtroTecnicoMaster) {
+                box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos cerrados pendientes de archivar en Pirineos. Selecciona un técnico para ver sus avisos en curso.</p>";
+            } else {
+                box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos asignados a este técnico.</p>";
+            }
             return;
         } 
         
         let finalHtml = "";
+        if (cerrados.length > 0) {
+            finalHtml += `<div class="section-divider">⚫ Avisos Cerrados (Pendientes de Pirineos)</div>`;
+            finalHtml += cerrados.map(av => generateCard(av)).join('');
+        }
         if (abiertos.length > 0) {
             finalHtml += `<div class="section-divider">🟢 Avisos Abiertos (En progreso)</div>`;
             finalHtml += abiertos.map(av => generateCard(av)).join('');
@@ -224,12 +241,31 @@
             finalHtml += `<div class="section-divider">⚪ Avisos Pendientes de Empezar</div>`;
             finalHtml += noAbiertos.map(av => generateCard(av)).join('');
         }
-        if (cerrados.length > 0) {
-            finalHtml += `<div class="section-divider">⚫ Avisos Cerrados</div>`;
-            finalHtml += cerrados.map(av => generateCard(av)).join('');
-        }
 
         box.innerHTML = finalHtml;
+    }
+
+    async function archivarPirineos(index) {
+        if(!confirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.")) return;
+        
+        try {
+            const res = await fetch('/api/adjudicados/archivar', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ aviso_index: index }) 
+            });
+            
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+            }
+            
+            alert("Aviso archivado correctamente en Partes Finalizados.");
+            cargarAvisos();
+        } catch (err) { 
+            alert(`Error al archivar el aviso: ${err.message}`); 
+            console.error(err);
+        }
     }
 
     function abrirResolucion(index) {
