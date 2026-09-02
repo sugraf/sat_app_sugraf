@@ -1,3 +1,4 @@
+<!-- adjudicados/adjudicados.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,36 +8,131 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
+    body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #070e1c; 
+        background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), 
+                          radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); 
+        background-attachment: fixed; 
+        color: #f4f8fc; 
+        min-height: 100vh; 
+        padding: 20px;
+    }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
     
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; }
+    .topbar { 
+        background: #ffffff; 
+        height: 60px; 
+        display: flex; 
+        align-items: center; 
+        padding: 0 20px; 
+        justify-content: space-between; 
+        border-radius: 8px; 
+        margin-bottom: 20px; 
+        position: sticky; 
+        top: 0; 
+        z-index: 100; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
+    .btn-back { 
+        background: #f1f5f9; 
+        border: 1px solid #cbd5e1; 
+        padding: 0 15px; 
+        height: 35px; 
+        border-radius: 6px; 
+        font-weight: 600; 
+        color: #1e293b !important; 
+        cursor: pointer; 
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center; 
+        text-decoration: none; 
+        font-size: 14px; 
+        transition: 0.2s; 
+        box-sizing: border-box; 
+    }
+    .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
-    .header-title h2 { margin-bottom: 20px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; font-family: 'Space Grotesk';}
     
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease;}
-    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; }
+    .header-title h2 { 
+        margin-bottom: 25px; 
+        color: white; 
+        border-bottom: 1px solid rgba(255,255,255,0.2); 
+        padding-bottom: 10px; 
+    }
+    
+    .master-tab {
+        background: #152847;
+        color: white;
+        border: 1px solid rgba(79,156,217,0.3);
+        padding: 12px 18px;
+        border-radius: 8px;
+        flex: 1;
+        min-width: 140px;
+        cursor: pointer;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+    }
+    .master-tab:hover { background: #1c3357; border-color: rgba(79,156,217,0.6); }
+    .master-tab.active { background: #4f9cd9; border-color: #4f9cd9; box-shadow: 0 4px 10px rgba(79, 156, 217, 0.3); }
+    .master-tab span { background: rgba(0,0,0,0.25); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;}
+
+    .inc-item { 
+        background: #f8fafc; 
+        border: 1px solid #e2e8f0; 
+        padding: 18px; 
+        border-radius: 12px; 
+        margin-bottom: 12px; 
+        transition: all 0.2s; 
+        text-align: left; 
+        cursor: pointer; 
+        animation: fadeIn 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .inc-item:hover { 
+        border-color: #4f9cd9; 
+        background: #eff6ff; 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
     .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
-    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
-    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
+    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Formulario Blanco del Detalle */
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 40px auto 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none; animation: fadeIn 0.3s ease;}
-    .form-box h3 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; font-family: 'Space Grotesk';}
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
+    .form-box { 
+        background: white; 
+        border-radius: 16px; 
+        padding: 30px; 
+        color: #1e293b; 
+        max-width: 600px; 
+        margin: 40px auto 0; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+        display: none; 
+        animation: fadeIn 0.3s ease;
+    }
+    .form-box h3 { margin-bottom: 25px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
+    
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 6px; text-transform: uppercase; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter', sans-serif; background: #f8fafc; transition: 0.2s;}
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
-    input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; }
+    input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; cursor: not-allowed;}
     
     input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; color: #1e293b !important; -webkit-text-fill-color: #1e293b !important; opacity: 1; }
     
-    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #2f6fb0; }
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter', sans-serif; }
+    button.btn:hover { background: #2f6fb0; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 156, 217, 0.3);}
   </style>
 </head>
 <body>
@@ -54,13 +150,13 @@
     </div>
 
     <!-- Panel de botones para MASTER -->
-    <div id="master-panel" style="display:none; margin-bottom: 20px;">
-      <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:10px; text-transform: uppercase; font-weight: bold;">Selecciona un técnico para ver sus avisos:</p>
-      <div id="botones-tecnicos" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+    <div id="master-panel" style="display:none; margin-bottom: 25px;">
+      <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:12px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">Selecciona un técnico para ver sus avisos:</p>
+      <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
     </div>
     
     <div id="contenedor-avisos">
-      <p style='color:white;'>Buscando avisos...</p>
+      <p style='color:white; font-size:1.1rem;'>Buscando avisos...</p>
     </div>
 
     <div class="form-box" id="resolucion-box">
@@ -124,9 +220,10 @@
         TECNICOS.forEach(t => {
             const count = misAvisos.filter(a => a['REALIZADO POR'] === t).length;
             const isSelected = filtroTecnicoMaster === t;
-            const bg = isSelected ? '#4f9cd9' : '#152847';
-            const border = isSelected ? 'transparent' : '1px solid rgba(79,156,217,0.3)';
-            html += `<button onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();" style="background:${bg}; color:white; border:${border}; padding:12px; border-radius:8px; flex:1; min-width: 140px; cursor:pointer; font-weight:600;">${t} <span style="background:rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; margin-left: 5px;">${count}</span></button>`;
+            const activeClass = isSelected ? 'active' : '';
+            html += `<button class="master-tab ${activeClass}" onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();">
+                        ${t} <span>${count}</span>
+                     </button>`;
         });
         document.getElementById('botones-tecnicos').innerHTML = html;
     }
@@ -139,18 +236,18 @@
             if (filtroTecnicoMaster) {
                 aMostrar = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
             } else {
-                box.innerHTML = "<p style='color:#a9bcd6;'>Por favor, selecciona a un técnico de la botonera superior para visualizar sus avisos en curso.</p>";
+                box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>Por favor, selecciona a un técnico de la botonera superior para visualizar sus avisos en curso.</p>";
                 return;
             }
         }
 
         if(aMostrar.length === 0){
-            box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos asignados a este técnico en este momento.</p>";
+            box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos asignados a este técnico en este momento.</p>";
         } else {
             box.innerHTML = aMostrar.map(av => `
               <div class="inc-item" onclick="abrirResolucion(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}', '${av['REALIZADO POR']}')">
                   <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
-                  <div class="inc-sub">Máquina: ${av['MÁQUINA']} | Entrada: ${av['F. ENTR.']}</div>
+                  <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']}</div>
               </div>
             `).join('');
         }
@@ -168,7 +265,7 @@
       document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
       document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
       
-      setTimeout(() => { document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth' }); }, 100);
+      setTimeout(() => { document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
     }
 
     document.getElementById('form-resolver').addEventListener('submit', async (e) => {
