@@ -7,137 +7,52 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #070e1c; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
-        padding: 20px;
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
     h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
     
-    .topbar { 
-        background: #ffffff; 
-        height: 60px; 
-        display: flex; 
-        align-items: center; 
-        padding: 0 20px; 
-        justify-content: space-between; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        position: sticky; 
-        top: 0; 
-        z-index: 100; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
+    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { 
-        background: #f1f5f9; 
-        border: 1px solid #cbd5e1; 
-        padding: 0 15px; 
-        height: 35px; 
-        border-radius: 6px; 
-        font-weight: 600; 
-        color: #1e293b !important; 
-        cursor: pointer; 
-        display: inline-flex; 
-        align-items: center; 
-        justify-content: center; 
-        text-decoration: none; 
-        font-size: 14px; 
-        transition: 0.2s; 
-        box-sizing: border-box; 
-    }
+    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
     .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
+    .header-title h2 { margin-bottom: 25px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
     
-    .header-title h2 { 
-        margin-bottom: 25px; 
-        color: white; 
-        border-bottom: 1px solid rgba(255,255,255,0.2); 
-        padding-bottom: 10px; 
-    }
-    
-    .master-tab {
-        background: #152847;
-        color: white;
-        border: 1px solid rgba(79,156,217,0.3);
-        padding: 12px 18px;
-        border-radius: 8px;
-        flex: 1;
-        min-width: 140px;
-        cursor: pointer;
-        font-weight: 600;
-        font-family: 'Inter', sans-serif;
-        font-size: 0.95rem;
-        transition: all 0.2s;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-    }
+    .master-tab { background: #152847; color: white; border: 1px solid rgba(79,156,217,0.3); padding: 12px 18px; border-radius: 8px; flex: 1; min-width: 140px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; font-size: 0.95rem; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
     .master-tab:hover { background: #1c3357; border-color: rgba(79,156,217,0.6); }
     .master-tab.active { background: #4f9cd9; border-color: #4f9cd9; box-shadow: 0 4px 10px rgba(79, 156, 217, 0.3); }
     .master-tab span { background: rgba(0,0,0,0.25); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;}
 
-    .inc-item { 
-        background: #f8fafc; 
-        border: 1px solid #e2e8f0; 
-        padding: 18px; 
-        border-radius: 12px; 
-        margin-bottom: 12px; 
-        transition: all 0.2s; 
-        text-align: left; 
-        cursor: pointer; 
-        animation: fadeIn 0.3s ease;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    .inc-item:hover { 
-        border-color: #4f9cd9; 
-        background: #eff6ff; 
-        transform: translateY(-2px); 
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-    }
-    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; display: flex; align-items: center; flex-wrap:wrap; gap: 8px;}
+    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 12px; margin-bottom: 12px; transition: all 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
+    .inc-item:hover { border-color: #4f9cd9; background: #eff6ff; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+    .inc-title { font-weight: 700; color: #0f1e35; font-size: 1.05rem; }
     .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
-    
-    .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;}
+    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; text-transform: uppercase; }
     .bg-urg { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
     .bg-gar { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
     .bg-man { background: #fef9c3; color: #166534; border: 1px solid #fde047; }
     .bg-ins { background: #e0e7ff; color: #1d4ed8; border: 1px solid #93c5fd; }
     .bg-rev { background: #f3e8ff; color: #4338ca; border: 1px solid #c4b5fd; }
     
+    .section-divider { margin: 30px 0 15px; border-bottom: 1px solid rgba(255,255,255,0.2); color: #a9bcd6; font-family: 'Space Grotesk'; font-size: 1.2rem; padding-bottom: 5px; }
+
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Formulario Blanco del Detalle */
-    .form-box { 
-        background: white; 
-        border-radius: 16px; 
-        padding: 30px; 
-        color: #1e293b; 
-        max-width: 600px; 
-        margin: 40px auto 0; 
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
-        display: none; 
-        animation: fadeIn 0.3s ease;
-    }
+    .form-box { background: white; border-radius: 16px; padding: 30px; color: #1e293b; max-width: 600px; margin: 40px auto 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none; animation: fadeIn 0.3s ease;}
     .form-box h3 { margin-bottom: 25px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
     
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 6px; text-transform: uppercase; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter', sans-serif; background: #f8fafc; transition: 0.2s;}
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
     input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; cursor: not-allowed;}
-    
     input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; color: #1e293b !important; -webkit-text-fill-color: #1e293b !important; opacity: 1; }
     
-    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter', sans-serif; }
+    button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 15px; cursor: pointer; transition: 0.2s; font-family: 'Inter', sans-serif; }
     button.btn:hover { background: #2f6fb0; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 156, 217, 0.3);}
+    button.btn-secondary { background: #1e293b; margin-top: 25px;}
+    button.btn-secondary:hover { background: #0f1e35; }
   </style>
 </head>
 <body>
@@ -161,37 +76,42 @@
     </div>
     
     <div id="contenedor-avisos">
-      <p style='color:white; font-size:1.1rem;'>Buscando avisos...</p>
+      <p style='color:white; font-size:1.1rem;'>Buscando avisos en Avisos Tratados.xlsx...</p>
     </div>
 
     <div class="form-box" id="resolucion-box">
-      <h3>Resolución de Aviso</h3>
+      <h3>Parte de Trabajo</h3>
       <form id="form-resolver">
         <input type="hidden" id="res_index">
         <input type="hidden" id="res_tecnico_original">
+        <input type="hidden" id="res_cliente">
+        <input type="hidden" id="res_poblacion">
+        <input type="hidden" id="res_maquina">
         
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 140px;"><label>Fecha Intervención</label><input type="date" id="res_fecha" readonly></div>
-          <div style="flex: 1; min-width: 110px;"><label>Hora Inicio</label><input type="time" id="res_hora" readonly></div>
+          <div style="flex: 1; min-width: 140px;"><label>Fecha Realización</label><input type="date" id="res_fecha"></div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 110px;"><label>Hora Entrada</label><input type="time" id="res_hora_ent"></div>
+          <div style="flex: 1; min-width: 110px;"><label>Hora Salida</label><input type="time" id="res_hora_sal"></div>
         </div>
         
-        <label>Tipo de Asistencia</label>
-        <select id="res_tipo">
-          <option value="Visita">Visita presencial</option>
-          <option value="Taller">Taller / Remoto</option>
+        <label>Estado de Resolución</label>
+        <select id="res_estado_resolucion">
+          <option value="Pendiente">Pendiente (Se requiere otra visita)</option>
+          <option value="Resuelto">Resuelto</option>
         </select>
         
-        <label>Cliente</label>
-        <input type="text" id="res_cliente" readonly>
-        <label>Dirección / Población</label>
-        <input type="text" id="res_poblacion" readonly>
-        <label>Máquina / Anomalía Reportada</label>
-        <input type="text" id="res_maquina" readonly>
+        <label>Piezas Necesarias / Cambiadas</label>
+        <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
         
         <label>Trabajos Realizados / Solución</label>
-        <textarea id="res_solucion" rows="4" required placeholder="Describe las piezas cambiadas o ajustes realizados..."></textarea>
+        <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
         
-        <button type="submit" class="btn" id="btn-resolver">Guardar y Cerrar Aviso</button>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-progreso" onclick="guardarProgreso()">Guardar Progreso</button>
+          <button type="button" class="btn" id="btn-cerrar" onclick="cerrarAviso()">Cerrar Aviso Definitivo</button>
+        </div>
       </form>
     </div>
 
@@ -223,7 +143,7 @@
     function renderBotonesMaster() {
         let html = "";
         TECNICOS.forEach(t => {
-            const count = misAvisos.filter(a => a['REALIZADO POR'] === t).length;
+            const count = misAvisos.filter(a => a['REALIZADO POR'] === t && a['ESTADO'] !== 'Cerrado').length;
             const isSelected = filtroTecnicoMaster === t;
             const activeClass = isSelected ? 'active' : '';
             html += `<button class="master-tab ${activeClass}" onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();">
@@ -231,6 +151,22 @@
                      </button>`;
         });
         document.getElementById('botones-tecnicos').innerHTML = html;
+    }
+
+    function generateCard(av) {
+        let badgesHtml = "";
+        if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
+        if(av['GARANTÍA'] === 'SI') badgesHtml += `<span class="badge bg-gar">Garantía</span>`;
+        if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
+        if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
+        if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+
+        return `
+        <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
+            <div class="inc-title">${av['CLIENTE']} ${badgesHtml}</div>
+            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']}</div>
+        </div>
+        `;
     }
 
     function renderAvisos() {
@@ -246,72 +182,99 @@
             }
         }
 
-        if(aMostrar.length === 0){
-            box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos asignados a este técnico en este momento.</p>";
-        } else {
-            box.innerHTML = aMostrar.map(av => {
-                let badgesHtml = "";
-                if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
-                if(av['GARANTÍA'] === 'SI') badgesHtml += `<span class="badge bg-gar">Garantía</span>`;
-                if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
-                if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
-                if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        const abiertos = aMostrar.filter(a => a['ESTADO'] === 'Abierto');
+        const noAbiertos = aMostrar.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
+        // Los cerrados no se muestran, o se podrían mostrar en otra sección si quisieras.
 
-                return `
-                <div class="inc-item" onclick="abrirResolucion(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}', '${av['REALIZADO POR']}')">
-                    <div class="inc-title">${av['CLIENTE']} ${badgesHtml}</div>
-                    <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']}</div>
-                </div>
-                `;
-            }).join('');
+        if(abiertos.length === 0 && noAbiertos.length === 0){
+            box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos pendientes asignados a este técnico.</p>";
+            return;
+        } 
+        
+        let finalHtml = "";
+        if (abiertos.length > 0) {
+            finalHtml += `<div class="section-divider">🟢 Avisos Abiertos (En progreso)</div>`;
+            finalHtml += abiertos.map(av => generateCard(av)).join('');
         }
+        if (noAbiertos.length > 0) {
+            finalHtml += `<div class="section-divider">⚪ Avisos Pendientes de Empezar</div>`;
+            finalHtml += noAbiertos.map(av => generateCard(av)).join('');
+        }
+
+        box.innerHTML = finalHtml;
     }
 
-    function abrirResolucion(index, c, m, p, tecnicoAsignado) {
+    function abrirResolucion(index) {
+      const av = misAvisos.find(a => a.aviso_index === index);
+      if(!av) return;
+
       document.getElementById('resolucion-box').style.display = 'block';
       document.getElementById('res_index').value = index;
-      document.getElementById('res_tecnico_original').value = tecnicoAsignado;
-      document.getElementById('res_cliente').value = c;
-      document.getElementById('res_maquina').value = m;
-      document.getElementById('res_poblacion').value = p;
+      document.getElementById('res_tecnico_original').value = av['REALIZADO POR'];
+      document.getElementById('res_cliente').value = av['CLIENTE'];
+      document.getElementById('res_maquina').value = av['MÁQUINA'];
+      document.getElementById('res_poblacion').value = av['POBLACIÓN'];
 
-      const now = new Date();
-      document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
-      document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
-      
+      document.getElementById('res_fecha').value = av['FECHA REALIZACIÓN'] || new Date().toISOString().split('T')[0];
+      document.getElementById('res_hora_ent').value = av['HORA ENTRADA'] || '';
+      document.getElementById('res_hora_sal').value = av['HORA SALIDA'] || '';
+      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
+      document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
+      document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
+
       setTimeout(() => { document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
     }
 
-    document.getElementById('form-resolver').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    function buildPayload() {
+        return {
+            aviso_index: parseInt(document.getElementById('res_index').value),
+            fecha_realizacion: document.getElementById('res_fecha').value,
+            hora_entrada: document.getElementById('res_hora_ent').value,
+            hora_salida: document.getElementById('res_hora_sal').value,
+            resuelto_pendiente: document.getElementById('res_estado_resolucion').value,
+            piezas: document.getElementById('res_piezas').value,
+            solucion: document.getElementById('res_solucion').value,
+            cliente: document.getElementById('res_cliente').value,
+            poblacion: document.getElementById('res_poblacion').value,
+            maquina: document.getElementById('res_maquina').value,
+            tecnico: document.getElementById('res_tecnico_original').value
+        };
+    }
 
-      const btn = document.getElementById('btn-resolver');
-      btn.innerText = "Procesando..."; btn.disabled = true;
-
-      const payload = {
-        aviso_index: parseInt(document.getElementById('res_index').value),
-        fecha: document.getElementById('res_fecha').value,
-        hora: document.getElementById('res_hora').value,
-        tipo_visita: document.getElementById('res_tipo').value,
-        cliente: document.getElementById('res_cliente').value,
-        poblacion: document.getElementById('res_poblacion').value,
-        maquina: document.getElementById('res_maquina').value,
-        tecnico: document.getElementById('res_tecnico_original').value,
-        solucion: document.getElementById('res_solucion').value
-      };
+    async function guardarProgreso() {
+      const btn = document.getElementById('btn-progreso');
+      btn.innerText = "Guardando..."; btn.disabled = true;
 
       try {
-        await fetch('/api/adjudicados/resolver', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Aviso finalizado con éxito. Parte generado.");
-        document.getElementById('form-resolver').reset();
+        await fetch('/api/adjudicados/guardar-progreso', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(buildPayload()) });
+        alert("Progreso guardado. El aviso ahora está ABIERTO.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
-      } catch (err) { alert("Error al guardar el aviso."); }
+      } catch (err) { alert("Error al guardar."); }
 
-      btn.innerText = "Guardar y Cerrar Aviso"; btn.disabled = false;
-    });
+      btn.innerText = "Guardar Progreso"; btn.disabled = false;
+    }
 
-    cargarAvisos();
+    async function cerrarAviso() {
+      if(!document.getElementById('res_hora_ent').value || !document.getElementById('res_hora_sal').value || !document.getElementById('res_solucion').value) {
+          alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, salida y la solución.");
+          return;
+      }
+        
+      if(!confirm("¿Estás seguro de que quieres CERRAR definitivamente este aviso? Se generará el TXT y desaparecerá de la lista.")) return;
+
+      const btn = document.getElementById('btn-cerrar');
+      btn.innerText = "Procesando..."; btn.disabled = true;
+
+      try {
+        await fetch('/api/adjudicados/resolver', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(buildPayload()) });
+        alert("Aviso cerrado y parte TXT generado con éxito.");
+        document.getElementById('resolucion-box').style.display = 'none';
+        cargarAvisos();
+      } catch (err) { alert("Error al cerrar el aviso."); }
+
+      btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
+    }
   </script>
 </body>
 </html>
