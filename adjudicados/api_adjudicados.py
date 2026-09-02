@@ -47,13 +47,20 @@ def get_mis_avisos(tecnico: str):
         if 'REALIZADO POR' not in df.columns: return {"avisos": []}
         df['REALIZADO POR'] = df['REALIZADO POR'].fillna('Pendiente')
         
-        # Filtramos pero conservamos el index original del dataframe para poder borrarlo luego
         avisos_mios = []
         for index, row in df.iterrows():
-            if str(row['REALIZADO POR']) == tecnico:
-                dic = row.fillna("").to_dict()
-                dic['aviso_index'] = index
-                avisos_mios.append(dic)
+            asignado = str(row['REALIZADO POR'])
+            # Si el usuario es master, se trae a todos los que ya estén asignados a algún técnico
+            if tecnico == 'master':
+                if asignado != 'Pendiente' and asignado != 'nan' and asignado != '':
+                    dic = row.fillna("").to_dict()
+                    dic['aviso_index'] = index
+                    avisos_mios.append(dic)
+            else:
+                if asignado == tecnico:
+                    dic = row.fillna("").to_dict()
+                    dic['aviso_index'] = index
+                    avisos_mios.append(dic)
                 
         return {"avisos": avisos_mios}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
@@ -93,7 +100,7 @@ def resolver_aviso(parte: ParteResolucion):
             fh.seek(0)
             df = pd.read_excel(fh)
             
-            df = df.drop(index=parte.aviso_index)
+            df = df.drop(index=parte.aviso_index).reset_index(drop=True)
             
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
