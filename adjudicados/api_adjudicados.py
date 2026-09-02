@@ -12,7 +12,6 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-# Hemos añadido TIPO ASISTENCIA a las columnas oficiales
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
 
 def get_drive_service():
@@ -22,31 +21,31 @@ def get_drive_service():
     ))
 
 def get_excel(drive, name, cols):
-    """Lectura robusta idéntica a la del gestor para evitar fallos de conexión"""
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
     res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
+    archivos = res.get("files", [])
     
-    if res.get("files"):
-        file_info = res.get("files")[0]
+    if archivos:
+        file_info = archivos[0]
         file_id = file_info['id']
         mime_type = file_info.get('mimeType', '')
-        try:
-            if mime_type == 'application/vnd.google-apps.spreadsheet':
-                req = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            else:
-                req = drive.files().get_media(fileId=file_id)
-                
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, req)
-            done = False
-            while not done: 
-                _, done = downloader.next_chunk()
-            fh.seek(0)
-            df = pd.read_excel(fh)
-        except Exception:
-            df = pd.DataFrame(columns=cols)
+        
+        # Eliminado el bloque try-except silencioso. Si falla la lectura, queremos ver el error real
+        # en lugar de sobrescribir el archivo con un DataFrame vacío.
+        if mime_type == 'application/vnd.google-apps.spreadsheet':
+            request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        else:
+            request = drive.files().get_media(fileId=file_id)
             
-        # Nos aseguramos de que existan todas las columnas antes de operar
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done: 
+            _, done = downloader.next_chunk()
+        fh.seek(0)
+        
+        df = pd.read_excel(fh, engine='openpyxl')
+        
         for c in cols:
             if c not in df.columns: 
                 df[c] = ''
@@ -93,23 +92,21 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
     
     idx = int(parte.aviso_index)
-    if 0 <= idx < len(df):
-        horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
-        
-        # Usamos .loc para asegurar que la reasignación impacta al Dataframe real (y no a una copia fantasma)
-        df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
-        df.loc[idx, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
-        df.loc[idx, 'HORA ENTRADA'] = parte.hora_entrada
-        df.loc[idx, 'HORA SALIDA'] = parte.hora_salida
-        df.loc[idx, 'HORAS TOTALES'] = horas_totales
-        df.loc[idx, 'RESUELTO O PENDIENTE'] = parte.resuelto_pendiente
-        df.loc[idx, 'PIEZAS NECESARIAS'] = parte.piezas
-        df.loc[idx, 'SOLUCIÓN'] = parte.solucion
-        df.loc[idx, 'ESTADO'] = estado
-        
-        save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
-        return horas_totales
-    raise Exception("Index fuera de rango")
+    horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
+    
+    # Asignación directa con .loc asegura que se guarden los datos incluso si el index cambia
+    df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
+    df.loc[idx, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
+    df.loc[idx, 'HORA ENTRADA'] = parte.hora_entrada
+    df.loc[idx, 'HORA SALIDA'] = parte.hora_salida
+    df.loc[idx, 'HORAS TOTALES'] = horas_totales
+    df.loc[idx, 'RESUELTO O PENDIENTE'] = parte.resuelto_pendiente
+    df.loc[idx, 'PIEZAS NECESARIAS'] = parte.piezas
+    df.loc[idx, 'SOLUCIÓN'] = parte.solucion
+    df.loc[idx, 'ESTADO'] = estado
+    
+    save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
+    return horas_totales
 
 @router.get("/mis-avisos")
 def get_mis_avisos(tecnico: str):
@@ -117,7 +114,6 @@ def get_mis_avisos(tecnico: str):
         drive = get_drive_service()
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
         
-        # Sanitizamos el dataframe para que no rompa el JSON formating de FastAPI (error 500)
         df = df.fillna('').astype(str).replace('nan', '')
         
         avisos_mios = []
@@ -152,10 +148,11 @@ def get_mis_avisos(tecnico: str):
 def guardar_progreso(parte: UpdateParte):
     try:
         drive = get_drive_service()
-        # Se envía estado "Abierto" a la hora de procesarlo
         procesar_actualizacion_tratados(drive, parte, "Abierto")
         return {"status": "ok"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: 
+        # Propagamos el error exacto al frontend para visualizar dónde falla
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/resolver")
 def resolver_aviso(parte: UpdateParte):
@@ -184,4 +181,5 @@ def resolver_aviso(parte: UpdateParte):
         drive.files().create(body={"name": nombre_txt, "parents": [FOLDER_ID]}, media_body=media_txt).execute()
         
         return {"status": "ok"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
