@@ -12,7 +12,6 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-# Se ha añadido 'TIPO ASISTENCIA' a las columnas obligatorias
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
 
 def get_drive_service():
@@ -69,7 +68,7 @@ class UpdateParte(BaseModel):
     poblacion: str
     maquina: str
     tecnico: str
-    tipo_asistencia: str  # Nuevo campo para Presencial/Telemático
+    tipo_asistencia: str
 
 def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in) == 'nan' or str(h_out) == 'nan': return ""
@@ -113,26 +112,17 @@ def get_mis_avisos(tecnico: str):
         df['REALIZADO POR'] = df['REALIZADO POR'].fillna('Pendiente')
         df['ESTADO'] = df['ESTADO'].replace('', 'Vacío').fillna('Vacío')
         
-        # Conversión estricta a string para evitar que JSON formatee NaNs o Fechas mal y rompa el HTML
-        df = df.astype(str).replace({'nan': '', 'NaT': '', 'None': '', '<NA>': ''})
-        
-        # Limpieza de formatos de hora (en caso de que Pandas haya leído HH:MM:SS)
-        if 'HORA ENTRADA' in df.columns:
-            df['HORA ENTRADA'] = df['HORA ENTRADA'].apply(lambda x: x[:5] if len(str(x)) >= 5 and ":" in str(x) else x)
-        if 'HORA SALIDA' in df.columns:
-            df['HORA SALIDA'] = df['HORA SALIDA'].apply(lambda x: x[:5] if len(str(x)) >= 5 and ":" in str(x) else x)
-        
         avisos_mios = []
         for index, row in df.iterrows():
             asignado = str(row['REALIZADO POR'])
             if tecnico == 'master':
-                if asignado not in ['Pendiente', 'nan', '']:
-                    dic = row.to_dict()
+                if asignado != 'Pendiente' and asignado != 'nan' and asignado != '':
+                    dic = row.fillna("").to_dict()
                     dic['aviso_index'] = index
                     avisos_mios.append(dic)
             else:
                 if asignado == tecnico:
-                    dic = row.to_dict()
+                    dic = row.fillna("").to_dict()
                     dic['aviso_index'] = index
                     avisos_mios.append(dic)
                 
