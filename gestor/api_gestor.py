@@ -103,6 +103,11 @@ def update_tecnico(data: UpdateIndex):
         drive = get_drive_service()
         if data.fuente == 'sin_tratar':
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+            
+            # Verificación de índice fuera de rango para evitar solapamientos por clics rápidos
+            if data.aviso_index >= len(df_sin) or data.aviso_index < 0:
+                raise HTTPException(status_code=400, detail="El aviso ya se ha movido o no existe. Refresca la vista.")
+                
             if data.valor != 'Pendiente':
                 row = df_sin.iloc[data.aviso_index].copy()
                 fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
@@ -133,9 +138,14 @@ def update_tecnico(data: UpdateIndex):
                 
         else: 
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+            
+            # Verificación de índice para solapamientos rápidos
+            if data.aviso_index >= len(df_tra) or data.aviso_index < 0:
+                raise HTTPException(status_code=400, detail="El aviso ya se ha movido o no existe. Refresca la vista.")
+                
             row = df_tra.iloc[data.aviso_index].copy()
             
-            # Bloqueo de reasignación/desasignación si el técnico ya lo ha abierto o cerrado
+            # Bloqueo estricto de reasignación/desasignación si el técnico ya lo ha abierto o cerrado
             estado = str(row.get('ESTADO', '')).strip()
             if estado in ['Abierto', 'Cerrado'] and data.valor != row.get('REALIZADO POR', ''):
                 raise HTTPException(status_code=400, detail="No se puede quitar ni reasignar un aviso que ya ha sido empezado o finalizado por un técnico.")
