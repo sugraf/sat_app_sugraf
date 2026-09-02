@@ -133,7 +133,10 @@
       const box = document.getElementById('contenedor-avisos');
       try {
         const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
-        if (!res.ok) throw new Error("Error leyendo de Google Drive");
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Error leyendo de Google Drive");
+        }
         
         const data = await res.json();
         misAvisos = data.avisos || [];
@@ -145,7 +148,7 @@
         renderAvisos();
       } catch (e) { 
         console.error(e);
-        box.innerHTML = "<p style='color:#ef4444; font-size:1.1rem;'>Hubo un problema de conexión al leer el Excel. Revisa el registro del servidor.</p>"; 
+        box.innerHTML = `<p style='color:#ef4444; font-size:1.1rem;'>Error: ${e.message}</p>`; 
       }
     }
 
@@ -270,14 +273,15 @@
         });
         
         if (!res.ok) {
-            throw new Error(`Error HTTP: ${res.status}`);
+            const errData = await res.json();
+            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
         
         alert("Progreso guardado. El aviso ahora está ABIERTO.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
       } catch (err) { 
-        alert("Error al guardar. Revisa la consola."); 
+        alert(`Error al guardar: ${err.message}`); 
         console.error(err);
       }
 
@@ -303,14 +307,15 @@
         });
         
         if (!res.ok) {
-            throw new Error(`Error HTTP: ${res.status}`);
+            const errData = await res.json();
+            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
         
         alert("Aviso cerrado y parte TXT generado con éxito.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
       } catch (err) { 
-        alert("Error al cerrar el aviso."); 
+        alert(`Error al cerrar el aviso: ${err.message}`); 
         console.error(err);
       }
 
