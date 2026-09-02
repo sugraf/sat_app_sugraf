@@ -78,6 +78,9 @@ class UpdateParte(BaseModel):
     tipo_asistencia: str
     pirineos: str
 
+class ArchivarParte(BaseModel):
+    aviso_index: int
+
 def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '': 
         return ""
@@ -162,8 +165,30 @@ def guardar_progreso(parte: UpdateParte):
 def resolver_aviso(parte: UpdateParte):
     try:
         drive = get_drive_service()
-        # Solo actualiza el estado en el excel y guarda los campos.
         procesar_actualizacion_tratados(drive, parte, "Cerrado")
         return {"status": "ok"}
     except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/archivar")
+def archivar_aviso(parte: ArchivarParte):
+    try:
+        drive = get_drive_service()
+        fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+        idx = int(parte.aviso_index)
+        
+        if 0 <= idx < len(df_tra):
+            row_to_archive = df_tra.iloc[idx].copy()
+            
+            fid_fin, df_fin = get_excel(drive, 'Partes Finalizados.xlsx', COLS_TRA)
+            df_fin = pd.concat([df_fin, pd.DataFrame([row_to_archive])], ignore_index=True)
+            
+            df_tra = df_tra.drop(index=idx).reset_index(drop=True)
+            
+            save_excel(drive, fid_fin, 'Partes Finalizados.xlsx', df_fin)
+            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
+            return {"status": "ok"}
+        else:
+            raise Exception("Index out of bounds")
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
