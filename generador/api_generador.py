@@ -33,6 +33,10 @@ class NuevoAviso(BaseModel):
     f_instal: str
     descripcion: str
     urgente: bool
+    garantia: bool
+    mantenimiento: bool
+    instalacion: bool
+    revisar: bool
 
 @router.get("/clientes-maquinas")
 def listar_clientes_maquinas():
@@ -98,7 +102,7 @@ def crear_aviso(aviso: NuevoAviso):
         res = drive.files().list(q=query, fields="files(id)").execute()
         archivos = res.get("files", [])
         
-        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS']
+        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
         if archivos:
             file_id = archivos[0]['id']
             request = drive.files().get_media(fileId=file_id)
@@ -112,14 +116,24 @@ def crear_aviso(aviso: NuevoAviso):
             file_id = None
             df = pd.DataFrame(columns=cols)
 
+        # Asegurarnos de que existen las columnas antiguas y las nuevas si el excel era viejo
         if 'PIRINEOS' not in df.columns: df['PIRINEOS'] = 'NO'
         if 'REALIZADO POR' not in df.columns: df['REALIZADO POR'] = 'Pendiente'
+        if 'GARANTÍA' not in df.columns: df['GARANTÍA'] = 'NO'
+        if 'MANTENIMIENTO' not in df.columns: df['MANTENIMIENTO'] = 'NO'
+        if 'INSTALACIÓN' not in df.columns: df['INSTALACIÓN'] = 'NO'
+        if 'REVISAR' not in df.columns: df['REVISAR'] = 'NO'
         
         fila_excel = {
             'F. ENTR.': aviso.fecha_entrada, 'CLIENTE': aviso.cliente, 'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina, 'EQUIPO': aviso.equipo, 'MARCA': aviso.marca, 'MODELO': aviso.modelo,
             'F. GARANTÍA': aviso.f_garan, 'F. INSTALACIÓN': aviso.f_instal, 'DESCRIPCIÓN': aviso.descripcion,
-            'REALIZADO POR': 'Pendiente', 'URGENTE': 'SI' if aviso.urgente else 'NO', 'PIRINEOS': 'NO'
+            'REALIZADO POR': 'Pendiente', 'PIRINEOS': 'NO',
+            'URGENTE': 'SI' if aviso.urgente else 'NO', 
+            'GARANTÍA': 'SI' if aviso.garantia else 'NO',
+            'MANTENIMIENTO': 'SI' if aviso.mantenimiento else 'NO',
+            'INSTALACIÓN': 'SI' if aviso.instalacion else 'NO',
+            'REVISAR': 'SI' if aviso.revisar else 'NO'
         }
         
         df = pd.concat([df, pd.DataFrame([fila_excel])], ignore_index=True)
