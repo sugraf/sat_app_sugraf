@@ -34,6 +34,12 @@ def get_excel_avisos(drive):
     
     if 'PIRINEOS' not in df.columns: df['PIRINEOS'] = 'NO'
     if 'REALIZADO POR' not in df.columns: df['REALIZADO POR'] = 'Pendiente'
+    
+    # Asegurar existencia de nuevas columnas de etiquetas
+    for col in ['GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']:
+        if col not in df.columns: df[col] = 'NO'
+        df[col] = df[col].replace('', 'NO').fillna('NO')
+
     df['PIRINEOS'] = df['PIRINEOS'].replace('', 'NO').fillna('NO')
     df['REALIZADO POR'] = df['REALIZADO POR'].replace('', 'Pendiente').fillna('Pendiente')
     return file_id, df
