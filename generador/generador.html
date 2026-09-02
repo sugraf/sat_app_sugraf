@@ -14,33 +14,31 @@
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
     .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
-    .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto;}
-    
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
-    
     input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; color: #1e293b !important; -webkit-text-fill-color: #1e293b !important; opacity: 1; }
     
     .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #1e293b; font-weight: 500; text-transform: none; margin: 0;}
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #1e293b; font-weight: 500; margin: 0;}
     .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
 
     button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
     button.btn:hover { background: #2f6fb0; }
     
-    .custom-select-wrapper { position: relative; margin-bottom: 14px; }
+    .custom-select-wrapper { position: relative; }
     .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
-    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
     .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .custom-select-list.show { display: block; }
     .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
     .custom-select-item:hover { background: #f8fafc; color: #2563eb; }
+    
+    .pill { background:#e2e8f0; color:#1e293b; padding:6px 12px; border-radius:20px; font-size:0.85rem; display:inline-flex; align-items:center; gap:8px; font-weight:500;}
+    .pill b { cursor:pointer; color:#ef4444; font-size:1rem; }
   </style>
 </head>
 <body>
@@ -62,7 +60,7 @@
         </div>
         
         <label>Cliente</label>
-        <div class="custom-select-wrapper">
+        <div class="custom-select-wrapper" style="margin-bottom: 14px;">
           <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
           <div id="dropdown-clientes" class="custom-select-list"></div>
         </div>
@@ -70,11 +68,15 @@
         <label>Población / Dirección</label>
         <input type="text" id="ni_poblacion" required>
         
-        <label>Máquina</label>
-        <div class="custom-select-wrapper">
-          <input type="text" id="ni_maquina" autocomplete="off" required placeholder="Selecciona o escribe máquina...">
-          <div id="dropdown-maquinas" class="custom-select-list"></div>
+        <label>Máquina(s)</label>
+        <div style="display: flex; gap: 10px;">
+          <div class="custom-select-wrapper" style="flex: 1;">
+            <input type="text" id="ni_maquina" autocomplete="off" placeholder="Selecciona o escribe máquina...">
+            <div id="dropdown-maquinas" class="custom-select-list"></div>
+          </div>
+          <button type="button" class="btn" style="width: auto; margin: 0; padding: 12px 15px;" onclick="addMaquinaManual()">+</button>
         </div>
+        <div id="maquinas-seleccionadas" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 14px;"></div>
 
         <label>Explicar la Incidencia</label>
         <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
@@ -96,9 +98,9 @@
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
-    if (currentUser === "Solo Visualizar") { alert("Tu perfil no puede crear avisos."); window.location.href = "/"; }
 
     let dbEquipos = {};
+    let maquinasSel = [];
 
     document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
@@ -111,20 +113,20 @@
         dbEquipos = await res.json();
         
         setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { 
+            maquinasSel = [];
+            renderMaquinas();
             document.getElementById('ni_maquina').value = ''; 
             document.getElementById('ni_gar').checked = false;
             const poblacionInput = document.getElementById('ni_poblacion');
-            if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
-                poblacionInput.value = dbEquipos[sel].poblacion;
-            } else {
-                poblacionInput.value = '';
-            }
+            poblacionInput.value = (dbEquipos[sel] && dbEquipos[sel].poblacion) ? dbEquipos[sel].poblacion : '';
         });
 
         setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
             const c = document.getElementById('ni_cliente').value;
             if(!c || !dbEquipos[c]) return [];
             return dbEquipos[c].maquinas.map(m => m.nombre).sort();
+        }, (item) => {
+            addMaquina(item);
         });
       } catch (err) { console.error(err); }
       btn.innerText = "Crear Aviso"; btn.disabled = false;
@@ -147,31 +149,56 @@
                 item.addEventListener('mousedown', (e) => {
                     e.preventDefault(); 
                     if (item.innerText === "No hay coincidencias") return;
-                    input.value = item.innerText;
                     dropdown.classList.remove('show');
                     if(onSelectCallback) onSelectCallback(item.innerText);
-                    checkGarantia(); // Forzamos chequeo al hacer click en opción
                 });
             });
         };
 
         input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
-        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value); });
-        input.addEventListener('blur', () => { setTimeout(() => { dropdown.classList.remove('show'); checkGarantia(); }, 150); });
+        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); });
+        input.addEventListener('blur', () => { setTimeout(() => { dropdown.classList.remove('show'); }, 150); });
     }
 
-    function checkGarantia() {
+    function addMaquinaManual() {
+        const v = document.getElementById('ni_maquina').value.trim();
+        if(v) addMaquina(v);
+    }
+
+    function addMaquina(nombre) {
+        if (!maquinasSel.includes(nombre)) {
+            maquinasSel.push(nombre);
+            renderMaquinas();
+            checkGarantiaGlobal();
+        }
+        document.getElementById('ni_maquina').value = '';
+    }
+
+    function removeMaquina(nombre) {
+        maquinasSel = maquinasSel.filter(m => m !== nombre);
+        renderMaquinas();
+        checkGarantiaGlobal();
+    }
+
+    function renderMaquinas() {
+        const cont = document.getElementById('maquinas-seleccionadas');
+        cont.innerHTML = maquinasSel.map(m => `<span class="pill">${m} <b onclick="removeMaquina('${m}')">×</b></span>`).join('');
+    }
+
+    function checkGarantiaGlobal() {
         const c = document.getElementById('ni_cliente').value;
-        const m = document.getElementById('ni_maquina').value;
         let isWarranty = false;
         if (dbEquipos && dbEquipos[c]) {
-            const found = dbEquipos[c].maquinas.find(x => x.nombre === m);
-            if (found && found.f_garan) {
-                const garanDate = new Date(found.f_garan);
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                if (garanDate >= today) {
-                    isWarranty = true;
+            for (let m of maquinasSel) {
+                const found = dbEquipos[c].maquinas.find(x => x.nombre === m);
+                if (found && found.f_garan) {
+                    const garanDate = new Date(found.f_garan);
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    if (garanDate >= today) {
+                        isWarranty = true;
+                        break;
+                    }
                 }
             }
         }
@@ -180,15 +207,19 @@
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      const v = document.getElementById('ni_maquina').value.trim();
+      if(v && !maquinasSel.includes(v)) { addMaquina(v); }
+      if (maquinasSel.length === 0) { alert("Añade al menos una máquina."); return; }
+
       const btn = document.getElementById('btn-save-inc');
       btn.innerText = "Guardando en Excel..."; btn.disabled = true;
 
       const cliente = document.getElementById('ni_cliente').value;
-      const maquinaNombre = document.getElementById('ni_maquina').value;
       
       let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
-      if (dbEquipos && dbEquipos[cliente]) {
-          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinaNombre);
+      if (dbEquipos && dbEquipos[cliente] && maquinasSel.length > 0) {
+          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinasSel[0]);
           if (found) maquinaData = found;
       }
 
@@ -196,7 +227,7 @@
         fecha_entrada: document.getElementById('ni_fecha').value,
         cliente: cliente,
         poblacion: document.getElementById('ni_poblacion').value,
-        maquina: maquinaNombre,
+        maquina: maquinasSel.join(" y "),
         equipo: maquinaData.equipo,
         marca: maquinaData.marca,
         modelo: maquinaData.modelo,
