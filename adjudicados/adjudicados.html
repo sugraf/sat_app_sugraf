@@ -13,10 +13,8 @@
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
     .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
-    .btn-back:hover { background: #e2e8f0; }
     
     .container { max-width: 900px; margin: 0 auto; }
-    
     .header-title h2 { margin-bottom: 20px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; font-family: 'Space Grotesk';}
     
     .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 12px; transition: 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease;}
@@ -35,15 +33,7 @@
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
     input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; }
     
-    /* Reset iOS para inputs de fecha y hora */
-    input[type="date"], input[type="time"] { 
-      -webkit-appearance: none; 
-      appearance: none; 
-      min-width: 0; 
-      color: #1e293b !important; 
-      -webkit-text-fill-color: #1e293b !important; 
-      opacity: 1; 
-    }
+    input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; color: #1e293b !important; -webkit-text-fill-color: #1e293b !important; opacity: 1; }
     
     button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
     button.btn:hover { background: #2f6fb0; }
@@ -62,16 +52,22 @@
     <div class="header-title">
       <h2>Mis Avisos Adjudicados</h2>
     </div>
+
+    <!-- Panel de botones para MASTER -->
+    <div id="master-panel" style="display:none; margin-bottom: 20px;">
+      <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:10px; text-transform: uppercase; font-weight: bold;">Selecciona un técnico para ver sus avisos:</p>
+      <div id="botones-tecnicos" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+    </div>
     
     <div id="contenedor-avisos">
-      <p style='color:white;'>Buscando tus avisos...</p>
+      <p style='color:white;'>Buscando avisos...</p>
     </div>
 
-    <!-- Panel de Resolución que aparece abajo al hacer click -->
     <div class="form-box" id="resolucion-box">
       <h3>Resolución de Aviso</h3>
       <form id="form-resolver">
         <input type="hidden" id="res_index">
+        <input type="hidden" id="res_tecnico_original">
         
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 140px;"><label>Fecha Intervención</label><input type="date" id="res_fecha" readonly></div>
@@ -103,8 +99,10 @@
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
+    const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
     
     let misAvisos = [];
+    let filtroTecnicoMaster = null;
 
     async function cargarAvisos() {
       const box = document.getElementById('contenedor-avisos');
@@ -113,22 +111,55 @@
         const data = await res.json();
         misAvisos = data.avisos || [];
         
-        if(misAvisos.length === 0){
-            box.innerHTML = "<p style='color:#a9bcd6;'>No tienes avisos pendientes en este momento.</p>";
+        if (currentUser === "master") {
+            document.getElementById('master-panel').style.display = 'block';
+            renderBotonesMaster();
+        }
+        renderAvisos();
+      } catch (e) { box.innerHTML = "<p style='color:red;'>Error de conexión.</p>"; }
+    }
+
+    function renderBotonesMaster() {
+        let html = "";
+        TECNICOS.forEach(t => {
+            const count = misAvisos.filter(a => a['REALIZADO POR'] === t).length;
+            const isSelected = filtroTecnicoMaster === t;
+            const bg = isSelected ? '#4f9cd9' : '#152847';
+            const border = isSelected ? 'transparent' : '1px solid rgba(79,156,217,0.3)';
+            html += `<button onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();" style="background:${bg}; color:white; border:${border}; padding:12px; border-radius:8px; flex:1; min-width: 140px; cursor:pointer; font-weight:600;">${t} <span style="background:rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; margin-left: 5px;">${count}</span></button>`;
+        });
+        document.getElementById('botones-tecnicos').innerHTML = html;
+    }
+
+    function renderAvisos() {
+        const box = document.getElementById('contenedor-avisos');
+        let aMostrar = misAvisos;
+        
+        if (currentUser === 'master') {
+            if (filtroTecnicoMaster) {
+                aMostrar = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
+            } else {
+                box.innerHTML = "<p style='color:#a9bcd6;'>Por favor, selecciona a un técnico de la botonera superior para visualizar sus avisos en curso.</p>";
+                return;
+            }
+        }
+
+        if(aMostrar.length === 0){
+            box.innerHTML = "<p style='color:#a9bcd6;'>No hay avisos asignados a este técnico en este momento.</p>";
         } else {
-            box.innerHTML = misAvisos.map(av => `
-              <div class="inc-item" onclick="abrirResolucion(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}')">
+            box.innerHTML = aMostrar.map(av => `
+              <div class="inc-item" onclick="abrirResolucion(${av.aviso_index}, '${av['CLIENTE']}', '${av['MÁQUINA']}', '${av['POBLACIÓN']}', '${av['REALIZADO POR']}')">
                   <div class="inc-title">${av['CLIENTE']} ${av['URGENTE'] === 'SI' ? '<span class="badge">URGENTE</span>' : ''}</div>
                   <div class="inc-sub">Máquina: ${av['MÁQUINA']} | Entrada: ${av['F. ENTR.']}</div>
               </div>
             `).join('');
         }
-      } catch (e) { box.innerHTML = "<p style='color:red;'>Error de conexión.</p>"; }
     }
 
-    function abrirResolucion(index, c, m, p) {
+    function abrirResolucion(index, c, m, p, tecnicoAsignado) {
       document.getElementById('resolucion-box').style.display = 'block';
       document.getElementById('res_index').value = index;
+      document.getElementById('res_tecnico_original').value = tecnicoAsignado;
       document.getElementById('res_cliente').value = c;
       document.getElementById('res_maquina').value = m;
       document.getElementById('res_poblacion').value = p;
@@ -137,10 +168,7 @@
       document.getElementById('res_fecha').value = now.toISOString().split('T')[0];
       document.getElementById('res_hora').value = now.toTimeString().split(' ')[0].substring(0, 5);
       
-      // Auto scroll hacia el formulario
-      setTimeout(() => {
-        document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      setTimeout(() => { document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth' }); }, 100);
     }
 
     document.getElementById('form-resolver').addEventListener('submit', async (e) => {
@@ -157,7 +185,7 @@
         cliente: document.getElementById('res_cliente').value,
         poblacion: document.getElementById('res_poblacion').value,
         maquina: document.getElementById('res_maquina').value,
-        tecnico: currentUser,
+        tecnico: document.getElementById('res_tecnico_original').value,
         solucion: document.getElementById('res_solucion').value
       };
 
