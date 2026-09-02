@@ -6,7 +6,6 @@
   <title>Generador de Avisos</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    /* Estilos compartidos */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background-color: #070e1c; background-image: radial-gradient(800px circle at 20% 0%, rgba(47, 111, 176, 0.25) 0%, transparent 100%), radial-gradient(800px circle at 85% 20%, rgba(79, 156, 217, 0.15) 0%, transparent 100%); background-attachment: fixed; color: #f4f8fc; min-height: 100vh; padding: 20px;}
     h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
@@ -19,7 +18,6 @@
     
     .container { max-width: 900px; margin: 0 auto;}
     
-    /* Formulario Blanco */
     .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .form-box h2 { margin-bottom: 20px; color: #0f1e35; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
@@ -27,24 +25,15 @@
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
     input:focus, select:focus, textarea:focus { outline: none; border-color: #4f9cd9; background: #fff; }
     
-    /* Reset iOS para inputs de fecha y hora */
-    input[type="date"], input[type="time"] { 
-      -webkit-appearance: none; 
-      appearance: none; 
-      min-width: 0; 
-      color: #1e293b !important; 
-      -webkit-text-fill-color: #1e293b !important; 
-      opacity: 1; 
-    }
+    input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; color: #1e293b !important; -webkit-text-fill-color: #1e293b !important; opacity: 1; }
     
-    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
+    .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #1e293b; font-weight: 500; text-transform: none; margin: 0;}
     .checkbox-item input { width: auto; margin: 0; accent-color: #4f9cd9; width: 18px; height: 18px; }
 
     button.btn { background: #4f9cd9; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
     button.btn:hover { background: #2f6fb0; }
     
-    /* Select Personalizado */
     .custom-select-wrapper { position: relative; margin-bottom: 14px; }
     .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
     .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
@@ -90,9 +79,13 @@
         <label>Explicar la Incidencia</label>
         <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
 
-        <label>Etiquetas</label>
+        <label>Etiquetas / Opciones</label>
         <div class="checkbox-group">
           <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_gar"> Garantía</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_man"> Mantenimiento</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_rev"> Revisar</label>
         </div>
 
         <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
@@ -119,6 +112,7 @@
         
         setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel) => { 
             document.getElementById('ni_maquina').value = ''; 
+            document.getElementById('ni_gar').checked = false;
             const poblacionInput = document.getElementById('ni_poblacion');
             if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
                 poblacionInput.value = dbEquipos[sel].poblacion;
@@ -132,12 +126,9 @@
             if(!c || !dbEquipos[c]) return [];
             return dbEquipos[c].maquinas.map(m => m.nombre).sort();
         });
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
       btn.innerText = "Crear Aviso"; btn.disabled = false;
     }
-    
     cargarData();
 
     function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
@@ -147,13 +138,11 @@
         const renderOptions = (filterText = "") => {
             const options = getOptionsCallback();
             const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
-            
             if (filtered.length === 0) {
                 dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
                 return;
             }
             dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
-            
             dropdown.querySelectorAll('.custom-select-item').forEach(item => {
                 item.addEventListener('mousedown', (e) => {
                     e.preventDefault(); 
@@ -161,18 +150,36 @@
                     input.value = item.innerText;
                     dropdown.classList.remove('show');
                     if(onSelectCallback) onSelectCallback(item.innerText);
+                    checkGarantia(); // Forzamos chequeo al hacer click en opción
                 });
             });
         };
 
         input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
         input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value); });
-        input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
+        input.addEventListener('blur', () => { setTimeout(() => { dropdown.classList.remove('show'); checkGarantia(); }, 150); });
+    }
+
+    function checkGarantia() {
+        const c = document.getElementById('ni_cliente').value;
+        const m = document.getElementById('ni_maquina').value;
+        let isWarranty = false;
+        if (dbEquipos && dbEquipos[c]) {
+            const found = dbEquipos[c].maquinas.find(x => x.nombre === m);
+            if (found && found.f_garan) {
+                const garanDate = new Date(found.f_garan);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                if (garanDate >= today) {
+                    isWarranty = true;
+                }
+            }
+        }
+        document.getElementById('ni_gar').checked = isWarranty;
     }
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
       const btn = document.getElementById('btn-save-inc');
       btn.innerText = "Guardando en Excel..."; btn.disabled = true;
 
@@ -196,7 +203,11 @@
         f_garan: maquinaData.f_garan,
         f_instal: maquinaData.f_instal,
         descripcion: document.getElementById('ni_desc').value,
-        urgente: document.getElementById('ni_urg').checked
+        urgente: document.getElementById('ni_urg').checked,
+        garantia: document.getElementById('ni_gar').checked,
+        mantenimiento: document.getElementById('ni_man').checked,
+        instalacion: document.getElementById('ni_ins').checked,
+        revisar: document.getElementById('ni_rev').checked
       };
 
       try {
