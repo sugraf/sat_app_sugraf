@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10263B">
-  <title>Mis Avisos Adjudicados - Sugraf Digital Manager</title>
+  <title>Mis Avisos Asignados - Sugraf Digital Manager</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -124,31 +124,52 @@
 
     .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
 
-    /* ---------- Resolution form (mismo estilo que login del Hub) ---------- */
+    /* ---------- Resolution form: fondo blanco con reflejos verdes/azules ---------- */
     .form-box {
-      background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
-      color:#fff; border:1px solid rgba(182,190,196,0.16);
+      position:relative;
+      overflow:hidden;
+      background:#ffffff;
+      color:var(--navy);
+      border:1px solid rgba(16,38,59,0.08);
       border-radius:22px; padding:34px; max-width:600px; margin:44px auto 0;
       box-shadow:0 24px 60px rgba(0,0,0,0.4);
       display:none; animation: fadeIn 0.3s ease;
     }
+    .form-box::before, .form-box::after{
+      content:""; position:absolute; border-radius:50%; filter:blur(10px); pointer-events:none; z-index:0;
+    }
+    .form-box::before{
+      width:340px; height:340px;
+      background:radial-gradient(circle, rgba(0,104,88,0.16) 0%, transparent 70%);
+      top:-130px; left:-110px;
+    }
+    .form-box::after{
+      width:360px; height:360px;
+      background:radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 70%);
+      bottom:-140px; right:-120px;
+    }
+    .form-box > * { position:relative; z-index:1; }
     .form-box h3{
-      color:#fff; font-size:1.2rem; font-weight:700;
-      padding-bottom:16px; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1);
+      color:var(--navy); font-size:1.2rem; font-weight:700;
+      padding-bottom:16px; margin-bottom:6px; border-bottom:2px solid #e6ebef;
     }
 
-    label { display:block; font-size:0.72rem; font-weight:700; color:var(--muted); margin:18px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
+    label { display:block; font-size:0.72rem; font-weight:700; color:#5c6b7d; margin:18px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
     input, select, textarea {
-      width:100%; padding:12px 14px; border:1px solid rgba(182,190,196,0.3); border-radius:10px;
-      font-size:0.92rem; font-family:'Montserrat', sans-serif; background:var(--navy-dark); color:#fff;
+      width:100%; padding:12px 14px; border:1px solid var(--grey); border-radius:10px;
+      font-size:0.92rem; font-family:'Montserrat', sans-serif; background:#ffffff; color:var(--navy);
       transition:border-color 0.15s, box-shadow 0.15s;
+      box-shadow:0 3px 10px rgba(0,104,88,0.07), 0 4px 14px rgba(59,130,246,0.06);
     }
     textarea{ resize:vertical; }
-    input::placeholder, textarea::placeholder{ color:#5c7291; }
-    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
-    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px; }
-    input[readonly] { background:rgba(255,255,255,0.04); color:var(--muted); border-style:dashed; cursor:not-allowed; }
-    input[type="date"], input[type="time"] { -webkit-appearance:none; appearance:none; color:#fff !important; -webkit-text-fill-color:#fff !important; opacity:1; color-scheme:dark; }
+    input::placeholder, textarea::placeholder{ color:#94a3b8; }
+    input:focus, select:focus, textarea:focus {
+      outline:none; border-color:var(--green);
+      box-shadow:0 0 0 3px var(--green-soft), 0 4px 14px rgba(59,130,246,0.1);
+    }
+    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23006858" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px; }
+    input[readonly] { background:#f1f5f8; color:#5c6b7d; border-style:dashed; cursor:not-allowed; box-shadow:none; }
+    input[type="date"], input[type="time"] { -webkit-appearance:none; appearance:none; color:var(--navy) !important; -webkit-text-fill-color:var(--navy) !important; opacity:1; }
 
     button.btn {
       background:var(--green); color:#fff; border:none; padding:14px;
@@ -159,8 +180,8 @@
     button.btn:hover { background:var(--green-dark); transform:translateY(-1px); }
     button.btn:active{ transform:translateY(0); }
     button.btn:disabled{ opacity:0.6; cursor:not-allowed; transform:none; }
-    button.btn-secondary{ background:var(--navy-light); border:1px solid rgba(182,190,196,0.25); }
-    button.btn-secondary:hover{ background:#1c4368; }
+    button.btn-secondary{ background:var(--navy); border:1px solid rgba(16,38,59,0.15); }
+    button.btn-secondary:hover{ background:var(--navy-light); }
 
     button.btn-archive {
       background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5);
@@ -187,7 +208,7 @@
   <div class="container">
     <div class="header-title">
       <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
-      <h2>Mis Avisos Adjudicados</h2>
+      <h2>Mis Avisos Asignados</h2>
       <p>Consulta y gestiona los partes de trabajo de tus avisos asignados.</p>
     </div>
 
