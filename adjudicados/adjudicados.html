@@ -59,6 +59,27 @@
     }
     .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
 
+    .topbar-right { color:#4a5a72; font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
+    .dot { width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 0 4px var(--green-soft); }
+
+    .dropdown { position:relative; display:inline-block; cursor:pointer; }
+    .dropdown-trigger{ display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; transition:background 0.15s; }
+    .dropdown-trigger:hover{ background:#f1f5f8; }
+    .chev{ font-size:9px; color:#94a3b8; transition:transform 0.15s; }
+    .dropdown-content {
+      display:none; position:absolute; right:0; background:#ffffff;
+      min-width:170px; box-shadow:0 12px 28px rgba(16,38,59,0.18);
+      z-index:1; border-radius:12px; overflow:hidden; margin-top:10px;
+      border:1px solid #eef2f5;
+    }
+    .dropdown-content a {
+      color:#ef4444; padding:13px 16px; text-decoration:none; display:flex;
+      align-items:center; gap:8px; font-weight:600; font-size:0.88rem;
+    }
+    .dropdown-content a:hover { background:#fef2f2; }
+    .show { display:block; animation:dropIn 0.15s ease; }
+    @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
+
     /* ---------- Page header ---------- */
     .container { max-width:960px; margin:0 auto; padding:20px; }
     .header-title{ text-align:center; margin:44px 0 34px; }
@@ -239,6 +260,16 @@
       <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
       <a href="/" class="btn-back">&larr; Volver</a>
     </div>
+
+    <div class="topbar-right" id="zona-usuario" style="display:none;">
+      <div class="dot"></div>
+      <div class="dropdown">
+        <span class="dropdown-trigger" id="user-display" onclick="toggleUserMenu()"><span id="user-name-text">Conectado</span> <span class="chev">&#9660;</span></span>
+        <div id="user-menu" class="dropdown-content">
+          <a href="#" onclick="cerrarSesion()">&#10162; Desconectar</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="container">
@@ -316,6 +347,29 @@
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
     const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
+
+    document.getElementById("user-name-text").innerText = currentUser;
+    document.getElementById("zona-usuario").style.display = "flex";
+
+    function toggleUserMenu() {
+        document.getElementById("user-menu").classList.toggle("show");
+    }
+
+    function cerrarSesion() {
+      localStorage.removeItem("sugraf_user");
+      window.location.href = "/";
+    }
+
+    window.addEventListener("click", function(event) {
+        if (!event.target.closest(".dropdown")) {
+            var dropdowns = document.getElementsByClassName("dropdown-content");
+            for (var i = 0; i < dropdowns.length; i++) {
+                if (dropdowns[i].classList.contains("show")) {
+                    dropdowns[i].classList.remove("show");
+                }
+            }
+        }
+    });
 
     let misAvisos = [];
     let filtroTecnicoMaster = null;
