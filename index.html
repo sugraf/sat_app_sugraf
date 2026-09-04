@@ -119,6 +119,21 @@
     .card-arrow span{ transition:transform 0.2s ease; }
     .card:hover .card-arrow span{ transform:translateX(4px); }
 
+    /* ---------- Custom card icons ---------- */
+    .note-icon, .nexus-icon, .person-icon, .clock-icon{ width:22px; height:22px; }
+
+    /* Introducir Aviso: notita */
+    .note-icon .fold{ transition:stroke 0.2s ease; }
+    .card:hover .note-icon .fold{ stroke:#2fd9b8; }
+
+    /* Organizador de Avisos: nexo repartiendo a varios nodos */
+    .nexus-icon .node{ transition:stroke 0.2s ease, fill 0.2s ease; }
+    .card:hover .nexus-icon .node-main{ stroke:#2fd9b8; }
+
+    /* Avisos Asignados: personita */
+    .person-icon path, .person-icon circle{ transition:stroke 0.2s ease; }
+    .card:hover .person-icon .head{ stroke:#2fd9b8; }
+
     /* ---------- Empty / "Próximamente" slot ---------- */
     .card-empty{
       position:relative; overflow:hidden; cursor:default;
@@ -138,7 +153,6 @@
       background:transparent; border:1.5px dashed rgba(182,190,196,0.35);
       position:relative; z-index:1;
     }
-    .clock-icon{ width:22px; height:22px; }
     .clock-icon .hand{
       transform-origin:12px 12px;
       animation:clockspin 2.4s linear infinite;
@@ -230,19 +244,39 @@
       </div>
       <div class="grid">
         <div class="card" onclick="irA(&#39;generador&#39;)">
-          <div class="card-icon">&#128221;</div>
+          <div class="card-icon">
+            <svg class="note-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 4.25h7.5L18 8.75V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.25a1 1 0 0 1 1-1Z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
+              <path class="fold" d="M13.5 4.25V8a1 1 0 0 0 1 1H18" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
+              <line x1="7.75" y1="12.25" x2="14.25" y2="12.25" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="7.75" y1="15.25" x2="14.25" y2="15.25" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="7.75" y1="18.25" x2="11.5" y2="18.25" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
           <h3>Introducir Aviso</h3>
           <p>Registra un nuevo aviso en el sistema general.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
         <div class="card" onclick="irA(&#39;gestor&#39;)">
-          <div class="card-icon">&#129309;</div>
+          <div class="card-icon">
+            <svg class="nexus-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 8.5V12M12 12 6.5 16.25M12 12l5.5 4.25" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle class="node node-main" cx="12" cy="6.25" r="2.25" stroke="#a9bcd6" stroke-width="1.5"/>
+              <circle class="node" cx="6" cy="18" r="2.25" stroke="#2fd9b8" stroke-width="1.5"/>
+              <circle class="node" cx="18" cy="18" r="2.25" stroke="#2fd9b8" stroke-width="1.5"/>
+            </svg>
+          </div>
           <h3>Organizador de Avisos</h3>
           <p>Asignaci&oacute;n de t&eacute;cnicos y gesti&oacute;n del panel central.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
         <div class="card" onclick="irA(&#39;adjudicados&#39;)">
-          <div class="card-icon">&#128295;</div>
+          <div class="card-icon">
+            <svg class="person-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle class="head" cx="12" cy="8" r="3.25" stroke="#a9bcd6" stroke-width="1.5"/>
+              <path d="M5.5 19c0-3.6 2.9-5.75 6.5-5.75s6.5 2.15 6.5 5.75" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
           <h3>Avisos Asignados</h3>
           <p>Crea los partes de los avisos asignados.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
