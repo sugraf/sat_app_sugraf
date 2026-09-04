@@ -3,76 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Generador de Avisos</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#10263B">
+  <title>Generador de Avisos - Sugraf Digital Manager</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
+    :root{
+      --navy:#10263B;
+      --navy-dark:#0a1826;
+      --navy-light:#173654;
+      --green:#006858;
+      --green-dark:#004d40;
+      --green-soft:rgba(0,104,88,0.15);
+      --grey:#B6BEC4;
+      --ink:#f4f8fc;
+      --muted:#a9bcd6;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #10263B; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
+    html{ scroll-behavior:smooth; }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        font-weight:400;
+        background-color: var(--navy);
+        background-image:
+          radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
+          radial-gradient(900px circle at 90% 10%, rgba(182,190,196,0.10) 0%, transparent 55%),
+          radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+        background-attachment: fixed;
+        color: var(--ink);
+        min-height: 100vh;
         padding: 20px;
     }
-    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
-    .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
-    .btn-back:hover { background: #e2e8f0; }
-    
-    .container { max-width: 900px; margin: 0 auto;}
-    
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .form-box h2 { margin-bottom: 20px; color: #10263B; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; transition: 0.2s;}
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #006858; background: #fff; }
-    
-    input[type="date"], input[type="time"] { 
-      -webkit-appearance: none; 
-      appearance: none; 
-      min-width: 0; 
-      color: #1e293b !important; 
-      -webkit-text-fill-color: #1e293b !important; 
-      opacity: 1; 
+    h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
+
+    /* ---------- Topbar (idéntica al Hub) ---------- */
+    .topbar {
+      background:#ffffff;
+      height:64px;
+      display:flex;
+      align-items:center;
+      padding:0 24px;
+      justify-content:space-between;
+      border-radius:16px;
+      margin-bottom:24px;
+      box-shadow:0 1px 0 rgba(16,38,59,0.08), 0 4px 16px rgba(16,38,59,0.04);
+      position:sticky; top:0; z-index:100;
     }
-    
-    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
-    .checkbox-item input { width: auto; margin: 0; accent-color: #006858; width: 18px; height: 18px; }
+    .topbar-left{ display:flex; align-items:center; gap:16px; height:100%; }
+    .topbar img{ height:35px; object-fit:contain; display:block; }
 
-    button.btn { background: #006858; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #004d40; }
-    
+    .btn-back{
+      display:flex; align-items:center; gap:6px;
+      color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
+      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0;
+      transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
+
+    .container { max-width:900px; margin:0 auto; }
+
+    .header-eyebrow{ text-align:center; margin-bottom:24px; }
+    .eyebrow{
+      display:inline-flex; align-items:center; gap:7px; background:var(--green-soft);
+      border:1px solid rgba(0,104,88,0.35); color:#7fd9c7; font-size:0.7rem; font-weight:700;
+      letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; border-radius:999px;
+    }
+    .eyebrow .dot-sm{ width:6px; height:6px; background:#2fd9b8; border-radius:50%; }
+
+    /* ---------- Form box (mismo estilo dark que el login del Hub) ---------- */
+    .form-box {
+      background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
+      color:#fff; border:1px solid rgba(182,190,196,0.16);
+      border-radius:22px; padding:34px; max-width:600px; margin:0 auto;
+      box-shadow:0 24px 60px rgba(0,0,0,0.4);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .form-box h2 {
+      color:#fff; font-size:1.3rem; font-weight:700;
+      padding-bottom:18px; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+
+    label { display:block; font-size:0.72rem; font-weight:700; color:var(--muted); margin:18px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
+    input, select, textarea {
+      width:100%; padding:12px 14px; border:1px solid rgba(182,190,196,0.3); border-radius:10px;
+      font-size:0.92rem; font-family:'Montserrat', sans-serif; background:var(--navy-dark); color:#fff;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    textarea{ resize:vertical; }
+    input::placeholder, textarea::placeholder{ color:#5c7291; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+
+    input[type="date"], input[type="time"] {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 0;
+      color:#fff !important;
+      -webkit-text-fill-color:#fff !important;
+      opacity: 1;
+      color-scheme: dark;
+    }
+
+    .checkbox-group { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+    .checkbox-item { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; color: var(--ink); font-weight: 500; text-transform:none; }
+    .checkbox-item input { width: auto; margin: 0; accent-color: var(--green); width: 18px; height: 18px; }
+
+    button.btn {
+      background:var(--green); color:#fff; border:none; padding:14px;
+      border-radius:10px; font-size:0.98rem; font-weight:700; width:100%; margin-top:26px;
+      cursor:pointer; transition:background 0.2s, transform 0.15s; font-family:'Montserrat', sans-serif;
+      letter-spacing:0.01em;
+    }
+    button.btn:hover { background:var(--green-dark); transform:translateY(-1px); }
+    button.btn:active{ transform:translateY(0); }
+    button.btn:disabled{ opacity:0.6; cursor:not-allowed; transform:none; }
+
     .custom-select-wrapper { position: relative; margin-bottom: 14px; }
-    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
-    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
-    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 34px; }
+    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #7fd9c7; pointer-events: none; }
+    .custom-select-list {
+      display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0;
+      background: var(--navy-dark); border: 1px solid rgba(182,190,196,0.3);
+      border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+      max-height: 220px; overflow-y: auto; box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+    }
     .custom-select-list.show { display: block; }
-    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
-    .custom-select-item:hover { background: #f0fdf4; color: #006858; }
+    .custom-select-item { padding: 12px 16px; font-size: 0.92rem; color: var(--ink); cursor: pointer; border-bottom: 1px solid rgba(182,190,196,0.12); }
+    .custom-select-item:last-child{ border-bottom:none; }
+    .custom-select-item:hover { background: var(--green-soft); color: #7fd9c7; }
 
-    .pill { background: #e2e8f0; color: #1e293b; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; border: 1px solid #cbd5e1;}
-    .pill b { cursor: pointer; color: #ef4444; font-size: 1rem; transition: color 0.2s;}
-    .pill b:hover { color: #b91c1c; }
+    .pill {
+      background:var(--navy-dark); color:var(--ink); padding:7px 12px; border-radius:20px;
+      font-size:0.85rem; display:inline-flex; align-items:center; gap:8px; font-weight:500;
+      border:1px solid rgba(182,190,196,0.25);
+    }
+    .pill b { cursor:pointer; color:#fca5a5; font-size:1rem; font-weight:700; transition:color 0.2s; }
+    .pill b:hover { color:#ef4444; }
+
+    .btn-add-maquina{
+      width:auto; margin:0; padding:0 20px; font-size:1.3rem; margin-top:0;
+      border-radius:10px; flex-shrink:0;
+    }
+
+    @media (max-width:640px){
+      .form-box{ padding:26px 20px; }
+      .checkbox-group{ gap:12px; }
+    }
   </style>
 </head>
 <body>
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande.png" alt="Sugraf Logo">
-      <a href="/" class="btn-back">Volver</a>
+      <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+      <a href="/" class="btn-back">&larr; Volver</a>
     </div>
   </div>
 
   <div class="container">
+    <div class="header-eyebrow">
+      <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
+    </div>
+
     <div class="form-box">
       <h2>Nuevo Aviso</h2>
       <form id="form-nuevo-aviso">
@@ -80,23 +174,23 @@
           <div style="flex: 1; min-width: 140px;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
           <div style="flex: 1; min-width: 110px;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
         </div>
-        
+
         <label>Cliente</label>
         <div class="custom-select-wrapper">
           <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
           <div id="dropdown-clientes" class="custom-select-list"></div>
         </div>
-        
+
         <label>Población / Dirección</label>
         <input type="text" id="ni_poblacion" required>
-        
+
         <label>Máquina(s)</label>
         <div style="display: flex; gap: 10px;">
           <div class="custom-select-wrapper" style="flex: 1; margin-bottom: 0;">
             <input type="text" id="ni_maquina" autocomplete="off" placeholder="Selecciona o escribe máquina...">
             <div id="dropdown-maquinas" class="custom-select-list"></div>
           </div>
-          <button type="button" class="btn" style="width: auto; margin: 0; padding: 0 20px; font-size: 1.4rem;" onclick="addMaquinaManual()">+</button>
+          <button type="button" class="btn btn-add-maquina" onclick="addMaquinaManual()">+</button>
         </div>
         <div id="maquinas-seleccionadas" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; margin-bottom: 14px;"></div>
 
@@ -175,7 +269,7 @@
             const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
             
             if (filtered.length === 0) {
-                dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
+                dropdown.innerHTML = `<div class="custom-select-item" style="color:#5c7291; font-style:italic;">No hay coincidencias</div>`;
                 return;
             }
             dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
