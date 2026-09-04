@@ -3,89 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mis Avisos Adjudicados</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #10263B; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
-        padding: 20px;
-    }
-    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
-    .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
-    .btn-back:hover { background: #e2e8f0; }
-    
-    .container { max-width: 900px; margin: 0 auto; }
-    .header-title h2 { margin-bottom: 25px; color: white; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
-    
-    .master-tab { background: #173654; color: white; border: 1px solid rgba(0,104,88,0.3); padding: 12px 18px; border-radius: 8px; flex: 1; min-width: 140px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; font-size: 0.95rem; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
-    .master-tab:hover { background: #1c4368; border-color: rgba(0,104,88,0.6); }
-    .master-tab.active { background: #006858; border-color: #006858; box-shadow: 0 4px 10px rgba(0, 104, 88, 0.3); }
-    .master-tab span { background: rgba(0,0,0,0.25); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;}
+  <meta name="theme-color" content="#10263B">
+  <title>Mis Avisos Adjudicados - Sugraf Digital Manager</title>
 
-    .inc-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 12px; margin-bottom: 12px; transition: all 0.2s; text-align: left; cursor: pointer; animation: fadeIn 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
-    .inc-item:hover { border-color: #006858; background: #f0fdf4; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
-    .inc-title { font-weight: 700; color: #10263B; font-size: 1.05rem; display: flex; align-items: center; flex-wrap: wrap;}
-    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
-    .badge { display: inline-block; background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; text-transform: uppercase; }
-    .bg-urg { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-    .bg-gar { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .bg-man { background: #fef9c3; color: #166534; border: 1px solid #fde047; }
-    .bg-ins { background: #e0e7ff; color: #1d4ed8; border: 1px solid #93c5fd; }
-    .bg-rev { background: #f3e8ff; color: #4338ca; border: 1px solid #c4b5fd; }
-    
-    .section-divider { margin: 30px 0 15px; border-bottom: 1px solid rgba(255,255,255,0.2); color: #a9bcd6; font-family: 'Space Grotesk'; font-size: 1.2rem; padding-bottom: 5px; }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --navy:#10263B;
+      --navy-dark:#0a1826;
+      --navy-light:#173654;
+      --green:#006858;
+      --green-dark:#004d40;
+      --green-soft:rgba(0,104,88,0.15);
+      --grey:#B6BEC4;
+      --ink:#f4f8fc;
+      --muted:#a9bcd6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html{ scroll-behavior:smooth; }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        font-weight:400;
+        background-color: var(--navy);
+        background-image:
+          radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
+          radial-gradient(900px circle at 90% 10%, rgba(182,190,196,0.10) 0%, transparent 55%),
+          radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+        background-attachment: fixed;
+        color: var(--ink);
+        min-height: 100vh;
+    }
+    h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
+
+    /* ---------- Topbar (idéntica al Hub) ---------- */
+    .topbar {
+      background:#ffffff;
+      height:64px;
+      display:flex;
+      align-items:center;
+      padding:0 24px;
+      justify-content:space-between;
+      box-shadow:0 1px 0 rgba(16,38,59,0.08), 0 4px 16px rgba(16,38,59,0.04);
+      position:sticky; top:0; z-index:100;
+    }
+    .topbar-left{ display:flex; align-items:center; gap:16px; height:100%; }
+    .topbar img{ height:35px; object-fit:contain; display:block; }
+
+    .btn-back{
+      display:flex; align-items:center; gap:6px;
+      color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
+      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0;
+      transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
+
+    /* ---------- Page header ---------- */
+    .container { max-width:960px; margin:0 auto; padding:20px; }
+    .header-title{ text-align:center; margin:44px 0 34px; }
+    .eyebrow{
+      display:inline-flex; align-items:center; gap:7px; background:var(--green-soft);
+      border:1px solid rgba(0,104,88,0.35); color:#7fd9c7; font-size:0.7rem; font-weight:700;
+      letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; border-radius:999px; margin-bottom:16px;
+    }
+    .eyebrow .dot-sm{ width:6px; height:6px; background:#2fd9b8; border-radius:50%; }
+    .header-title h2 { font-size:2rem; color:var(--ink); margin-bottom:8px; border:none; padding:0; }
+    .header-title p{ color:var(--muted); font-size:0.95rem; }
+
+    /* ---------- Master technician selector ---------- */
+    #master-panel{ margin-bottom:30px; }
+    .master-intro{ font-size:0.78rem; color:var(--muted); margin-bottom:12px; font-weight:600; letter-spacing:0.04em; }
+    .master-tab {
+      position:relative; overflow:hidden;
+      background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
+      color:#fff; border:1px solid rgba(182,190,196,0.14);
+      padding:13px 18px; border-radius:14px; flex:1; min-width:150px; cursor:pointer;
+      font-weight:600; font-family:'Montserrat', sans-serif; font-size:0.92rem;
+      transition:transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      display:flex; justify-content:center; align-items:center; gap:8px;
+    }
+    .master-tab:hover{ border-color:rgba(0,104,88,0.55); transform:translateY(-2px); }
+    .master-tab.active{ background:linear-gradient(160deg, var(--green) 0%, var(--green-dark) 100%); border-color:var(--green); box-shadow:0 10px 22px rgba(0,104,88,0.3); }
+    .master-tab span{ background:rgba(0,0,0,0.25); padding:2px 9px; border-radius:12px; font-size:0.78rem; }
+
+    /* ---------- Section dividers ---------- */
+    .section-divider{
+      margin:32px 0 14px; padding-bottom:8px; font-size:1.05rem; font-weight:700;
+      color:var(--ink); border-bottom:1px solid rgba(182,190,196,0.18);
+      display:flex; align-items:center; gap:8px;
+    }
+    .dot-status{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .dot-status.closed{ background:#94a3b8; }
+    .dot-status.open{ background:#2fd9b8; box-shadow:0 0 0 4px var(--green-soft); }
+    .dot-status.pending{ background:var(--grey); }
+
+    /* ---------- Incident cards ---------- */
+    .inc-item {
+      position:relative; overflow:hidden;
+      background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
+      border:1px solid rgba(182,190,196,0.14);
+      padding:18px 20px; border-radius:16px; margin-bottom:12px;
+      cursor:pointer; text-align:left;
+      transition:transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      animation: fadeIn 0.3s ease;
+    }
+    .inc-item:hover{ border-color:rgba(0,104,88,0.55); transform:translateY(-3px); box-shadow:0 14px 28px rgba(0,0,0,0.25); }
+    .inc-title{ font-weight:700; color:#fff; font-size:1.02rem; display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .inc-sub{ color:var(--muted); font-size:0.85rem; margin-top:8px; }
+    .inc-sub strong{ color:#d7e2ef; }
+
+    .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid transparent; }
+    .bg-urg{ background:rgba(239,68,68,0.18); color:#fca5a5; border-color:rgba(239,68,68,0.4); }
+    .bg-gar{ background:var(--green-soft); color:#7fd9c7; border-color:rgba(0,104,88,0.4); }
+    .bg-man{ background:rgba(234,179,8,0.18); color:#fde68a; border-color:rgba(234,179,8,0.4); }
+    .bg-ins{ background:rgba(59,130,246,0.18); color:#93c5fd; border-color:rgba(59,130,246,0.4); }
+    .bg-rev{ background:rgba(168,85,247,0.18); color:#d8b4fe; border-color:rgba(168,85,247,0.4); }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    .form-box { background: white; border-radius: 16px; padding: 30px; color: #1e293b; max-width: 600px; margin: 40px auto 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none; animation: fadeIn 0.3s ease;}
-    .form-box h3 { margin-bottom: 25px; color: #10263B; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
-    
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 6px; text-transform: uppercase; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter', sans-serif; background: #f8fafc; transition: 0.2s;}
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #006858; background: #fff; }
-    input[readonly] { background: #e2e8f0; color: #64748b; border: 1px dashed #cbd5e1; cursor: not-allowed;}
-    input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; color: #1e293b !important; -webkit-text-fill-color: #1e293b !important; opacity: 1; }
-    
-    button.btn { background: #006858; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 15px; cursor: pointer; transition: 0.2s; font-family: 'Inter', sans-serif; }
-    button.btn:hover { background: #004d40; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 104, 88, 0.3);}
-    button.btn-secondary { background: #10263B; margin-top: 25px;}
-    button.btn-secondary:hover { background: #1c4368; }
-    button.btn-archive { background: #006858; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.2s; margin-left: 15px;}
-    button.btn-archive:hover { background: #004d40; }
+    .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
+
+    /* ---------- Resolution form (mismo estilo que login del Hub) ---------- */
+    .form-box {
+      background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
+      color:#fff; border:1px solid rgba(182,190,196,0.16);
+      border-radius:22px; padding:34px; max-width:600px; margin:44px auto 0;
+      box-shadow:0 24px 60px rgba(0,0,0,0.4);
+      display:none; animation: fadeIn 0.3s ease;
+    }
+    .form-box h3{
+      color:#fff; font-size:1.2rem; font-weight:700;
+      padding-bottom:16px; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+
+    label { display:block; font-size:0.72rem; font-weight:700; color:var(--muted); margin:18px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
+    input, select, textarea {
+      width:100%; padding:12px 14px; border:1px solid rgba(182,190,196,0.3); border-radius:10px;
+      font-size:0.92rem; font-family:'Montserrat', sans-serif; background:var(--navy-dark); color:#fff;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    textarea{ resize:vertical; }
+    input::placeholder, textarea::placeholder{ color:#5c7291; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px; }
+    input[readonly] { background:rgba(255,255,255,0.04); color:var(--muted); border-style:dashed; cursor:not-allowed; }
+    input[type="date"], input[type="time"] { -webkit-appearance:none; appearance:none; color:#fff !important; -webkit-text-fill-color:#fff !important; opacity:1; color-scheme:dark; }
+
+    button.btn {
+      background:var(--green); color:#fff; border:none; padding:14px;
+      border-radius:10px; font-size:0.95rem; font-weight:700; width:100%; margin-top:16px;
+      cursor:pointer; transition:background 0.2s, transform 0.15s; font-family:'Montserrat', sans-serif;
+      letter-spacing:0.01em;
+    }
+    button.btn:hover { background:var(--green-dark); transform:translateY(-1px); }
+    button.btn:active{ transform:translateY(0); }
+    button.btn:disabled{ opacity:0.6; cursor:not-allowed; transform:none; }
+    button.btn-secondary{ background:var(--navy-light); border:1px solid rgba(182,190,196,0.25); }
+    button.btn-secondary:hover{ background:#1c4368; }
+
+    button.btn-archive {
+      background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5);
+      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
+      text-transform:uppercase; letter-spacing:0.03em; transition:background 0.15s, border-color 0.15s;
+    }
+    button.btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
+
+    @media (max-width:640px){
+      .master-tab{ min-width:100%; }
+      .inc-title{ font-size:0.95rem; }
+    }
   </style>
 </head>
 <body>
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande.png" alt="Sugraf Logo">
-      <a href="/" class="btn-back">Volver</a>
+      <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+      <a href="/" class="btn-back">&larr; Volver</a>
     </div>
   </div>
 
   <div class="container">
     <div class="header-title">
+      <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
       <h2>Mis Avisos Adjudicados</h2>
+      <p>Consulta y gestiona los partes de trabajo de tus avisos asignados.</p>
     </div>
 
-    <div id="master-panel" style="display:none; margin-bottom: 25px;">
-      <p style="font-size:0.85rem; color:#a9bcd6; margin-bottom:12px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">Selecciona un técnico para ver sus avisos en progreso:</p>
+    <div id="master-panel" style="display:none;">
+      <p class="master-intro">SELECCIONA UN T&Eacute;CNICO PARA VER SUS AVISOS EN PROGRESO:</p>
       <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
     </div>
-    
+
     <div id="contenedor-avisos">
-      <p style='color:white; font-size:1.1rem;'>Buscando avisos en Avisos Tratados.xlsx...</p>
+      <p class="empty-msg">Buscando avisos en Avisos Tratados.xlsx...</p>
     </div>
 
     <div class="form-box" id="resolucion-box">
@@ -96,7 +208,7 @@
         <input type="hidden" id="res_cliente">
         <input type="hidden" id="res_poblacion">
         <input type="hidden" id="res_maquina">
-        
+
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 140px;">
             <label>Modalidad de Asistencia</label>
@@ -121,19 +233,19 @@
           <div style="flex: 1; min-width: 110px;"><label>Hora Entrada</label><input type="time" id="res_hora_ent"></div>
           <div style="flex: 1; min-width: 110px;"><label>Hora Salida</label><input type="time" id="res_hora_sal"></div>
         </div>
-        
+
         <label>Estado de Resolución</label>
         <select id="res_estado_resolucion">
           <option value="Pendiente">Pendiente (Se requiere otra visita)</option>
           <option value="Resuelto">Resuelto</option>
         </select>
-        
+
         <label>Piezas Necesarias / Cambiadas</label>
         <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
-        
+
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
-        
+
         <div style="display: flex; gap: 10px;">
           <button type="button" class="btn btn-secondary" id="btn-progreso" onclick="guardarProgreso()">Guardar Progreso</button>
           <button type="button" class="btn" id="btn-cerrar" onclick="cerrarAviso()">Cerrar Aviso Definitivo</button>
@@ -147,7 +259,7 @@
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
     const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
-    
+
     let misAvisos = [];
     let filtroTecnicoMaster = null;
 
@@ -159,18 +271,18 @@
             const err = await res.json();
             throw new Error(err.detail || "Error leyendo de Google Drive");
         }
-        
+
         const data = await res.json();
         misAvisos = data.avisos || [];
-        
+
         if (currentUser === "master") {
             document.getElementById('master-panel').style.display = 'block';
             renderBotonesMaster();
         }
         renderAvisos();
-      } catch (e) { 
+      } catch (e) {
         console.error(e);
-        box.innerHTML = `<p style='color:#ef4444; font-size:1.1rem;'>Error: ${e.message}</p>`; 
+        box.innerHTML = `<p class="empty-msg" style='color:#fca5a5;'>Error: ${e.message}</p>`;
       }
     }
 
@@ -195,7 +307,7 @@
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
-        
+
         let actionBtn = "";
         if (currentUser === 'master' && av['ESTADO'] === 'Cerrado') {
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
@@ -204,9 +316,9 @@
         return `
         <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
             <div class="inc-title">
-                ${av['CLIENTE']} 
+                ${av['CLIENTE']}
                 ${actionBtn}
-                <span style="margin-left:auto">${badgesHtml}</span>
+                <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
             </div>
             <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['REALIZADO POR']}</div>
         </div>
@@ -218,7 +330,7 @@
         let abiertos = [];
         let cerrados = [];
         let noAbiertos = [];
-        
+
         if (currentUser === 'master') {
             cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             if (filtroTecnicoMaster) {
@@ -234,24 +346,24 @@
 
         if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
             if (currentUser === 'master' && !filtroTecnicoMaster) {
-                box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos cerrados pendientes de archivar en Pirineos. Selecciona un técnico para ver sus avisos en curso.</p>";
+                box.innerHTML = "<p class='empty-msg'>No hay avisos cerrados pendientes de archivar en Pirineos. Selecciona un técnico para ver sus avisos en curso.</p>";
             } else {
-                box.innerHTML = "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos asignados a este técnico.</p>";
+                box.innerHTML = "<p class='empty-msg'>No hay avisos asignados a este técnico.</p>";
             }
             return;
-        } 
-        
+        }
+
         let finalHtml = "";
         if (cerrados.length > 0) {
-            finalHtml += `<div class="section-divider">⚫ Avisos Cerrados (Pendientes de Pirineos)</div>`;
+            finalHtml += `<div class="section-divider"><span class="dot-status closed"></span> Avisos Cerrados (Pendientes de Pirineos)</div>`;
             finalHtml += cerrados.map(av => generateCard(av)).join('');
         }
         if (abiertos.length > 0) {
-            finalHtml += `<div class="section-divider">🟢 Avisos Abiertos (En progreso)</div>`;
+            finalHtml += `<div class="section-divider"><span class="dot-status open"></span> Avisos Abiertos (En progreso)</div>`;
             finalHtml += abiertos.map(av => generateCard(av)).join('');
         }
         if (noAbiertos.length > 0) {
-            finalHtml += `<div class="section-divider">⚪ Avisos Pendientes de Empezar</div>`;
+            finalHtml += `<div class="section-divider"><span class="dot-status pending"></span> Avisos Pendientes de Empezar</div>`;
             finalHtml += noAbiertos.map(av => generateCard(av)).join('');
         }
 
@@ -260,23 +372,23 @@
 
     async function archivarPirineos(index) {
         if(!confirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.")) return;
-        
+
         try {
-            const res = await fetch('/api/adjudicados/archivar', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ aviso_index: index }) 
+            const res = await fetch('/api/adjudicados/archivar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ aviso_index: index })
             });
-            
+
             if (!res.ok) {
                 const errData = await res.json();
                 throw new Error(errData.detail || `Error HTTP: ${res.status}`);
             }
-            
+
             alert("Aviso archivado correctamente en Partes Finalizados.");
             cargarAvisos();
-        } catch (err) { 
-            alert(`Error al archivar el aviso: ${err.message}`); 
+        } catch (err) {
+            alert(`Error al archivar el aviso: ${err.message}`);
             console.error(err);
         }
     }
@@ -291,7 +403,7 @@
       document.getElementById('res_cliente').value = av['CLIENTE'];
       document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
-      
+
       if (currentUser !== 'master') {
           document.getElementById('div_pirineos').style.display = 'none';
       } else {
@@ -300,16 +412,16 @@
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
       document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
-      
+
       let f = av['FECHA REALIZACIÓN'];
       document.getElementById('res_fecha').value = f && f.includes('-') ? f.substring(0, 10) : new Date().toISOString().split('T')[0];
-      
+
       let hent = av['HORA ENTRADA'];
       document.getElementById('res_hora_ent').value = hent ? String(hent).substring(0, 5) : '';
-      
+
       let hsal = av['HORA SALIDA'];
       document.getElementById('res_hora_sal').value = hsal ? String(hsal).substring(0, 5) : '';
-      
+
       document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
       document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
@@ -340,22 +452,22 @@
       btn.innerText = "Guardando..."; btn.disabled = true;
 
       try {
-        const res = await fetch('/api/adjudicados/guardar-progreso', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(buildPayload()) 
+        const res = await fetch('/api/adjudicados/guardar-progreso', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildPayload())
         });
-        
+
         if (!res.ok) {
             const errData = await res.json();
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
-        
+
         alert("Progreso guardado. El aviso ahora está ABIERTO.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
-      } catch (err) { 
-        alert(`Error al guardar: ${err.message}`); 
+      } catch (err) {
+        alert(`Error al guardar: ${err.message}`);
         console.error(err);
       }
 
@@ -367,35 +479,35 @@
           alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, salida y la solución.");
           return;
       }
-        
+
       if(!confirm("¿Estás seguro de que quieres CERRAR definitivamente este aviso? Se pasará a la lista de cerrados.")) return;
 
       const btn = document.getElementById('btn-cerrar');
       btn.innerText = "Procesando..."; btn.disabled = true;
 
       try {
-        const res = await fetch('/api/adjudicados/resolver', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(buildPayload()) 
+        const res = await fetch('/api/adjudicados/resolver', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildPayload())
         });
-        
+
         if (!res.ok) {
             const errData = await res.json();
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
-        
+
         alert("Aviso marcado como cerrado con éxito.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
-      } catch (err) { 
-        alert(`Error al cerrar el aviso: ${err.message}`); 
+      } catch (err) {
+        alert(`Error al cerrar el aviso: ${err.message}`);
         console.error(err);
       }
 
       btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
     }
-    
+
     cargarAvisos();
   </script>
 </body>
