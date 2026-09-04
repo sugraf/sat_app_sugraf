@@ -3,61 +3,176 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#10263B">
   <link rel="manifest" href="/manifest.json">
   <title>Sugraf Digital Manager - Hub</title>
-  
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #10263B; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
+    :root{
+      --navy:#10263B;
+      --navy-dark:#0a1826;
+      --navy-light:#173654;
+      --green:#006858;
+      --green-dark:#004d40;
+      --green-soft:rgba(0,104,88,0.15);
+      --grey:#B6BEC4;
+      --ink:#f4f8fc;
+      --muted:#a9bcd6;
     }
-    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
-    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
-    .topbar img { height: 35px; object-fit: contain; display: block; }
-    .topbar-right { color: #4a5a72; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-    .dot { width: 7px; height: 7px; background: #006858; border-radius: 50%; }
-    
-    .dropdown { position: relative; display: inline-block; cursor: pointer; }
-    .dropdown-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 140px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; border-radius: 8px; overflow: hidden; margin-top: 5px; }
-    .dropdown-content a { color: #ef4444; padding: 12px 16px; text-decoration: none; display: block; font-weight: 600; font-size: 0.9rem; text-align: left; }
-    .dropdown-content a:hover { background-color: #fee2e2; }
-    .show { display: block; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html{ scroll-behavior:smooth; }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        font-weight:400;
+        background-color: var(--navy);
+        background-image:
+          radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
+          radial-gradient(900px circle at 90% 10%, rgba(182,190,196,0.10) 0%, transparent 55%),
+          radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+        background-attachment: fixed;
+        color: var(--ink);
+        min-height: 100vh;
+    }
+    h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
 
-    .view { display: none; padding-bottom: 50px; }
-    .view.active { display: block; animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    /* ---------- Topbar ---------- */
+    .topbar {
+      background:#ffffff;
+      height:64px;
+      display:flex;
+      align-items:center;
+      padding:0 24px;
+      justify-content:space-between;
+      box-shadow:0 1px 0 rgba(16,38,59,0.08), 0 4px 16px rgba(16,38,59,0.04);
+      position:sticky; top:0; z-index:100;
+    }
+    .topbar-left{ display:flex; align-items:center; gap:12px; height:100%; }
+    .topbar img{ height:35px; object-fit:contain; display:block; }
 
-    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-    .text-center { text-align: center; margin-bottom: 30px; }
-    .text-center h1 { font-size: 2rem; color: #f4f8fc; margin-bottom: 8px; }
-    .text-center p { color: #a9bcd6; font-size: 0.95rem; line-height: 1.5; }
+    .topbar-right { color:#4a5a72; font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
+    .dot { width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 0 4px var(--green-soft); }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-    .card { background: linear-gradient(135deg, #173654 0%, #10263B 100%); border: 1px solid rgba(0,104,88,0.2); border-radius: 18px; padding: 25px; cursor: pointer; transition: all 0.2s; }
-    .card:hover { border-color: rgba(0,104,88,0.6); background: linear-gradient(135deg, #1c4368 0%, #173654 100%); transform: translateY(-2px); }
-    .card-icon { background: rgba(0,104,88,0.15); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 15px; border: 1px solid rgba(0,104,88,0.3); }
-    .card h3 { font-size: 1.2rem; margin-bottom: 8px; color: white;}
-    .card p { color: #a9bcd6; font-size: 0.9rem; line-height: 1.4; }
+    .dropdown { position:relative; display:inline-block; cursor:pointer; }
+    .dropdown-trigger{ display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; transition:background 0.15s; }
+    .dropdown-trigger:hover{ background:#f1f5f8; }
+    .chev{ font-size:9px; color:#94a3b8; transition:transform 0.15s; }
+    .dropdown-content {
+      display:none; position:absolute; right:0; background:#ffffff;
+      min-width:170px; box-shadow:0 12px 28px rgba(16,38,59,0.18);
+      z-index:1; border-radius:12px; overflow:hidden; margin-top:10px;
+      border:1px solid #eef2f5;
+    }
+    .dropdown-content a {
+      color:#ef4444; padding:13px 16px; text-decoration:none; display:flex;
+      align-items:center; gap:8px; font-weight:600; font-size:0.88rem;
+    }
+    .dropdown-content a:hover { background:#fef2f2; }
+    .show { display:block; animation:dropIn 0.15s ease; }
+    @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
 
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 400px; margin: 10vh auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-    .form-box h2 { margin-bottom: 20px; color: #10263B; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; }
-    input:focus, select:focus { outline: none; border-color: #006858; background: #fff; }
-    
-    button.btn { background: #006858; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #004d40; }
+    /* ---------- Views ---------- */
+    .view { display:none; padding-bottom:60px; }
+    .view.active { display:block; animation:fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+    .container { max-width:960px; margin:0 auto; padding:20px; }
+    .text-center { text-align:center; margin:48px 0 34px; }
+    .eyebrow{
+      display:inline-flex; align-items:center; gap:7px; background:var(--green-soft);
+      border:1px solid rgba(0,104,88,0.35); color:#7fd9c7; font-size:0.7rem; font-weight:700;
+      letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; border-radius:999px; margin-bottom:16px;
+    }
+    .eyebrow .dot-sm{ width:6px; height:6px; background:#2fd9b8; border-radius:50%; }
+    .text-center h1 { font-size:2.15rem; color:var(--ink); margin-bottom:10px; }
+    .text-center p { color:var(--muted); font-size:0.98rem; line-height:1.6; max-width:480px; margin:0 auto; }
+
+    /* ---------- Cards grid ---------- */
+    .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:22px; }
+    @media (max-width:640px){
+      .grid{ grid-template-columns:1fr; }
+    }
+    .card {
+      position:relative; overflow:hidden;
+      background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
+      border:1px solid rgba(182,190,196,0.14);
+      border-radius:20px; padding:28px; cursor:pointer;
+      transition:transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+    .card::after{
+      content:""; position:absolute; right:-40px; top:-40px; width:140px; height:140px;
+      background:radial-gradient(circle, rgba(0,104,88,0.35) 0%, transparent 70%);
+      opacity:0; transition:opacity 0.25s ease;
+    }
+    .card:hover { border-color:rgba(0,104,88,0.55); transform:translateY(-4px); box-shadow:0 18px 34px rgba(0,0,0,0.28); }
+    .card:hover::after{ opacity:1; }
+    .card-icon {
+      background:var(--green-soft); width:48px; height:48px; border-radius:13px;
+      display:flex; align-items:center; justify-content:center; font-size:22px;
+      margin-bottom:18px; border:1px solid rgba(0,104,88,0.35); position:relative; z-index:1;
+    }
+    .card h3 { font-size:1.15rem; margin-bottom:8px; color:#fff; position:relative; z-index:1; }
+    .card p { color:var(--muted); font-size:0.9rem; line-height:1.5; position:relative; z-index:1; }
+    .card-arrow{ margin-top:16px; font-size:0.82rem; font-weight:700; color:#2fd9b8; display:flex; align-items:center; gap:6px; position:relative; z-index:1; }
+    .card-arrow span{ transition:transform 0.2s ease; }
+    .card:hover .card-arrow span{ transform:translateX(4px); }
+
+    /* ---------- Empty / "Próximamente" slot ---------- */
+    .card-empty{
+      position:relative; overflow:hidden; cursor:default;
+      background:transparent;
+      border:1.5px dashed rgba(182,190,196,0.28);
+      border-radius:20px; padding:28px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; min-height:100%;
+      transition:border-color 0.25s ease;
+    }
+    .card-empty:hover{ border-color:rgba(0,104,88,0.5); }
+    .card-empty::after{
+      content:""; position:absolute; left:-40px; bottom:-40px; width:160px; height:160px;
+      background:radial-gradient(circle, rgba(0,104,88,0.22) 0%, transparent 70%);
+    }
+    .card-empty .card-icon{
+      background:transparent; border:1.5px dashed rgba(182,190,196,0.35);
+      position:relative; z-index:1;
+    }
+    .card-empty h3{ color:var(--muted); position:relative; z-index:1; font-size:1.05rem; }
+    .card-empty p{ position:relative; z-index:1; }
+
+    /* ---------- Login ---------- */
+    .login-wrap{ min-height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; padding:20px; }
+    .form-box {
+      background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
+      color:#fff; border:1px solid rgba(182,190,196,0.16);
+      border-radius:22px; padding:38px 34px; max-width:380px; width:100%;
+      box-shadow:0 24px 60px rgba(0,0,0,0.4);
+    }
+    .form-box h2 {
+      color:#fff; text-align:center; font-size:1.3rem; font-weight:700;
+      padding-bottom:18px; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1);
+      margin-top:4px;
+    }
+    .form-box .sub{ text-align:center; color:var(--muted); font-size:0.85rem; margin-bottom:6px; }
+    label { display:block; font-size:0.72rem; font-weight:700; color:var(--muted); margin:20px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
+    input, select {
+      width:100%; padding:13px 14px; border:1px solid rgba(182,190,196,0.3); border-radius:10px;
+      font-size:0.95rem; font-family:'Montserrat'; background:var(--navy-dark); color:#fff;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    input::placeholder{ color:#5c7291; }
+    input:focus, select:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px; }
+
+    button.btn {
+      background:var(--green); color:#fff; border:none; padding:15px;
+      border-radius:10px; font-size:0.98rem; font-weight:700; width:100%; margin-top:28px;
+      cursor:pointer; transition:background 0.2s, transform 0.15s; font-family:'Montserrat';
+      letter-spacing:0.01em;
+    }
+    button.btn:hover { background:var(--green-dark); transform:translateY(-1px); }
+    button.btn:active{ transform:translateY(0); }
   </style>
 </head>
 <body>
@@ -66,33 +181,35 @@
     <div class="topbar-left">
       <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
     </div>
-    
-    <div class="topbar-right" id="zona-usuario" style="display: none;">
-      <div class="dot"></div> 
+    </div>
+
+    <div class="topbar-right" id="zona-usuario" style="display:none;">
+      <div class="dot"></div>
       <div class="dropdown">
-        <span id="user-display" onclick="toggleUserMenu()">Conectado ▼</span>
+        <span class="dropdown-trigger" id="user-display" onclick="toggleUserMenu()"><span id="user-name-text">Conectado</span> <span class="chev">&#9660;</span></span>
         <div id="user-menu" class="dropdown-content">
-          <a href="#" onclick="cerrarSesion()">Desconectar</a>
+          <a href="#" onclick="cerrarSesion()">&#10162; Desconectar</a>
         </div>
       </div>
     </div>
   </div>
 
   <div id="view-login" class="view active">
-    <div class="container">
-      <div class="form-box" style="background: linear-gradient(135deg, #173654 0%, #10263B 100%); color: white; border: 1px solid rgba(0,104,88,0.3);">
-        <h2 style="color: white; border-color: rgba(255,255,255,0.1); text-align: center; border:none;">Acceso Hub</h2>
-        <label style="color: #a9bcd6;">Usuario</label>
-        <select id="login-user" style="background: #0a1826; color: white; border-color: #006858;">
+    <div class="login-wrap">
+      <div class="form-box">
+        <h2>Acceso Hub</h2>
+        <p class="sub" style="margin-top:12px;">Introduce tus credenciales para continuar</p>
+        <label>Usuario</label>
+        <select id="login-user">
           <option value="Ion Volog">Ion Volog</option>
-          <option value="Francisco Antúnez">Francisco Antúnez</option>
+          <option value="Francisco Ant&uacute;nez">Francisco Ant&uacute;nez</option>
           <option value="Daniel Gargallo">Daniel Gargallo</option>
           <option value="Emilio Arrieta">Emilio Arrieta</option>
           <option value="master">master</option>
         </select>
-        <label style="color: #a9bcd6;">Contraseña</label>
-        <input type="password" id="login-pass" style="background: #0a1826; color: white; border-color: #006858;" placeholder="Introduce tu clave">
-        <button class="btn" onclick="iniciarSesion()">Entrar al Sistema</button>
+        <label>Contrase&ntilde;a</label>
+        <input type="password" id="login-pass" placeholder="Introduce tu clave">
+        <button class="btn" onclick="iniciarSesion()">Entrar al sistema</button>
       </div>
     </div>
   </div>
@@ -100,24 +217,33 @@
   <div id="view-dashboard" class="view">
     <div class="container">
       <div class="text-center">
+        <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
         <h1>Digital Manager Hub</h1>
-        <p>Centro de gestión del Servicio Técnico.<br>Selecciona una opción para comenzar.</p>
+        <p>Centro de gesti&oacute;n del Servicio T&eacute;cnico. Selecciona una opci&oacute;n para comenzar.</p>
       </div>
       <div class="grid">
-        <div class="card" onclick="irA('generador')">
-          <div class="card-icon">📝</div>
+        <div class="card" onclick="irA(&#39;generador&#39;)">
+          <div class="card-icon">&#128221;</div>
           <h3>Introducir Aviso</h3>
           <p>Registra un nuevo aviso en el sistema general.</p>
+          <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" onclick="irA('gestor')">
-          <div class="card-icon">🤝</div>
+        <div class="card" onclick="irA(&#39;gestor&#39;)">
+          <div class="card-icon">&#129309;</div>
           <h3>Organizador de Avisos</h3>
-          <p>Asignación de técnicos y gestión del panel central.</p>
+          <p>Asignaci&oacute;n de t&eacute;cnicos y gesti&oacute;n del panel central.</p>
+          <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" onclick="irA('adjudicados')">
-          <div class="card-icon">🔧</div>
+        <div class="card" onclick="irA(&#39;adjudicados&#39;)">
+          <div class="card-icon">&#128295;</div>
           <h3>Avisos Adjudicados</h3>
           <p>Visualiza y resuelve los avisos asignados en el taller.</p>
+          <div class="card-arrow">Abrir <span>&rarr;</span></div>
+        </div>
+        <div class="card-empty">
+          <div class="card-icon">&#10022;</div>
+          <h3>Pr&oacute;ximamente</h3>
+          <p>Nuevo m&oacute;dulo en camino.</p>
         </div>
       </div>
     </div>
@@ -135,7 +261,7 @@
     let currentUser = localStorage.getItem("sugraf_user") || null;
 
     if (currentUser) {
-      document.getElementById("user-display").innerText = currentUser + " ▼";
+      document.getElementById("user-name-text").innerText = currentUser;
       document.getElementById("zona-usuario").style.display = "flex";
       document.getElementById("view-login").classList.remove("active");
       document.getElementById("view-dashboard").classList.add("active");
@@ -146,11 +272,11 @@
     }
 
     window.onclick = function(event) {
-        if (!event.target.matches('#user-display')) {
+        if (!event.target.closest(".dropdown")) {
             var dropdowns = document.getElementsByClassName("dropdown-content");
             for (var i = 0; i < dropdowns.length; i++) {
-                if (dropdowns[i].classList.contains('show')) {
-                    dropdowns[i].classList.remove('show');
+                if (dropdowns[i].classList.contains("show")) {
+                    dropdowns[i].classList.remove("show");
                 }
             }
         }
@@ -162,10 +288,10 @@
       if (USUARIOS[u] === p) {
         currentUser = u;
         localStorage.setItem("sugraf_user", u);
-        document.getElementById("user-display").innerText = currentUser + " ▼";
+        document.getElementById("user-name-text").innerText = currentUser;
         document.getElementById("zona-usuario").style.display = "flex";
         document.getElementById("login-pass").value = "";
-        
+
         document.getElementById("view-login").classList.remove("active");
         document.getElementById("view-dashboard").classList.add("active");
       } else {
