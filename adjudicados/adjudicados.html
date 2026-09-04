@@ -3,290 +3,512 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Generador de Avisos</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#10263B">
+  <title>Mis Avisos Adjudicados - Sugraf Digital Manager</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
+    :root{
+      --navy:#10263B;
+      --navy-dark:#0a1826;
+      --navy-light:#173654;
+      --green:#006858;
+      --green-dark:#004d40;
+      --green-soft:rgba(0,104,88,0.15);
+      --grey:#B6BEC4;
+      --ink:#f4f8fc;
+      --muted:#a9bcd6;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #10263B; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
-        padding: 20px;
+    html{ scroll-behavior:smooth; }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        font-weight:400;
+        background-color: var(--navy);
+        background-image:
+          radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
+          radial-gradient(900px circle at 90% 10%, rgba(182,190,196,0.10) 0%, transparent 55%),
+          radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+        background-attachment: fixed;
+        color: var(--ink);
+        min-height: 100vh;
     }
-    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
-    .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: #1e293b !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
-    .btn-back:hover { background: #e2e8f0; }
-    
-    .container { max-width: 900px; margin: 0 auto;}
-    
-    .form-box { background: white; border-radius: 16px; padding: 25px; color: #1e293b; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
+    h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
+
+    /* ---------- Topbar (idéntica al Hub) ---------- */
+    .topbar {
+      background:#ffffff;
+      height:64px;
+      display:flex;
+      align-items:center;
+      padding:0 24px;
+      justify-content:space-between;
+      box-shadow:0 1px 0 rgba(16,38,59,0.08), 0 4px 16px rgba(16,38,59,0.04);
+      position:sticky; top:0; z-index:100;
+    }
+    .topbar-left{ display:flex; align-items:center; gap:16px; height:100%; }
+    .topbar img{ height:35px; object-fit:contain; display:block; }
+
+    .btn-back{
+      display:flex; align-items:center; gap:6px;
+      color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
+      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0;
+      transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
+
+    /* ---------- Page header ---------- */
+    .container { max-width:960px; margin:0 auto; padding:20px; }
+    .header-title{ text-align:center; margin:44px 0 34px; }
+    .eyebrow{
+      display:inline-flex; align-items:center; gap:7px; background:var(--green-soft);
+      border:1px solid rgba(0,104,88,0.35); color:#7fd9c7; font-size:0.7rem; font-weight:700;
+      letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; border-radius:999px; margin-bottom:16px;
+    }
+    .eyebrow .dot-sm{ width:6px; height:6px; background:#2fd9b8; border-radius:50%; }
+    .header-title h2 { font-size:2rem; color:var(--ink); margin-bottom:8px; border:none; padding:0; }
+    .header-title p{ color:var(--muted); font-size:0.95rem; }
+
+    /* ---------- Master technician selector ---------- */
+    #master-panel{ margin-bottom:30px; }
+    .master-intro{ font-size:0.78rem; color:var(--muted); margin-bottom:12px; font-weight:600; letter-spacing:0.04em; }
+    .master-tab {
+      position:relative; overflow:hidden;
+      background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
+      color:#fff; border:1px solid rgba(182,190,196,0.14);
+      padding:13px 18px; border-radius:14px; flex:1; min-width:150px; cursor:pointer;
+      font-weight:600; font-family:'Montserrat', sans-serif; font-size:0.92rem;
+      transition:transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      display:flex; justify-content:center; align-items:center; gap:8px;
+    }
+    .master-tab:hover{ border-color:rgba(0,104,88,0.55); transform:translateY(-2px); }
+    .master-tab.active{ background:linear-gradient(160deg, var(--green) 0%, var(--green-dark) 100%); border-color:var(--green); box-shadow:0 10px 22px rgba(0,104,88,0.3); }
+    .master-tab span{ background:rgba(0,0,0,0.25); padding:2px 9px; border-radius:12px; font-size:0.78rem; }
+
+    /* ---------- Section dividers ---------- */
+    .section-divider{
+      margin:32px 0 14px; padding-bottom:8px; font-size:1.05rem; font-weight:700;
+      color:var(--ink); border-bottom:1px solid rgba(182,190,196,0.18);
+      display:flex; align-items:center; gap:8px;
+    }
+    .dot-status{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .dot-status.closed{ background:#94a3b8; }
+    .dot-status.open{ background:#2fd9b8; box-shadow:0 0 0 4px var(--green-soft); }
+    .dot-status.pending{ background:var(--grey); }
+
+    /* ---------- Incident cards ---------- */
+    .inc-item {
+      position:relative; overflow:hidden;
+      background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
+      border:1px solid rgba(182,190,196,0.14);
+      padding:18px 20px; border-radius:16px; margin-bottom:12px;
+      cursor:pointer; text-align:left;
+      transition:transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      animation: fadeIn 0.3s ease;
+    }
+    .inc-item:hover{ border-color:rgba(0,104,88,0.55); transform:translateY(-3px); box-shadow:0 14px 28px rgba(0,0,0,0.25); }
+    .inc-title{ font-weight:700; color:#fff; font-size:1.02rem; display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .inc-sub{ color:var(--muted); font-size:0.85rem; margin-top:8px; }
+    .inc-sub strong{ color:#d7e2ef; }
+
+    .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid transparent; }
+    .bg-urg{ background:rgba(239,68,68,0.18); color:#fca5a5; border-color:rgba(239,68,68,0.4); }
+    .bg-gar{ background:var(--green-soft); color:#7fd9c7; border-color:rgba(0,104,88,0.4); }
+    .bg-man{ background:rgba(234,179,8,0.18); color:#fde68a; border-color:rgba(234,179,8,0.4); }
+    .bg-ins{ background:rgba(59,130,246,0.18); color:#93c5fd; border-color:rgba(59,130,246,0.4); }
+    .bg-rev{ background:rgba(168,85,247,0.18); color:#d8b4fe; border-color:rgba(168,85,247,0.4); }
+
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .form-box h2 { margin-bottom: 20px; color: #10263B; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 15px 0 5px; text-transform: uppercase; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; font-family: 'Inter'; background: #f8fafc; transition: 0.2s;}
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #006858; background: #fff; }
-    
-    input[type="date"], input[type="time"] { 
-      -webkit-appearance: none; 
-      appearance: none; 
-      min-width: 0; 
-      color: #1e293b !important; 
-      -webkit-text-fill-color: #1e293b !important; 
-      opacity: 1; 
+
+    .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
+
+    /* ---------- Resolution form (mismo estilo que login del Hub) ---------- */
+    .form-box {
+      background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
+      color:#fff; border:1px solid rgba(182,190,196,0.16);
+      border-radius:22px; padding:34px; max-width:600px; margin:44px auto 0;
+      box-shadow:0 24px 60px rgba(0,0,0,0.4);
+      display:none; animation: fadeIn 0.3s ease;
     }
-    
-    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #1e293b; font-weight: 500; }
-    .checkbox-item input { width: auto; margin: 0; accent-color: #006858; width: 18px; height: 18px; }
+    .form-box h3{
+      color:#fff; font-size:1.2rem; font-weight:700;
+      padding-bottom:16px; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1);
+    }
 
-    button.btn { background: #006858; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
-    button.btn:hover { background: #004d40; }
-    
-    .custom-select-wrapper { position: relative; margin-bottom: 14px; }
-    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
-    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
-    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    .custom-select-list.show { display: block; }
-    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: #1e293b; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
-    .custom-select-item:hover { background: #f0fdf4; color: #006858; }
+    label { display:block; font-size:0.72rem; font-weight:700; color:var(--muted); margin:18px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
+    input, select, textarea {
+      width:100%; padding:12px 14px; border:1px solid rgba(182,190,196,0.3); border-radius:10px;
+      font-size:0.92rem; font-family:'Montserrat', sans-serif; background:var(--navy-dark); color:#fff;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    textarea{ resize:vertical; }
+    input::placeholder, textarea::placeholder{ color:#5c7291; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px; }
+    input[readonly] { background:rgba(255,255,255,0.04); color:var(--muted); border-style:dashed; cursor:not-allowed; }
+    input[type="date"], input[type="time"] { -webkit-appearance:none; appearance:none; color:#fff !important; -webkit-text-fill-color:#fff !important; opacity:1; color-scheme:dark; }
 
-    .pill { background: #e2e8f0; color: #1e293b; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; border: 1px solid #cbd5e1;}
-    .pill b { cursor: pointer; color: #ef4444; font-size: 1rem; transition: color 0.2s;}
-    .pill b:hover { color: #b91c1c; }
+    button.btn {
+      background:var(--green); color:#fff; border:none; padding:14px;
+      border-radius:10px; font-size:0.95rem; font-weight:700; width:100%; margin-top:16px;
+      cursor:pointer; transition:background 0.2s, transform 0.15s; font-family:'Montserrat', sans-serif;
+      letter-spacing:0.01em;
+    }
+    button.btn:hover { background:var(--green-dark); transform:translateY(-1px); }
+    button.btn:active{ transform:translateY(0); }
+    button.btn:disabled{ opacity:0.6; cursor:not-allowed; transform:none; }
+    button.btn-secondary{ background:var(--navy-light); border:1px solid rgba(182,190,196,0.25); }
+    button.btn-secondary:hover{ background:#1c4368; }
+
+    button.btn-archive {
+      background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5);
+      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
+      text-transform:uppercase; letter-spacing:0.03em; transition:background 0.15s, border-color 0.15s;
+    }
+    button.btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
+
+    @media (max-width:640px){
+      .master-tab{ min-width:100%; }
+      .inc-title{ font-size:0.95rem; }
+    }
   </style>
 </head>
 <body>
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande.png" alt="Sugraf Logo">
-      <a href="/" class="btn-back">Volver</a>
+      <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+      <a href="/" class="btn-back">&larr; Volver</a>
     </div>
   </div>
 
   <div class="container">
-    <div class="form-box">
-      <h2>Nuevo Aviso</h2>
-      <form id="form-nuevo-aviso">
-        <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 140px;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
-          <div style="flex: 1; min-width: 110px;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
-        </div>
-        
-        <label>Cliente</label>
-        <div class="custom-select-wrapper">
-          <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
-          <div id="dropdown-clientes" class="custom-select-list"></div>
-        </div>
-        
-        <label>Población / Dirección</label>
-        <input type="text" id="ni_poblacion" required>
-        
-        <label>Máquina(s)</label>
-        <div style="display: flex; gap: 10px;">
-          <div class="custom-select-wrapper" style="flex: 1; margin-bottom: 0;">
-            <input type="text" id="ni_maquina" autocomplete="off" placeholder="Selecciona o escribe máquina...">
-            <div id="dropdown-maquinas" class="custom-select-list"></div>
+    <div class="header-title">
+      <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
+      <h2>Mis Avisos Adjudicados</h2>
+      <p>Consulta y gestiona los partes de trabajo de tus avisos asignados.</p>
+    </div>
+
+    <div id="master-panel" style="display:none;">
+      <p class="master-intro">SELECCIONA UN T&Eacute;CNICO PARA VER SUS AVISOS EN PROGRESO:</p>
+      <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
+    </div>
+
+    <div id="contenedor-avisos">
+      <p class="empty-msg">Buscando avisos en Avisos Tratados.xlsx...</p>
+    </div>
+
+    <div class="form-box" id="resolucion-box">
+      <h3>Parte de Trabajo</h3>
+      <form id="form-resolver">
+        <input type="hidden" id="res_index">
+        <input type="hidden" id="res_tecnico_original">
+        <input type="hidden" id="res_cliente">
+        <input type="hidden" id="res_poblacion">
+        <input type="hidden" id="res_maquina">
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 140px;">
+            <label>Modalidad de Asistencia</label>
+            <select id="res_tipo_asistencia">
+              <option value="Presencial">Presencial</option>
+              <option value="Telemático">Telemático</option>
+            </select>
           </div>
-          <button type="button" class="btn" style="width: auto; margin: 0; padding: 0 20px; font-size: 1.4rem;" onclick="addMaquinaManual()">+</button>
-        </div>
-        <div id="maquinas-seleccionadas" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; margin-bottom: 14px;"></div>
-
-        <label>Explicar la Incidencia</label>
-        <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
-
-        <label>Etiquetas</label>
-        <div class="checkbox-group">
-          <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_gar"> Garantía</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_man"> Mantenimiento</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_rev"> Revisar</label>
+          <div style="flex: 1; min-width: 100px;" id="div_pirineos">
+            <label>Pirineos</label>
+            <select id="res_pirineos">
+              <option value="NO">No</option>
+              <option value="SI">Sí</option>
+            </select>
+          </div>
         </div>
 
-        <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 140px;"><label>Fecha Realización</label><input type="date" id="res_fecha"></div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 110px;"><label>Hora Entrada</label><input type="time" id="res_hora_ent"></div>
+          <div style="flex: 1; min-width: 110px;"><label>Hora Salida</label><input type="time" id="res_hora_sal"></div>
+        </div>
+
+        <label>Estado de Resolución</label>
+        <select id="res_estado_resolucion">
+          <option value="Pendiente">Pendiente (Se requiere otra visita)</option>
+          <option value="Resuelto">Resuelto</option>
+        </select>
+
+        <label>Piezas Necesarias / Cambiadas</label>
+        <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
+
+        <label>Trabajos Realizados / Solución</label>
+        <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-progreso" onclick="guardarProgreso()">Guardar Progreso</button>
+          <button type="button" class="btn" id="btn-cerrar" onclick="cerrarAviso()">Cerrar Aviso Definitivo</button>
+        </div>
       </form>
     </div>
+
   </div>
 
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
-    if (currentUser === "Solo Visualizar") { alert("Tu perfil no puede crear avisos."); window.location.href = "/"; }
+    const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
 
-    let dbEquipos = {};
-    let maquinasSel = [];
+    let misAvisos = [];
+    let filtroTecnicoMaster = null;
 
-    document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
-    document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
-
-    async function cargarData() {
-      const btn = document.getElementById('btn-save-inc');
-      btn.innerText = "Cargando clientes..."; btn.disabled = true;
+    async function cargarAvisos() {
+      const box = document.getElementById('contenedor-avisos');
       try {
-        const res = await fetch('/api/generador/clientes-maquinas');
-        dbEquipos = await res.json();
-        
-        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel, isClick) => { 
-            maquinasSel = [];
-            renderMaquinas();
-            document.getElementById('ni_maquina').value = ''; 
-            document.getElementById('ni_gar').checked = false;
-            
-            const poblacionInput = document.getElementById('ni_poblacion');
-            if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
-                poblacionInput.value = dbEquipos[sel].poblacion;
-            } else {
-                poblacionInput.value = '';
+        const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Error leyendo de Google Drive");
+        }
+
+        const data = await res.json();
+        misAvisos = data.avisos || [];
+
+        if (currentUser === "master") {
+            document.getElementById('master-panel').style.display = 'block';
+            renderBotonesMaster();
+        }
+        renderAvisos();
+      } catch (e) {
+        console.error(e);
+        box.innerHTML = `<p class="empty-msg" style='color:#fca5a5;'>Error: ${e.message}</p>`;
+      }
+    }
+
+    function renderBotonesMaster() {
+        let html = "";
+        TECNICOS.forEach(t => {
+            const count = misAvisos.filter(a => a['REALIZADO POR'] === t && a['ESTADO'] !== 'Cerrado').length;
+            const isSelected = filtroTecnicoMaster === t;
+            const activeClass = isSelected ? 'active' : '';
+            html += `<button class="master-tab ${activeClass}" onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();">
+                        ${t} <span>${count}</span>
+                     </button>`;
+        });
+        document.getElementById('botones-tecnicos').innerHTML = html;
+    }
+
+    function generateCard(av) {
+        let badgesHtml = "";
+        if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
+        if(av['GARANTÍA'] === 'SI') badgesHtml += `<span class="badge bg-gar">Garantía</span>`;
+        if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
+        if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
+        if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
+
+        let actionBtn = "";
+        if (currentUser === 'master' && av['ESTADO'] === 'Cerrado') {
+            actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
+        }
+
+        return `
+        <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
+            <div class="inc-title">
+                ${av['CLIENTE']}
+                ${actionBtn}
+                <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
+            </div>
+            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['REALIZADO POR']}</div>
+        </div>
+        `;
+    }
+
+    function renderAvisos() {
+        const box = document.getElementById('contenedor-avisos');
+        let abiertos = [];
+        let cerrados = [];
+        let noAbiertos = [];
+
+        if (currentUser === 'master') {
+            cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
+            if (filtroTecnicoMaster) {
+                const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster && a['ESTADO'] !== 'Cerrado');
+                abiertos = techAvisos.filter(a => a['ESTADO'] === 'Abierto');
+                noAbiertos = techAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
             }
+        } else {
+            abiertos = misAvisos.filter(a => a['ESTADO'] === 'Abierto');
+            cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
+            noAbiertos = misAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
+        }
+
+        if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
+            if (currentUser === 'master' && !filtroTecnicoMaster) {
+                box.innerHTML = "<p class='empty-msg'>No hay avisos cerrados pendientes de archivar en Pirineos. Selecciona un técnico para ver sus avisos en curso.</p>";
+            } else {
+                box.innerHTML = "<p class='empty-msg'>No hay avisos asignados a este técnico.</p>";
+            }
+            return;
+        }
+
+        let finalHtml = "";
+        if (cerrados.length > 0) {
+            finalHtml += `<div class="section-divider"><span class="dot-status closed"></span> Avisos Cerrados (Pendientes de Pirineos)</div>`;
+            finalHtml += cerrados.map(av => generateCard(av)).join('');
+        }
+        if (abiertos.length > 0) {
+            finalHtml += `<div class="section-divider"><span class="dot-status open"></span> Avisos Abiertos (En progreso)</div>`;
+            finalHtml += abiertos.map(av => generateCard(av)).join('');
+        }
+        if (noAbiertos.length > 0) {
+            finalHtml += `<div class="section-divider"><span class="dot-status pending"></span> Avisos Pendientes de Empezar</div>`;
+            finalHtml += noAbiertos.map(av => generateCard(av)).join('');
+        }
+
+        box.innerHTML = finalHtml;
+    }
+
+    async function archivarPirineos(index) {
+        if(!confirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.")) return;
+
+        try {
+            const res = await fetch('/api/adjudicados/archivar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ aviso_index: index })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+            }
+
+            alert("Aviso archivado correctamente en Partes Finalizados.");
+            cargarAvisos();
+        } catch (err) {
+            alert(`Error al archivar el aviso: ${err.message}`);
+            console.error(err);
+        }
+    }
+
+    function abrirResolucion(index) {
+      const av = misAvisos.find(a => a.aviso_index === index);
+      if(!av) return;
+
+      document.getElementById('resolucion-box').style.display = 'block';
+      document.getElementById('res_index').value = index;
+      document.getElementById('res_tecnico_original').value = av['REALIZADO POR'];
+      document.getElementById('res_cliente').value = av['CLIENTE'];
+      document.getElementById('res_maquina').value = av['MÁQUINA'];
+      document.getElementById('res_poblacion').value = av['POBLACIÓN'];
+
+      if (currentUser !== 'master') {
+          document.getElementById('div_pirineos').style.display = 'none';
+      } else {
+          document.getElementById('div_pirineos').style.display = 'block';
+      }
+
+      document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
+      document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
+
+      let f = av['FECHA REALIZACIÓN'];
+      document.getElementById('res_fecha').value = f && f.includes('-') ? f.substring(0, 10) : new Date().toISOString().split('T')[0];
+
+      let hent = av['HORA ENTRADA'];
+      document.getElementById('res_hora_ent').value = hent ? String(hent).substring(0, 5) : '';
+
+      let hsal = av['HORA SALIDA'];
+      document.getElementById('res_hora_sal').value = hsal ? String(hsal).substring(0, 5) : '';
+
+      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
+      document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
+      document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
+
+      setTimeout(() => { document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
+    }
+
+    function buildPayload() {
+        return {
+            aviso_index: parseInt(document.getElementById('res_index').value),
+            tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
+            pirineos: document.getElementById('res_pirineos').value,
+            fecha_realizacion: document.getElementById('res_fecha').value,
+            hora_entrada: document.getElementById('res_hora_ent').value,
+            hora_salida: document.getElementById('res_hora_sal').value,
+            resuelto_pendiente: document.getElementById('res_estado_resolucion').value,
+            piezas: document.getElementById('res_piezas').value,
+            solucion: document.getElementById('res_solucion').value,
+            cliente: document.getElementById('res_cliente').value,
+            poblacion: document.getElementById('res_poblacion').value,
+            maquina: document.getElementById('res_maquina').value,
+            tecnico: document.getElementById('res_tecnico_original').value
+        };
+    }
+
+    async function guardarProgreso() {
+      const btn = document.getElementById('btn-progreso');
+      btn.innerText = "Guardando..."; btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/adjudicados/guardar-progreso', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildPayload())
         });
 
-        setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
-            const c = document.getElementById('ni_cliente').value;
-            if(!c || !dbEquipos[c]) return [];
-            return dbEquipos[c].maquinas.map(m => m.nombre).sort();
-        }, (sel, isClick) => {
-            if(isClick) {
-                addMaquina(sel);
-            }
-        });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+        }
+
+        alert("Progreso guardado. El aviso ahora está ABIERTO.");
+        document.getElementById('resolucion-box').style.display = 'none';
+        cargarAvisos();
       } catch (err) {
+        alert(`Error al guardar: ${err.message}`);
         console.error(err);
       }
-      btn.innerText = "Crear Aviso"; btn.disabled = false;
-    }
-    
-    cargarData();
 
-    function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
-        const input = document.getElementById(inputId);
-        const dropdown = document.getElementById(dropdownId);
-        
-        const renderOptions = (filterText = "") => {
-            const options = getOptionsCallback();
-            const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
-            
-            if (filtered.length === 0) {
-                dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
-                return;
-            }
-            dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
-            
-            dropdown.querySelectorAll('.custom-select-item').forEach(item => {
-                item.addEventListener('mousedown', (e) => {
-                    e.preventDefault(); 
-                    if (item.innerText === "No hay coincidencias") return;
-                    input.value = item.innerText;
-                    dropdown.classList.remove('show');
-                    if(onSelectCallback) onSelectCallback(item.innerText, true);
-                });
-            });
-        };
-
-        input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
-        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value, false); });
-        input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
+      btn.innerText = "Guardar Progreso"; btn.disabled = false;
     }
 
-    function addMaquinaManual() {
-        const v = document.getElementById('ni_maquina').value.trim();
-        if(v) addMaquina(v);
-    }
-
-    function addMaquina(nombre) {
-        if (!maquinasSel.includes(nombre)) {
-            maquinasSel.push(nombre);
-            renderMaquinas();
-            checkGarantiaGlobal();
-        }
-        document.getElementById('ni_maquina').value = '';
-    }
-
-    function removeMaquina(nombre) {
-        maquinasSel = maquinasSel.filter(m => m !== nombre);
-        renderMaquinas();
-        checkGarantiaGlobal();
-    }
-
-    function renderMaquinas() {
-        const cont = document.getElementById('maquinas-seleccionadas');
-        cont.innerHTML = maquinasSel.map(m => `<span class="pill">${m} <b onclick="removeMaquina('${m}')">×</b></span>`).join('');
-    }
-
-    function checkGarantiaGlobal() {
-        const c = document.getElementById('ni_cliente').value;
-        let isWarranty = false;
-        if (dbEquipos && dbEquipos[c]) {
-            for (let m of maquinasSel) {
-                const found = dbEquipos[c].maquinas.find(x => x.nombre === m);
-                if (found && found.f_garan) {
-                    const garanDate = new Date(found.f_garan);
-                    const today = new Date();
-                    today.setHours(0,0,0,0);
-                    if (garanDate >= today) {
-                        isWarranty = true;
-                        break;
-                    }
-                }
-            }
-        }
-        document.getElementById('ni_gar').checked = isWarranty;
-    }
-
-    document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const v = document.getElementById('ni_maquina').value.trim();
-      if(v && !maquinasSel.includes(v)) { addMaquina(v); }
-      if (maquinasSel.length === 0) { alert("Debes seleccionar al menos una máquina."); return; }
-
-      const btn = document.getElementById('btn-save-inc');
-      btn.innerText = "Guardando en Excel..."; btn.disabled = true;
-
-      const cliente = document.getElementById('ni_cliente').value;
-      
-      let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
-      if (dbEquipos && dbEquipos[cliente]) {
-          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinasSel[0]);
-          if (found) maquinaData = found;
+    async function cerrarAviso() {
+      if(!document.getElementById('res_hora_ent').value || !document.getElementById('res_hora_sal').value || !document.getElementById('res_solucion').value) {
+          alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, salida y la solución.");
+          return;
       }
 
-      const payload = {
-        fecha_entrada: document.getElementById('ni_fecha').value,
-        cliente: cliente,
-        poblacion: document.getElementById('ni_poblacion').value,
-        maquina: maquinasSel.join(" y "),
-        equipo: maquinaData.equipo,
-        marca: maquinaData.marca,
-        modelo: maquinaData.modelo,
-        f_garan: maquinaData.f_garan,
-        f_instal: maquinaData.f_instal,
-        descripcion: document.getElementById('ni_desc').value,
-        urgente: document.getElementById('ni_urg').checked,
-        garantia: document.getElementById('ni_gar').checked,
-        mantenimiento: document.getElementById('ni_man').checked,
-        instalacion: document.getElementById('ni_ins').checked,
-        revisar: document.getElementById('ni_rev').checked
-      };
+      if(!confirm("¿Estás seguro de que quieres CERRAR definitivamente este aviso? Se pasará a la lista de cerrados.")) return;
+
+      const btn = document.getElementById('btn-cerrar');
+      btn.innerText = "Procesando..."; btn.disabled = true;
 
       try {
-        await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        alert("Aviso guardado correctamente.");
-        window.location.href = "/";
-      } catch (err) { 
-        alert("Error de red al guardar."); 
-        btn.innerText = "Crear Aviso"; 
-        btn.disabled = false;
+        const res = await fetch('/api/adjudicados/resolver', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildPayload())
+        });
+
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+        }
+
+        alert("Aviso marcado como cerrado con éxito.");
+        document.getElementById('resolucion-box').style.display = 'none';
+        cargarAvisos();
+      } catch (err) {
+        alert(`Error al cerrar el aviso: ${err.message}`);
+        console.error(err);
       }
-    });
+
+      btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
+    }
+
+    cargarAvisos();
   </script>
 </body>
 </html>
