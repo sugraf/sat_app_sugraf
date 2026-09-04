@@ -138,6 +138,14 @@
       background:transparent; border:1.5px dashed rgba(182,190,196,0.35);
       position:relative; z-index:1;
     }
+    .clock-icon{ width:22px; height:22px; }
+    .clock-icon .hand{
+      transform-origin:12px 12px;
+      animation:clockspin 2.4s linear infinite;
+    }
+    .clock-icon .hand.hand-min{ animation-duration:2.4s; }
+    .clock-icon .hand.hand-hr{ animation-duration:9.6s; }
+    @keyframes clockspin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
     .card-empty h3{ color:var(--muted); position:relative; z-index:1; font-size:1.05rem; }
     .card-empty p{ position:relative; z-index:1; }
 
@@ -241,7 +249,13 @@
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
         <div class="card-empty">
-          <div class="card-icon">&#10022;</div>
+          <div class="card-icon">
+            <svg class="clock-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="9.25" stroke="#a9bcd6" stroke-width="1.5"/>
+              <line class="hand hand-hr" x1="12" y1="12" x2="12" y2="7.5" stroke="#2fd9b8" stroke-width="1.6" stroke-linecap="round"/>
+              <line class="hand hand-min" x1="12" y1="12" x2="15.5" y2="12" stroke="#2fd9b8" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
           <h3>Pr&oacute;ximamente</h3>
           <p>Nuevo m&oacute;dulo en camino.</p>
         </div>
