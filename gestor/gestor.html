@@ -3,179 +3,232 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Organizador de Avisos</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#10263B">
+  <title>Organizador de Avisos - Sugraf Digital Manager</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
+    :root{
+      --navy:#10263B;
+      --navy-dark:#0a1826;
+      --navy-light:#173654;
+      --green:#006858;
+      --green-dark:#004d40;
+      --green-soft:rgba(0,104,88,0.15);
+      --grey:#B6BEC4;
+      --ink:#f4f8fc;
+      --muted:#a9bcd6;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: #10263B; 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: #f4f8fc; 
-        min-height: 100vh; 
+    html{ scroll-behavior:smooth; }
+    body {
+        font-family: 'Montserrat', sans-serif;
+        font-weight:400;
+        background-color: var(--navy);
+        background-image:
+          radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
+          radial-gradient(900px circle at 90% 10%, rgba(182,190,196,0.10) 0%, transparent 55%),
+          radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+        background-attachment: fixed;
+        color: var(--ink);
+        min-height: 100vh;
         padding: 20px;
     }
-    
-    .topbar { 
-        background: #ffffff; 
-        height: 60px; 
-        display: flex; 
-        align-items: center; 
-        padding: 0 20px; 
-        justify-content: space-between; 
-        border-radius: 8px; 
-        margin-bottom: 20px; 
-        position: sticky; 
-        top: 0; 
-        z-index: 100; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
-    .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { 
-        background: #f1f5f9; 
-        border: 1px solid #cbd5e1; 
-        padding: 0 15px; 
-        height: 35px; 
-        border-radius: 6px; 
-        font-weight: 600; 
-        color: #1e293b !important; 
-        cursor: pointer; 
-        display: inline-flex; 
-        align-items: center; 
-        justify-content: center; 
-        text-decoration: none; 
-        font-size: 14px; 
-        transition: 0.2s; 
-        box-sizing: border-box; 
-    }
-    .btn-back:hover { background: #e2e8f0; }
-    
-    .container { max-width: 900px; margin: 0 auto; }
-    
-    .header-title h2 { 
-        margin-bottom: 20px; 
-        color: white; 
-        border-bottom: 1px solid rgba(255,255,255,0.2); 
-        padding-bottom: 10px; 
-        font-family: 'Space Grotesk', sans-serif;
-    }
-    
-    .inc-item { 
-        background: #f8fafc; 
-        border: 1px solid #e2e8f0; 
-        padding: 18px; 
-        border-radius: 12px; 
-        margin-bottom: 12px; 
-        transition: all 0.2s; 
-        text-align: left; 
-        cursor: pointer; 
-        animation: fadeIn 0.3s ease;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    .inc-item:hover { 
-        border-color: #006858; 
-        background: #f0fdf4; 
-        transform: translateY(-2px); 
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-    }
-    
-    .inc-title { 
-        font-weight: 700; 
-        color: #10263B; 
-        font-size: 1.05rem; 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        flex-wrap: wrap; 
-        gap: 10px; 
-    }
-    .inc-sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
-    
-    .badge-container { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 10px;}
-    .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;}
-    .bg-urg { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-    .bg-gar { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .bg-man { background: #fef9c3; color: #166534; border: 1px solid #fde047; }
-    .bg-ins { background: #e0e7ff; color: #1d4ed8; border: 1px solid #93c5fd; }
-    .bg-rev { background: #f3e8ff; color: #4338ca; border: 1px solid #c4b5fd; }
-    
-    .btn-delete {
-        background: #fee2e2;
-        border: 1px solid #fca5a5;
-        color: #b91c1c;
-        border-radius: 6px;
-        padding: 5px 10px;
-        cursor: pointer;
-        transition: 0.2s;
-        font-size: 1.1rem;
-        margin-right: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .btn-delete:hover { background: #fca5a5; color: white; }
+    h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
 
-    select.filter-sel { 
-        padding: 10px 12px; 
-        border: 1px solid #cbd5e1; 
-        border-radius: 8px; 
-        font-size: 0.9rem; 
-        background: #fff; 
-        cursor: pointer; 
-        color: #1e293b; 
-        font-weight: 500; 
-        min-width: 160px; 
-        flex: 1;
-        transition: 0.2s;
+    /* ---------- Topbar (idéntica al Hub) ---------- */
+    .topbar {
+      background:#ffffff;
+      height:64px;
+      display:flex;
+      align-items:center;
+      padding:0 24px;
+      justify-content:space-between;
+      border-radius:16px;
+      margin-bottom:24px;
+      box-shadow:0 1px 0 rgba(16,38,59,0.08), 0 4px 16px rgba(16,38,59,0.04);
+      position:sticky; top:0; z-index:100;
     }
-    select.filter-sel:focus { outline: none; border-color: #006858; }
-    
-    select.action-sel { 
-        padding: 6px 10px; 
-        border: 1px solid #cbd5e1; 
-        border-radius: 6px; 
-        font-size: 0.85rem; 
-        font-family: 'Inter', sans-serif; 
-        background: #fff; 
-        cursor: pointer; 
-        color: #1e293b; 
-        font-weight: 500;
-        transition: 0.2s;
+    .topbar-left{ display:flex; align-items:center; gap:16px; height:100%; }
+    .topbar img{ height:35px; object-fit:contain; display:block; }
+
+    .btn-back{
+      display:flex; align-items:center; gap:6px;
+      color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
+      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0;
+      transition:background 0.15s, border-color 0.15s;
     }
-    select.action-sel:focus { outline: none; border-color: #006858; }
-    select.action-sel:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent;}
-    
+    .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
+
+    .container { max-width:960px; margin:0 auto; }
+
+    .header-title{ text-align:center; margin-bottom:30px; }
+    .eyebrow{
+      display:inline-flex; align-items:center; gap:7px; background:var(--green-soft);
+      border:1px solid rgba(0,104,88,0.35); color:#7fd9c7; font-size:0.7rem; font-weight:700;
+      letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; border-radius:999px; margin-bottom:16px;
+    }
+    .eyebrow .dot-sm{ width:6px; height:6px; background:#2fd9b8; border-radius:50%; }
+    .header-title h2{ font-size:2rem; color:var(--ink); border:none; padding:0; margin:0; }
+
+    /* ---------- Filters ---------- */
+    .filters-row{ display:flex; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
+    select.filter-sel {
+        padding:12px 14px;
+        border:1px solid rgba(182,190,196,0.3);
+        border-radius:10px;
+        font-size:0.9rem;
+        background:var(--navy-dark);
+        color:var(--ink);
+        cursor:pointer;
+        font-weight:500;
+        min-width:170px;
+        flex:1;
+        font-family:'Montserrat', sans-serif;
+        transition:border-color 0.15s, box-shadow 0.15s;
+        appearance:none;
+        background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>');
+        background-repeat:no-repeat;
+        background-position:right 14px center;
+        background-size:16px;
+        padding-right:36px;
+    }
+    select.filter-sel:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+
+    /* ---------- Incident cards ---------- */
+    .inc-item {
+        position:relative; overflow:hidden;
+        background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
+        border:1px solid rgba(182,190,196,0.14);
+        padding:18px 20px;
+        border-radius:16px;
+        margin-bottom:12px;
+        transition:transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        text-align:left;
+        cursor:pointer;
+        animation: fadeIn 0.3s ease;
+    }
+    .inc-item:hover {
+        border-color:rgba(0,104,88,0.55);
+        transform:translateY(-3px);
+        box-shadow:0 14px 28px rgba(0,0,0,0.25);
+    }
+
+    .inc-title {
+        font-weight:700;
+        color:#fff;
+        font-size:1.02rem;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:10px;
+    }
+    .inc-sub { color:var(--muted); font-size:0.85rem; margin-top:8px; }
+
+    .badge-container { display:inline-flex; gap:6px; flex-wrap:wrap; margin-left:10px; }
+    .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid transparent; }
+    .bg-urg{ background:rgba(239,68,68,0.18); color:#fca5a5; border-color:rgba(239,68,68,0.4); }
+    .bg-gar{ background:var(--green-soft); color:#7fd9c7; border-color:rgba(0,104,88,0.4); }
+    .bg-man{ background:rgba(234,179,8,0.18); color:#fde68a; border-color:rgba(234,179,8,0.4); }
+    .bg-ins{ background:rgba(59,130,246,0.18); color:#93c5fd; border-color:rgba(59,130,246,0.4); }
+    .bg-rev{ background:rgba(168,85,247,0.18); color:#d8b4fe; border-color:rgba(168,85,247,0.4); }
+
+    .btn-delete {
+        background:rgba(239,68,68,0.14);
+        border:1px solid rgba(239,68,68,0.4);
+        color:#fca5a5;
+        border-radius:8px;
+        padding:5px 10px;
+        cursor:pointer;
+        transition:background 0.15s, color 0.15s;
+        font-size:1.05rem;
+        margin-right:10px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+    .btn-delete:hover { background:#ef4444; color:#fff; }
+
+    select.action-sel {
+        padding:6px 10px;
+        border:1px solid rgba(182,190,196,0.3);
+        border-radius:8px;
+        font-size:0.82rem;
+        font-family:'Montserrat', sans-serif;
+        background:var(--navy-dark);
+        cursor:pointer;
+        color:var(--ink);
+        font-weight:500;
+        transition:border-color 0.15s;
+        appearance:none;
+        background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>');
+        background-repeat:no-repeat;
+        background-position:right 10px center;
+        background-size:13px;
+        padding-right:28px;
+    }
+    select.action-sel:focus { outline:none; border-color:var(--green); }
+    select.action-sel:disabled { background-color:rgba(255,255,255,0.04); color:#5c7291; cursor:not-allowed; border-color:transparent; }
+
+    .meta-pair{ font-size:0.85rem; color:var(--muted); font-weight:500; display:flex; align-items:center; gap:6px; }
+    .meta-pair strong{ color:#d7e2ef; }
+
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Modal Styles */
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-    .modal-content { background-color: #fff; padding: 30px; border-radius: 16px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #64748b; transition: 0.2s;}
-    .close-btn:hover { color: #1e293b; }
-    
-    .vertical-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-    .vertical-table th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; width: 40%; font-weight: 600; text-transform: uppercase; font-size: 0.8rem;}
-    .vertical-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 500; word-break: break-word;}
+    .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
+
+    /* ---------- Modal (mismo estilo dark) ---------- */
+    .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+    .modal-content {
+        background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
+        color:#fff;
+        border:1px solid rgba(182,190,196,0.16);
+        padding:30px;
+        border-radius:20px;
+        max-width:600px;
+        width:90%;
+        max-height:85vh;
+        overflow-y:auto;
+        position:relative;
+        box-shadow:0 24px 60px rgba(0,0,0,0.4);
+    }
+    .close-btn { position:absolute; right:20px; top:16px; font-size:26px; font-weight:bold; cursor:pointer; color:var(--muted); transition:color 0.2s; }
+    .close-btn:hover { color:#fff; }
+
+    .modal-content h3{
+      color:#fff; font-size:1.2rem; font-weight:700;
+      padding-bottom:16px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+
+    .vertical-table { width:100%; border-collapse:collapse; margin-top:15px; font-size:0.9rem; }
+    .vertical-table th { text-align:left; padding:12px; background:rgba(255,255,255,0.04); border-bottom:1px solid rgba(182,190,196,0.15); color:var(--muted); width:40%; font-weight:700; text-transform:uppercase; font-size:0.72rem; letter-spacing:0.05em; }
+    .vertical-table td { padding:12px; border-bottom:1px solid rgba(182,190,196,0.12); color:var(--ink); font-weight:500; word-break:break-word; }
+
+    @media (max-width:640px){
+      .filters-row{ flex-direction:column; }
+      select.filter-sel{ min-width:100%; }
+    }
   </style>
 </head>
 <body>
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande.png" alt="Sugraf Logo">
-      <a href="/" class="btn-back">Volver</a>
+      <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+      <a href="/" class="btn-back">&larr; Volver</a>
     </div>
   </div>
 
   <div class="container">
     <div class="header-title">
+      <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
       <h2>Organizador de Avisos</h2>
     </div>
-      
-    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+
+    <div class="filters-row">
       <select id="filtro-tecnico" class="filter-sel" onchange="renderGestionAvisos()">
         <option value="Todos">Técnico: Todos</option>
         <option value="Pendiente">Sin Asignar</option>
@@ -197,14 +250,14 @@
     </div>
 
     <div id="contenedor-gestionar">
-      <p style='color:white; font-size: 1.1rem;'>Cargando avisos del sistema...</p>
+      <p class="empty-msg">Cargando avisos del sistema...</p>
     </div>
   </div>
 
   <div id="aviso-modal" class="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="cerrarModal()">&times;</span>
-      <h3 style="color: #10263B; margin-bottom: 5px; font-family: 'Space Grotesk', sans-serif;">Detalles del Aviso</h3>
+      <h3>Detalles del Aviso</h3>
       <table class="vertical-table" id="tabla-detalles"></table>
     </div>
   </div>
@@ -224,7 +277,7 @@
         const data = await res.json();
         avisosGlobales = data.avisos || [];
         renderGestionAvisos();
-      } catch (e) { document.getElementById('contenedor-gestionar').innerHTML = "<p style='color:red;'>Error al cargar los avisos.</p>"; }
+      } catch (e) { document.getElementById('contenedor-gestionar').innerHTML = "<p class='empty-msg' style='color:#fca5a5;'>Error al cargar los avisos.</p>"; }
     }
 
     function renderGestionAvisos() {
@@ -294,15 +347,15 @@
                   ${av['CLIENTE']} 
                   <span class="badge-container">${badgesHtml}</span>
               </span>
-              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
-                  <strong style="color: #10263B;">Asignado a:</strong>
+              <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                <span class="meta-pair">
+                  <strong>Asignado a:</strong>
                   <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarTecnico(${i}, '${fuente}', this)" ${disableSelect} ${titleText}>
                     ${tecOptions}
                   </select>
                 </span>
-                <span style="font-size: 0.85rem; color: #475569; font-weight: normal; display:flex; align-items:center; gap:5px;">
-                  <strong style="color: #10263B;">Pirineos:</strong>
+                <span class="meta-pair">
+                  <strong>Pirineos:</strong>
                   <select class="action-sel" onclick="event.stopPropagation()" onchange="actualizarPirineos(${i}, '${fuente}', this)" ${disablePirineos}>
                     <option value="NO" ${!esPirineos ? 'selected' : ''}>No</option>
                     <option value="SI" ${esPirineos ? 'selected' : ''}>Sí</option>
@@ -315,7 +368,7 @@
         `;
       });
 
-      box.innerHTML = html || "<p style='color:#a9bcd6; font-size:1.1rem;'>No hay avisos que coincidan con los filtros.</p>";
+      box.innerHTML = html || "<p class='empty-msg'>No hay avisos que coincidan con los filtros.</p>";
     }
 
     function abrirDetalles(index, fuente) {
@@ -337,7 +390,6 @@
     async function actualizarPirineos(index, fuente, selectElement) {
       const valor = selectElement.value;
       selectElement.disabled = true;
-      selectElement.style.color = "#94a3b8"; 
       try {
         await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) });
         cargarGestionAvisos();
@@ -347,7 +399,6 @@
     async function actualizarTecnico(index, fuente, selectElement) {
       const valor = selectElement.value;
       selectElement.disabled = true;
-      selectElement.style.color = "#94a3b8"; 
       
       try {
         const res = await fetch('/api/gestor/actualizar-tecnico', { 
