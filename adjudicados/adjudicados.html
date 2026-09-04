@@ -190,9 +190,45 @@
     }
     button.btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
 
-    @media (max-width:640px){
-      .master-tab{ min-width:100%; }
+    /* ---------- Responsive: tablet ---------- */
+    @media (max-width: 900px) {
+      .container { max-width: 100%; }
+      .form-box { max-width: 100%; }
+    }
+
+    /* ---------- Responsive: móvil ---------- */
+    @media (max-width: 640px) {
+      .container { padding: 12px; }
+      .topbar { height: 52px; padding: 0 14px; }
+      .topbar img { height: 26px; }
+      .btn-back { padding: 0 12px; height: 30px; font-size: 13px; border-radius: 6px; }
+
+      .header-title { margin: 24px 0 22px; }
+      .header-title h2 { font-size: 1.5rem; }
+
+      .master-tab { min-width:100%; }
       .inc-title{ font-size:0.95rem; }
+
+      .inc-item { padding: 14px 16px; border-radius: 14px; }
+
+      .form-box { padding: 18px 16px; border-radius: 14px; margin-top: 30px; }
+      .form-box h3 { font-size: 1.1rem; margin-bottom: 4px; padding-bottom: 8px; }
+      .form-box::before { width: 220px; height: 220px; top: -90px; left: -80px; }
+      .form-box::after { width: 240px; height: 240px; bottom: -100px; right: -90px; }
+
+      label { font-size: 0.68rem; margin: 14px 0 6px; }
+      input, select, textarea { padding: 11px 10px; font-size: 0.9rem; }
+
+      button.btn { padding: 13px; font-size: 0.95rem; }
+      #form-resolver > div { flex-wrap: wrap; }
+      #form-resolver > div > div { min-width: 47% !important; }
+    }
+
+    /* ---------- Responsive: móviles muy pequeños ---------- */
+    @media (max-width: 380px) {
+      .form-box { padding: 16px 12px; }
+      #form-resolver > div { gap: 8px; }
+      #form-resolver > div > div { min-width: 100% !important; }
     }
   </style>
 </head>
