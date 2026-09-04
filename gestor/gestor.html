@@ -222,9 +222,39 @@
     .vertical-table th { text-align:left; padding:12px; background:#f1f5f8; border-bottom:1px solid #e6ebef; color:#5c6b7d; width:40%; font-weight:700; text-transform:uppercase; font-size:0.72rem; letter-spacing:0.05em; }
     .vertical-table td { padding:12px; border-bottom:1px solid #e6ebef; color:var(--navy); font-weight:500; word-break:break-word; background:#fff; }
 
-    @media (max-width:640px){
+    /* ---------- Responsive: tablet ---------- */
+    @media (max-width: 900px) {
+      .container { max-width: 100%; }
+    }
+
+    /* ---------- Responsive: móvil ---------- */
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .topbar { height: 52px; padding: 0 14px; border-radius: 10px; margin-bottom: 14px; }
+      .topbar img { height: 26px; }
+      .btn-back { padding: 0 12px; height: 30px; font-size: 13px; border-radius: 6px; }
+
+      .header-title { margin-bottom: 20px; }
+      .header-title h2 { font-size: 1.5rem; }
+
       .filters-row{ flex-direction:column; }
       select.filter-sel{ min-width:100%; }
+
+      .inc-item { padding: 14px 16px; border-radius: 14px; }
+      .inc-title { font-size: 0.92rem; }
+      .badge{ font-size: 0.62rem; padding: 2px 8px; }
+
+      .modal-content { padding: 20px 16px; border-radius: 14px; }
+      .modal-content::before { width: 220px; height: 220px; top: -90px; left: -80px; }
+      .modal-content::after { width: 240px; height: 240px; bottom: -100px; right: -90px; }
+      .modal-content h3 { font-size: 1.1rem; }
+      .vertical-table th, .vertical-table td { padding: 9px; font-size: 0.85rem; }
+    }
+
+    /* ---------- Responsive: móviles muy pequeños ---------- */
+    @media (max-width: 380px) {
+      .modal-content { padding: 16px 12px; }
+      .inc-title > span:first-child { flex-wrap: wrap; }
     }
   </style>
 </head>
