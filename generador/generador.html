@@ -33,8 +33,35 @@
     .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
     .topbar img { height: 35px; object-fit: contain; display: block; }
-    .btn-back { background: #f1f5f8; border: 1px solid var(--grey); padding: 0 15px; height: 35px; border-radius: 6px; font-weight: 600; color: var(--navy) !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; transition: 0.2s; box-sizing: border-box; }
-    .btn-back:hover { background: #e6ebef; }
+
+    .btn-back{
+      display:flex; align-items:center; gap:6px;
+      color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
+      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0;
+      transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
+
+    .topbar-right { color:#4a5a72; font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
+    .dot { width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 0 4px var(--green-soft); }
+
+    .dropdown { position:relative; display:inline-block; cursor:pointer; }
+    .dropdown-trigger{ display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; transition:background 0.15s; }
+    .dropdown-trigger:hover{ background:#f1f5f8; }
+    .chev{ font-size:9px; color:#94a3b8; transition:transform 0.15s; }
+    .dropdown-content {
+      display:none; position:absolute; right:0; background:#ffffff;
+      min-width:170px; box-shadow:0 12px 28px rgba(16,38,59,0.18);
+      z-index:1; border-radius:12px; overflow:hidden; margin-top:10px;
+      border:1px solid #eef2f5;
+    }
+    .dropdown-content a {
+      color:#ef4444; padding:13px 16px; text-decoration:none; display:flex;
+      align-items:center; gap:8px; font-weight:600; font-size:0.88rem;
+    }
+    .dropdown-content a:hover { background:#fef2f2; }
+    .show { display:block; animation:dropIn 0.15s ease; }
+    @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
     
     .container { max-width: 900px; margin: 0 auto;}
     
@@ -162,7 +189,17 @@
   <div class="topbar">
     <div class="topbar-left">
       <img src="/logo_grande.png" alt="Sugraf Logo">
-      <a href="/" class="btn-back">Volver</a>
+      <a href="/" class="btn-back">&larr; Volver</a>
+    </div>
+
+    <div class="topbar-right" id="zona-usuario" style="display:none;">
+      <div class="dot"></div>
+      <div class="dropdown">
+        <span class="dropdown-trigger" id="user-display" onclick="toggleUserMenu()"><span id="user-name-text">Conectado</span> <span class="chev">&#9660;</span></span>
+        <div id="user-menu" class="dropdown-content">
+          <a href="#" onclick="cerrarSesion()">&#10162; Desconectar</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -215,6 +252,29 @@
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
     if (currentUser === "Solo Visualizar") { alert("Tu perfil no puede crear avisos."); window.location.href = "/"; }
+
+    document.getElementById("user-name-text").innerText = currentUser;
+    document.getElementById("zona-usuario").style.display = "flex";
+
+    function toggleUserMenu() {
+        document.getElementById("user-menu").classList.toggle("show");
+    }
+
+    window.addEventListener("click", function(event) {
+        if (!event.target.closest(".dropdown")) {
+            var dropdowns = document.getElementsByClassName("dropdown-content");
+            for (var i = 0; i < dropdowns.length; i++) {
+                if (dropdowns[i].classList.contains("show")) {
+                    dropdowns[i].classList.remove("show");
+                }
+            }
+        }
+    });
+
+    function cerrarSesion() {
+      localStorage.removeItem("sugraf_user");
+      window.location.href = "/";
+    }
 
     let dbEquipos = {};
     let maquinasSel = [];
