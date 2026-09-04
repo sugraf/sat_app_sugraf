@@ -180,32 +180,47 @@
 
     .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
 
-    /* ---------- Modal (mismo estilo dark) ---------- */
+    /* ---------- Modal: fondo blanco con reflejos verdes/azules para mejor lectura ---------- */
     .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .modal-content {
-        background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
-        color:#fff;
-        border:1px solid rgba(182,190,196,0.16);
+        position:relative;
+        overflow:hidden;
+        background:#ffffff;
+        color:var(--navy);
+        border:1px solid rgba(16,38,59,0.08);
         padding:30px;
         border-radius:20px;
         max-width:600px;
         width:90%;
         max-height:85vh;
         overflow-y:auto;
-        position:relative;
         box-shadow:0 24px 60px rgba(0,0,0,0.4);
     }
-    .close-btn { position:absolute; right:20px; top:16px; font-size:26px; font-weight:bold; cursor:pointer; color:var(--muted); transition:color 0.2s; }
-    .close-btn:hover { color:#fff; }
+    .modal-content::before, .modal-content::after{
+      content:""; position:absolute; border-radius:50%; filter:blur(10px); pointer-events:none; z-index:0;
+    }
+    .modal-content::before{
+      width:320px; height:320px;
+      background:radial-gradient(circle, rgba(0,104,88,0.14) 0%, transparent 70%);
+      top:-120px; left:-100px;
+    }
+    .modal-content::after{
+      width:340px; height:340px;
+      background:radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+      bottom:-130px; right:-110px;
+    }
+    .modal-content > * { position:relative; z-index:1; }
+    .close-btn { position:absolute; right:20px; top:16px; font-size:26px; font-weight:bold; cursor:pointer; color:#94a3b8; transition:color 0.2s; z-index:2; }
+    .close-btn:hover { color:var(--navy); }
 
     .modal-content h3{
-      color:#fff; font-size:1.2rem; font-weight:700;
-      padding-bottom:16px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1);
+      color:var(--navy); font-size:1.2rem; font-weight:700;
+      padding-bottom:16px; margin-bottom:4px; border-bottom:2px solid #e6ebef;
     }
 
     .vertical-table { width:100%; border-collapse:collapse; margin-top:15px; font-size:0.9rem; }
-    .vertical-table th { text-align:left; padding:12px; background:rgba(255,255,255,0.04); border-bottom:1px solid rgba(182,190,196,0.15); color:var(--muted); width:40%; font-weight:700; text-transform:uppercase; font-size:0.72rem; letter-spacing:0.05em; }
-    .vertical-table td { padding:12px; border-bottom:1px solid rgba(182,190,196,0.12); color:var(--ink); font-weight:500; word-break:break-word; }
+    .vertical-table th { text-align:left; padding:12px; background:#f1f5f8; border-bottom:1px solid #e6ebef; color:#5c6b7d; width:40%; font-weight:700; text-transform:uppercase; font-size:0.72rem; letter-spacing:0.05em; }
+    .vertical-table td { padding:12px; border-bottom:1px solid #e6ebef; color:var(--navy); font-weight:500; word-break:break-word; background:#fff; }
 
     @media (max-width:640px){
       .filters-row{ flex-direction:column; }
