@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import traceback
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -62,29 +63,20 @@ def chat_ia(req: ChatRequest):
         if req.mode == "abiertos":
             df_sin = get_excel_df(drive, 'Avisos Sin Tratar.xlsx')
             df_tra = get_excel_df(drive, 'Avisos Tratados.xlsx')
-            
             df_combined = pd.concat([df_sin, df_tra], ignore_index=True)
             csv_data = df_combined.to_csv(index=False)
-            
-            system_prompt = (
-                "You are an AI assistant for a technical service manager. "
-                "You are analyzing open and assigned tickets (Avisos Sin Tratar & Avisos Tratados). "
-                "When routing or assigning technicians to locations, NEVER prioritize older tickets or give preference based on antiquity. "
-                "Answer based strictly on the provided CSV data."
-            )
         else:
             df_fin = get_excel_df(drive, 'Partes Finalizados.xlsx')
             csv_data = df_fin.to_csv(index=False)
-            
-            system_prompt = (
-                "You are an AI assistant for a technical service manager. "
-                "You are analyzing historical closed tickets (Partes Finalizados). "
-                "Answer based strictly on the provided CSV data."
-            )
         
-        if len(csv_data) > 25000:
-            csv_data = csv_data[:25000] + "\n...[TRUNCATED]"
+        if len(csv_data) > 15000:
+            csv_data = csv_data[:15000] + "\n...[TRUNCATED]"
 
+        system_prompt = (
+            "You are an AI assistant for a technical service manager. "
+            "Answer based strictly on the provided CSV data. "
+            "When routing or assigning technicians to locations, NEVER prioritize older tickets or give preference based on antiquity."
+        )
         prompt = f"Data:\n{csv_data}\n\nUser Question: {req.query}"
         
         response = client.chat.completions.create(
@@ -98,4 +90,6 @@ def chat_ia(req: ChatRequest):
         
         return {"reply": response.choices[0].message.content}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_details = traceback.format_exc()
+        print(error_details) 
+        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
