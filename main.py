@@ -1,3 +1,4 @@
+# main.py
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,6 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from generador.api_generador import router as generador_router
 from gestor.api_gestor import router as gestor_router
 from adjudicados.api_adjudicados import router as adjudicados_router
+from control.api_control import router as control_router
 
 app = FastAPI()
 
@@ -19,6 +21,7 @@ app.add_middleware(
 app.include_router(generador_router, prefix="/api/generador")
 app.include_router(gestor_router, prefix="/api/gestor")
 app.include_router(adjudicados_router, prefix="/api/adjudicados")
+app.include_router(control_router, prefix="/api/control")
 
 def get_html(path):
     if os.path.exists(path):
@@ -41,6 +44,10 @@ def view_gestor():
 @app.get("/vista/adjudicados", response_class=HTMLResponse)
 def view_adjudicados():
     return get_html(os.path.join(os.path.dirname(__file__), "adjudicados", "adjudicados.html"))
+
+@app.get("/vista/control", response_class=HTMLResponse)
+def view_control():
+    return get_html(os.path.join(os.path.dirname(__file__), "control", "control.html"))
 
 @app.get("/{filename}.png")
 def get_png(filename: str):
