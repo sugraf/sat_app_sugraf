@@ -30,8 +30,9 @@ if not logger.handlers:
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 GROQ_API_KEY = "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"
-# MODELO ACTUALIZADO (El anterior fue dado de baja por Groq)
-MODEL_NAME = "llama-3.1-70b-versatile" 
+
+# MODEL REQUESTED
+MODEL_NAME = "llama-3.3-70b-versatile" 
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
 COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA']
@@ -198,7 +199,7 @@ def chat_ia(req: ChatRequest):
         except APIError as e:
             logger.error(f"Error devuelto por la API de Groq: {str(e)}")
             if "model" in str(e).lower() or "does not exist" in str(e).lower() or "decommissioned" in str(e).lower():
-                 raise Exception(f"GroqModelError: El modelo '{MODEL_NAME}' ha sido dado de baja o no existe. {str(e)}")
+                 raise Exception(f"GroqModelError: El modelo '{MODEL_NAME}' ha fallado o tu API key no tiene acceso. {str(e)}")
             raise Exception(f"GroqAPIError: {str(e)}")
             
         total_time = round(time.time() - start_time, 2)
