@@ -1,3 +1,4 @@
+# control/api_control.py
 import io
 import json
 import os
@@ -29,12 +30,12 @@ if not logger.handlers:
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 GROQ_API_KEY = "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"
-MODEL_NAME = "llama3-8b-8192" # Atención: Comprueba que este modelo sigue activo en Groq
+# MODELO ACTUALIZADO (El anterior fue dado de baja por Groq)
+MODEL_NAME = "llama-3.1-8b-instant" 
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
 COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA']
 
-# Enmascarar la API key en los logs
 masked_api_key = f"{GROQ_API_KEY[:4]}...{GROQ_API_KEY[-4:]}" if len(GROQ_API_KEY) > 8 else "INVALID_KEY"
 logger.info(f"Inicializando cliente OpenAI (Groq). API Key usada: {masked_api_key}")
 
@@ -114,7 +115,6 @@ def get_excel(drive, name, cols):
         df = pd.read_excel(fh, engine='openpyxl', dtype=str).fillna("")
         logger.info(f"Excel '{name}' procesado con éxito. Filas: {len(df)}, Columnas: {len(df.columns)}")
         
-        # Validar y rellenar columnas
         missing_cols = [c for c in cols if c not in df.columns]
         if missing_cols:
             logger.info(f"Añadiendo {len(missing_cols)} columnas faltantes a '{name}'.")
@@ -196,10 +196,9 @@ def chat_ia(req: ChatRequest):
             logger.error("Error de conexión a la API de Groq.")
             raise Exception(f"GroqConnectionError: Fallo de red hacia Groq. {str(e)}")
         except APIError as e:
-            # Si el modelo no existe, saltará aquí
             logger.error(f"Error devuelto por la API de Groq: {str(e)}")
-            if "model" in str(e).lower() or "does not exist" in str(e).lower():
-                 raise Exception(f"GroqModelError: El modelo '{MODEL_NAME}' no existe o está obsoleto. {str(e)}")
+            if "model" in str(e).lower() or "does not exist" in str(e).lower() or "decommissioned" in str(e).lower():
+                 raise Exception(f"GroqModelError: El modelo '{MODEL_NAME}' ha sido dado de baja o no existe. {str(e)}")
             raise Exception(f"GroqAPIError: {str(e)}")
             
         total_time = round(time.time() - start_time, 2)
@@ -211,7 +210,6 @@ def chat_ia(req: ChatRequest):
         total_time = round(time.time() - start_time, 2)
         error_trace = traceback.format_exc()
         logger.error(f"!!! CRASH EN /chat ({total_time}s) !!!\n{error_trace}")
-        # Devolvemos el error estructurado al frontend
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==========================================
@@ -220,7 +218,6 @@ def chat_ia(req: ChatRequest):
 
 @router.get("/test-groq")
 def test_groq():
-    """Prueba mínima de conexión a la API de Groq."""
     logger.info("=== INICIO /test-groq ===")
     try:
         res = client.chat.completions.create(
@@ -243,14 +240,11 @@ def test_groq():
             "stage": "Groq API Connectivity",
             "model_tested": MODEL_NAME,
             "error_type": type(e).__name__,
-            "message": str(e),
-            "hint": "Si ves un APIError sobre 'model', significa que llama3-8b-8192 está obsoleto."
+            "message": str(e)
         }
-
 
 @router.get("/test-drive")
 def test_drive():
-    """Prueba de autenticación y lectura del FOLDER_ID en Google Drive."""
     logger.info("=== INICIO /test-drive ===")
     try:
         drive = get_drive_service()
@@ -274,6 +268,5 @@ def test_drive():
             "stage": "Google Drive Connectivity",
             "folder_id": FOLDER_ID,
             "error_type": type(e).__name__,
-            "message": str(e),
-            "hint": "Comprueba que la variable GOOGLE_CREDENTIALS_JSON está bien formateada y que la cuenta de servicio tiene permisos en la carpeta."
+            "message": str(e)
         }
