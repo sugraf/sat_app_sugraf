@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -38,7 +39,6 @@
     }
     h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
 
-    /* ---------- Topbar ---------- */
     .topbar {
       background:#ffffff;
       height:64px;
@@ -73,7 +73,6 @@
     .show { display:block; animation:dropIn 0.15s ease; }
     @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
 
-    /* ---------- Views ---------- */
     .view { display:none; padding-bottom:60px; }
     .view.active { display:block; animation:fadeIn 0.4s ease; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
@@ -89,11 +88,9 @@
     .text-center h1 { font-size:2.15rem; color:var(--ink); margin-bottom:10px; }
     .text-center p { color:var(--muted); font-size:0.98rem; line-height:1.6; max-width:480px; margin:0 auto; }
 
-    /* ---------- Cards grid ---------- */
     .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:22px; }
-    @media (max-width:640px){
-      .grid{ grid-template-columns:1fr; }
-    }
+    @media (max-width:640px){ .grid{ grid-template-columns:1fr; } }
+    
     .card {
       position:relative; overflow:hidden;
       background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
@@ -119,51 +116,15 @@
     .card-arrow span{ transition:transform 0.2s ease; }
     .card:hover .card-arrow span{ transform:translateX(4px); }
 
-    /* ---------- Custom card icons ---------- */
-    .note-icon, .nexus-icon, .person-icon, .clock-icon{ width:22px; height:22px; }
-
-    /* Introducir Aviso: notita */
+    .note-icon, .nexus-icon, .person-icon, .ai-icon { width:22px; height:22px; }
     .note-icon .fold{ transition:stroke 0.2s ease; }
     .card:hover .note-icon .fold{ stroke:#2fd9b8; }
-
-    /* Organizador de Avisos: nexo repartiendo a varios nodos */
     .nexus-icon .node{ transition:stroke 0.2s ease, fill 0.2s ease; }
     .card:hover .nexus-icon .node-main{ stroke:#2fd9b8; }
-
-    /* Avisos Asignados: personita */
     .person-icon path, .person-icon circle{ transition:stroke 0.2s ease; }
     .card:hover .person-icon .head{ stroke:#2fd9b8; }
+    .card:hover .ai-icon path { stroke:#2fd9b8; }
 
-    /* ---------- Empty / "Próximamente" slot ---------- */
-    .card-empty{
-      position:relative; overflow:hidden; cursor:default;
-      background:transparent;
-      border:1.5px dashed rgba(182,190,196,0.28);
-      border-radius:20px; padding:28px;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      text-align:center; min-height:100%;
-      transition:border-color 0.25s ease;
-    }
-    .card-empty:hover{ border-color:rgba(0,104,88,0.5); }
-    .card-empty::after{
-      content:""; position:absolute; left:-40px; bottom:-40px; width:160px; height:160px;
-      background:radial-gradient(circle, rgba(0,104,88,0.22) 0%, transparent 70%);
-    }
-    .card-empty .card-icon{
-      background:transparent; border:1.5px dashed rgba(182,190,196,0.35);
-      position:relative; z-index:1;
-    }
-    .clock-icon .hand{
-      transform-origin:12px 12px;
-      animation:clockspin 2.4s linear infinite;
-    }
-    .clock-icon .hand.hand-min{ animation-duration:2.4s; }
-    .clock-icon .hand.hand-hr{ animation-duration:9.6s; }
-    @keyframes clockspin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
-    .card-empty h3{ color:var(--muted); position:relative; z-index:1; font-size:1.05rem; }
-    .card-empty p{ position:relative; z-index:1; }
-
-    /* ---------- Login ---------- */
     .login-wrap{ min-height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; padding:20px; }
     .form-box {
       background:linear-gradient(165deg, var(--navy-light) 0%, var(--navy) 100%);
@@ -243,7 +204,7 @@
         <p>Selecciona una opci&oacute;n para comenzar.</p>
       </div>
       <div class="grid">
-        <div class="card" onclick="irA(&#39;generador&#39;)">
+        <div class="card" onclick="irA('generador')">
           <div class="card-icon">
             <svg class="note-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 4.25h7.5L18 8.75V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.25a1 1 0 0 1 1-1Z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
@@ -257,7 +218,7 @@
           <p>Registra un nuevo aviso en el sistema general.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" onclick="irA(&#39;gestor&#39;)">
+        <div class="card" onclick="irA('gestor')">
           <div class="card-icon">
             <svg class="nexus-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8.5V12M12 12 6.5 16.25M12 12l5.5 4.25" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -270,7 +231,7 @@
           <p>Asignaci&oacute;n de t&eacute;cnicos y gesti&oacute;n del panel central.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" onclick="irA(&#39;adjudicados&#39;)">
+        <div class="card" onclick="irA('adjudicados')">
           <div class="card-icon">
             <svg class="person-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle class="head" cx="12" cy="8" r="3.25" stroke="#a9bcd6" stroke-width="1.5"/>
@@ -281,16 +242,16 @@
           <p>Crea los partes de los avisos asignados.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card-empty">
+        <div class="card" id="card-control-ia" style="display:none;" onclick="irA('control')">
           <div class="card-icon">
-            <svg class="clock-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="9.25" stroke="#a9bcd6" stroke-width="1.5"/>
-              <line class="hand hand-hr" x1="12" y1="12" x2="12" y2="7.5" stroke="#2fd9b8" stroke-width="1.6" stroke-linecap="round"/>
-              <line class="hand hand-min" x1="12" y1="12" x2="15.5" y2="12" stroke="#2fd9b8" stroke-width="1.6" stroke-linecap="round"/>
+            <svg class="ai-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
             </svg>
           </div>
-          <h3>Pr&oacute;ximamente</h3>
-          <p>Nuevo m&oacute;dulo en camino.</p>
+          <h3>Control IA</h3>
+          <p>Asistente de IA para consultar históricos y asignar rutas.</p>
+          <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
       </div>
     </div>
@@ -312,6 +273,11 @@
       document.getElementById("zona-usuario").style.display = "flex";
       document.getElementById("view-login").classList.remove("active");
       document.getElementById("view-dashboard").classList.add("active");
+      
+      if (currentUser === "master") {
+          const aiCard = document.getElementById("card-control-ia");
+          if (aiCard) aiCard.style.display = "block";
+      }
     }
 
     function toggleUserMenu() {
@@ -341,6 +307,11 @@
 
         document.getElementById("view-login").classList.remove("active");
         document.getElementById("view-dashboard").classList.add("active");
+
+        if (currentUser === "master") {
+            const aiCard = document.getElementById("card-control-ia");
+            if (aiCard) aiCard.style.display = "block";
+        }
       } else {
         alert("Contraseña incorrecta.");
       }
