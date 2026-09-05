@@ -187,6 +187,38 @@ def chat_ia(req: ChatRequest):
             groq_time = round(time.time() - groq_start, 2)
             logger.info(f"Respuesta de Groq recibida con éxito en {groq_time}s.")
             
+            # --- DIAGNOSTIC INJECTION START ---
+            logger.info("[Groq Debug] HTTP response received. Inspecting content...")
+            
+            choice = response.choices[0]
+            message = choice.message
+            content = message.content
+            
+            logger.info(f"[Groq Debug] content type: {type(content)}")
+            logger.info(f"[Groq Debug] content is None: {content is None}")
+            
+            if content is not None:
+                logger.info(f"[Groq Debug] content length: {len(content)}")
+            else:
+                logger.info("[Groq Debug] content length: N/A (content is None)")
+                
+            logger.info(f"[Groq Debug] finish_reason: {choice.finish_reason}")
+            
+            has_reasoning = hasattr(message, 'reasoning')
+            logger.info(f"[Groq Debug] reasoning exists: {has_reasoning}")
+            
+            if has_reasoning:
+                reasoning_val = getattr(message, 'reasoning', None)
+                logger.info(f"[Groq Debug] reasoning is None: {reasoning_val is None}")
+                if reasoning_val is not None:
+                    try:
+                        logger.info(f"[Groq Debug] reasoning length: {len(reasoning_val)}")
+                    except Exception:
+                        logger.info("[Groq Debug] reasoning length: Unable to determine (not a sized object)")
+            else:
+                logger.info("[Groq Debug] reasoning field not present")
+            # --- DIAGNOSTIC INJECTION END ---
+            
         except AuthenticationError as e:
             logger.error("Fallo de autenticación con Groq. La API Key puede ser inválida.")
             raise Exception(f"GroqAuthError: Verifica tu API Key. {str(e)}")
