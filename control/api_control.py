@@ -23,7 +23,7 @@ client = OpenAI(
 def get_drive_service():
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if not creds_raw:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON variable is missing.")
+        raise ValueError("Missing GOOGLE_CREDENTIALS_JSON environment variable.")
     creds_dict = json.loads(creds_raw)
     return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
@@ -67,32 +67,34 @@ def chat_ia(req: ChatRequest):
             df_sin = get_excel_df(drive, 'Avisos Sin Tratar.xlsx')
             df_tra = get_excel_df(drive, 'Avisos Tratados.xlsx')
             df_combined = pd.concat([df_sin, df_tra], ignore_index=True)
-            csv_data = df_combined.to_csv(index=False)
+            context_text = df_combined.to_csv(index=False)
         else:
             df_fin = get_excel_df(drive, 'Partes Finalizados.xlsx')
-            csv_data = df_fin.to_csv(index=False)
+            context_text = df_fin.to_csv(index=False)
         
-        if len(csv_data) > 15000:
-            csv_data = csv_data[:15000] + "\n...[TRUNCATED]"
+        if len(context_text) > 20000:
+            context_text = context_text[:20000] + "\n...[TRUNCATED]"
 
         system_prompt = (
-            "You are an AI assistant for a technical service manager. "
-            "Answer based strictly on the provided CSV data. "
-            "When routing or assigning technicians to locations, NEVER prioritize older tickets or give preference based on antiquity."
+            "You are an expert technical service manager assistant. "
+            "Answer the user's question using ONLY the provided context data. "
+            "When routing or assigning technicians to locations, NEVER prioritize older tickets or give preference based on antiquity. "
+            "Answer in the same language the user asks in."
         )
-        prompt = f"Data:\n{csv_data}\n\nUser Question: {req.query}"
+        
+        user_prompt = f"Context Data (CSV Format):\n{context_text}\n\nQuestion: {req.query}"
         
         response = client.chat.completions.create(
             model="llama3-8b-8192", 
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.1
         )
         
         return {"reply": response.choices[0].message.content}
     except Exception as e:
-        error_details = traceback.format_exc()
-        print(error_details) 
-        raise HTTPException(status_code=500, detail=str(e))
+        error_trace = traceback.format_exc()
+        error_msg = f"Type: {type(e).__name__} | Message: {str(e)} | Trace: {error_trace}"
+        raise HTTPException(status_code=500, detail=error_msg)
