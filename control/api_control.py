@@ -21,7 +21,10 @@ client = OpenAI(
 )
 
 def get_drive_service():
-    creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
+    creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    if not creds_raw:
+        raise ValueError("GOOGLE_CREDENTIALS_JSON variable is missing.")
+    creds_dict = json.loads(creds_raw)
     return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     ))
@@ -48,7 +51,7 @@ def get_excel_df(drive, name):
             _, done = downloader.next_chunk()
         fh.seek(0)
         
-        return pd.read_excel(fh, dtype=str).fillna("")
+        return pd.read_excel(fh, engine='openpyxl', dtype=str).fillna("")
     return pd.DataFrame()
 
 class ChatRequest(BaseModel):
@@ -92,4 +95,4 @@ def chat_ia(req: ChatRequest):
     except Exception as e:
         error_details = traceback.format_exc()
         print(error_details) 
-        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
