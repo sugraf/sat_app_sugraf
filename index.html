@@ -187,7 +187,7 @@
           <option value="Francisco Ant&uacute;nez">Francisco Ant&uacute;nez</option>
           <option value="Daniel Gargallo">Daniel Gargallo</option>
           <option value="Emilio Arrieta">Emilio Arrieta</option>
-          <option value="master">Master</option>
+          <option value="Master">Master</option>
         </select>
         <label>Contrase&ntilde;a</label>
         <input type="password" id="login-pass" placeholder="Introduce tu clave">
@@ -263,7 +263,7 @@
       "Francisco Antúnez": "sugraf_2",
       "Daniel Gargallo": "sugraf_3",
       "Emilio Arrieta": "sugraf_4",
-      "master": "sugraf_5"
+      "Master": "sugraf_5"
     };
 
     let currentUser = localStorage.getItem("sugraf_user") || null;
@@ -274,7 +274,7 @@
       document.getElementById("view-login").classList.remove("active");
       document.getElementById("view-dashboard").classList.add("active");
       
-      if (currentUser === "master") {
+      if (currentUser === "Master") {
           const aiCard = document.getElementById("card-control-ia");
           if (aiCard) aiCard.style.display = "block";
       }
@@ -308,7 +308,7 @@
         document.getElementById("view-login").classList.remove("active");
         document.getElementById("view-dashboard").classList.add("active");
 
-        if (currentUser === "master") {
+        if (currentUser === "Master") {
             const aiCard = document.getElementById("card-control-ia");
             if (aiCard) aiCard.style.display = "block";
         }
