@@ -67,8 +67,12 @@ def listar_clientes_maquinas():
         df = pd.read_excel(fh, header=4)
         df.columns = [str(col).replace("\u00a0", " ").strip() for col in df.columns]
 
-        if "CLIENTE" not in df.columns or "POBLACIÓN" not in df.columns:
-            return {"error": "El Excel no contiene CLIENTE y/o POBLACIÓN"}
+        if "CLIENTE" not in df.columns:
+            return {"error": "El Excel no contiene la columna CLIENTE"}
+
+        # Lógica de posición: 3 columnas a la derecha del cliente
+        idx_cliente = list(df.columns).index("CLIENTE")
+        idx_poblacion = idx_cliente + 3
 
         def clean(value):
             if pd.isna(value):
@@ -88,12 +92,23 @@ def listar_clientes_maquinas():
             return text.casefold()
 
         for _, row in df.iterrows():
-            c = clean(row.get("CLIENTE", ""))
+            if idx_cliente >= len(row): continue
+            
+            c = clean(row.iloc[idx_cliente])
             if not c:
                 continue
 
             key = normalize_key(c)
-            poblacion = clean(row.get("POBLACIÓN", ""))
+            
+            # Obtener población de 3 columnas a la derecha
+            poblacion = ""
+            if idx_poblacion < len(row):
+                poblacion = clean(row.iloc[idx_poblacion])
+            
+            # Fallback por nombre si la columna posicional está vacía
+            if not poblacion and "POBLACIÓN" in df.columns:
+                poblacion = clean(row.get("POBLACIÓN", ""))
+
             n = clean(row.get("NOMBRE", ""))
             equipo = clean(row.get("EQUIPO", ""))
             marca = clean(row.get("MARCA", ""))
