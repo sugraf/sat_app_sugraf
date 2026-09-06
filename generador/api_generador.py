@@ -11,7 +11,6 @@ import pandas as pd
 
 router = APIRouter()
 
-EQUIPOS_FILE_ID = "1mNdXqH6RLwXSIXxd9i3eexOMAkaYJKWN"
 FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 def get_drive_service():
@@ -43,19 +42,25 @@ class NuevoAviso(BaseModel):
 def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
-        try:
-            file_metadata = drive.files().get(fileId=EQUIPOS_FILE_ID, fields="mimeType").execute()
-        except Exception:
-            return {"error": "Error al acceder a Google Drive"}
+        
+        # Busca el archivo por nombre en lugar de usar un ID fijo
+        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Clientes_maquinas.xlsx' and trashed = false"
+        res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
+        archivos = res.get("files", [])
+        
+        if not archivos:
+            return {"error": "No se encontró el archivo Clientes_maquinas.xlsx en Google Drive"}
+            
+        file_id = archivos[0]['id']
+        mime_type = archivos[0].get("mimeType")
 
-        mime_type = file_metadata.get("mimeType")
         if mime_type == "application/vnd.google-apps.spreadsheet":
             request = drive.files().export_media(
-                fileId=EQUIPOS_FILE_ID,
+                fileId=file_id,
                 mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         else:
-            request = drive.files().get_media(fileId=EQUIPOS_FILE_ID)
+            request = drive.files().get_media(fileId=file_id)
 
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
@@ -70,7 +75,6 @@ def listar_clientes_maquinas():
         if "CLIENTE" not in df.columns:
             return {"error": "El Excel no contiene la columna CLIENTE"}
 
-        # Lógica de posición: 3 columnas a la derecha del cliente
         idx_cliente = list(df.columns).index("CLIENTE")
         idx_poblacion = idx_cliente + 3
 
@@ -100,12 +104,10 @@ def listar_clientes_maquinas():
 
             key = normalize_key(c)
             
-            # Obtener población de 3 columnas a la derecha
             poblacion = ""
             if idx_poblacion < len(row):
                 poblacion = clean(row.iloc[idx_poblacion])
             
-            # Fallback por nombre si la columna posicional está vacía
             if not poblacion and "POBLACIÓN" in df.columns:
                 poblacion = clean(row.get("POBLACIÓN", ""))
 
