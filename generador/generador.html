@@ -137,13 +137,11 @@
     .pill b { cursor: pointer; color: #c0392b; font-size: 1rem; transition: color 0.2s;}
     .pill b:hover { color: #922b21; }
 
-    /* ---------- Responsive: tablet ---------- */
+    /* ---------- Responsive ---------- */
     @media (max-width: 900px) {
       .container { max-width: 100%; }
       .form-box { max-width: 100%; }
     }
-
-    /* ---------- Responsive: móvil ---------- */
     @media (max-width: 640px) {
       body { padding: 12px; }
       .topbar { height: 52px; padding: 0 14px; border-radius: 10px; margin-bottom: 14px; }
@@ -158,11 +156,9 @@
       label { font-size: 0.75rem; margin: 12px 0 5px; }
       input, select, textarea { padding: 11px 10px; font-size: 0.9rem; }
 
-      /* Fecha / Hora: apilar en columnas si no caben */
       .field-row { flex-wrap: wrap; }
       .field-row > div { min-width: 47% !important; }
 
-      /* Fila máquina: input + botón añadir */
       .maquina-row { gap: 8px; }
       .maquina-row .custom-select-wrapper { min-width: 0; }
       .btn-add-maquina { padding: 0 14px !important; font-size: 1.2rem !important; flex-shrink: 0; }
@@ -175,8 +171,6 @@
 
       button.btn { padding: 13px; font-size: 0.95rem; }
     }
-
-    /* ---------- Responsive: móviles muy pequeños ---------- */
     @media (max-width: 380px) {
       .form-box { padding: 16px 12px; }
       .field-row { gap: 8px; }
@@ -286,20 +280,18 @@
             .trim()
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9\s]/g, "") // Eliminar signos de puntuación para evitar duplicados
             .toLowerCase();
     }
 
     function buscarCliente(texto) {
         const buscado = normalizarCliente(texto);
-
         if (!buscado) return null;
-
         for (const key in dbEquipos) {
             if (normalizarCliente(dbEquipos[key].nombre) === buscado) {
                 return dbEquipos[key];
             }
         }
-
         return null;
     }
 
@@ -318,15 +310,16 @@
         if (dbEquipos.error) throw new Error(dbEquipos.error);
 
         setupCustomDropdown('ni_cliente', 'dropdown-clientes',
-          () => Object.values(dbEquipos)
-                .map(c => c.nombre)
-                .sort(),
+          () => Object.values(dbEquipos).map(c => c.nombre).sort(),
           (sel, isClick) => {
-            // Solo al pulsar una opción real del desplegable.
             if (!isClick) return;
 
             const cliente = buscarCliente(sel);
             if (!cliente) return;
+
+            // Evitar resetear los datos visuales si es exactamente el mismo cliente seleccionado
+            if (document.getElementById('ni_cliente').dataset.selected === cliente.nombre) return;
+            document.getElementById('ni_cliente').dataset.selected = cliente.nombre;
 
             document.getElementById('ni_cliente').value = cliente.nombre;
 
@@ -335,9 +328,7 @@
             document.getElementById('ni_maquina').value = '';
             document.getElementById('ni_gar').checked = false;
 
-            // La población sale DIRECTAMENTE del registro del cliente.
-            document.getElementById('ni_poblacion').value =
-              cliente.poblacion || '';
+            document.getElementById('ni_poblacion').value = cliente.poblacion || '';
           }
         );
 
@@ -382,8 +373,6 @@
                 return;
             }
 
-            // textContent evita que un nombre con caracteres especiales
-            // se interprete como HTML.
             filtered.forEach(opt => {
                 const item = document.createElement('div');
                 item.className = 'custom-select-item';
@@ -393,7 +382,6 @@
                     e.preventDefault();
                     input.value = opt;
                     dropdown.classList.remove('show');
-
                     if (onSelectCallback) {
                         onSelectCallback(opt, true);
                     }
@@ -411,11 +399,18 @@
         input.addEventListener('input', (e) => {
             renderOptions(e.target.value);
             dropdown.classList.add('show');
-            // No seleccionamos nada mientras escribe.
         });
 
         input.addEventListener('blur', () => {
-            setTimeout(() => dropdown.classList.remove('show'), 150);
+            setTimeout(() => {
+                dropdown.classList.remove('show');
+                // Autocompletado si escribe el cliente exacto pero usa "Tabulador"
+                const options = getOptionsCallback();
+                const exactMatch = options.find(o => normalizarCliente(o) === normalizarCliente(input.value));
+                if (exactMatch && onSelectCallback) {
+                    onSelectCallback(exactMatch, true);
+                }
+            }, 150);
         });
     }
 
@@ -498,18 +493,19 @@
       const clienteEscrito = document.getElementById('ni_cliente').value;
       const cliente = buscarCliente(clienteEscrito);
 
-      // El cliente debe corresponder a una opción real del Excel.
       if (!cliente) {
         alert("Debes seleccionar un cliente de la lista.");
         return;
       }
 
-      // La población se obtiene SIEMPRE del registro del cliente,
-      // nunca del texto escrito manualmente.
-      const poblacion = cliente.poblacion || '';
+      // Permite usar lo que haya escrito el usuario en Población, respaldado por la BD
+      let poblacion = document.getElementById('ni_poblacion').value.trim();
+      if (!poblacion) {
+        poblacion = cliente.poblacion || '';
+      }
 
       if (!poblacion) {
-        alert("Este cliente no tiene población registrada en el Excel.");
+        alert("Este cliente no tiene población registrada en el Excel. Por favor, escríbela manualmente.");
         return;
       }
 
@@ -569,4 +565,3 @@
   </script>
 </body>
 </html>
-
