@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Generador de Avisos</title>
+
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     :root{
       --navy:#10263B;
@@ -17,173 +19,491 @@
       --ink:#f4f8fc;
       --muted:#a9bcd6;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        font-family: 'Montserrat', sans-serif; 
-        background-color: var(--navy); 
-        background-image: radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%), 
-                          radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%); 
-        background-attachment: fixed; 
-        color: var(--ink); 
-        min-height: 100vh; 
-        padding: 20px;
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: var(--navy);
+      background-image:
+        radial-gradient(800px circle at 20% 0%, rgba(0, 104, 88, 0.15) 0%, transparent 100%),
+        radial-gradient(800px circle at 85% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+      background-attachment: fixed;
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 20px;
     }
-    h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight: 700; }
-    
-    .topbar { background: #ffffff; height: 60px; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; border-radius: 8px; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .topbar-left { display: flex; align-items: center; gap: 15px; height: 100%; }
-    .topbar img { height: 35px; object-fit: contain; display: block; }
+
+    h1, h2, h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+    }
+
+    .topbar {
+      background: #ffffff;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      justify-content: space-between;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      height: 100%;
+    }
+
+    .topbar img {
+      height: 35px;
+      object-fit: contain;
+      display: block;
+    }
 
     .btn-back{
-      display:flex; align-items:center; gap:6px;
-      color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
-      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      color:#4a5a72;
+      text-decoration:none;
+      font-weight:600;
+      font-size:0.85rem;
+      padding:8px 14px;
+      border-radius:10px;
+      border:1px solid #e2e8f0;
       transition:background 0.15s, border-color 0.15s;
     }
-    .btn-back:hover{ background:#f1f5f8; border-color:#cbd5e1; }
 
-    .topbar-right { color:#4a5a72; font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
-    .dot { width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 0 4px var(--green-soft); }
+    .btn-back:hover{
+      background:#f1f5f8;
+      border-color:#cbd5e1;
+    }
 
-    .dropdown { position:relative; display:inline-block; cursor:pointer; }
-    .dropdown-trigger{ display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; transition:background 0.15s; }
-    .dropdown-trigger:hover{ background:#f1f5f8; }
-    .chev{ font-size:9px; color:#94a3b8; transition:transform 0.15s; }
+    .topbar-right {
+      color:#4a5a72;
+      font-size:13px;
+      font-weight:600;
+      display:flex;
+      align-items:center;
+      gap:9px;
+    }
+
+    .dot {
+      width:8px;
+      height:8px;
+      background:var(--green);
+      border-radius:50%;
+      box-shadow:0 0 0 4px var(--green-soft);
+    }
+
+    .dropdown {
+      position:relative;
+      display:inline-block;
+      cursor:pointer;
+    }
+
+    .dropdown-trigger{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      padding:8px 12px;
+      border-radius:10px;
+      transition:background 0.15s;
+    }
+
+    .dropdown-trigger:hover{
+      background:#f1f5f8;
+    }
+
+    .chev{
+      font-size:9px;
+      color:#94a3b8;
+      transition:transform 0.15s;
+    }
+
     .dropdown-content {
-      display:none; position:absolute; right:0; background:#ffffff;
-      min-width:170px; box-shadow:0 12px 28px rgba(16,38,59,0.18);
-      z-index:1; border-radius:12px; overflow:hidden; margin-top:10px;
+      display:none;
+      position:absolute;
+      right:0;
+      background:#ffffff;
+      min-width:170px;
+      box-shadow:0 12px 28px rgba(16,38,59,0.18);
+      z-index:1;
+      border-radius:12px;
+      overflow:hidden;
+      margin-top:10px;
       border:1px solid #eef2f5;
     }
+
     .dropdown-content a {
-      color:#ef4444; padding:13px 16px; text-decoration:none; display:flex;
-      align-items:center; gap:8px; font-weight:600; font-size:0.88rem;
+      color:#ef4444;
+      padding:13px 16px;
+      text-decoration:none;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:600;
+      font-size:0.88rem;
     }
-    .dropdown-content a:hover { background:#fef2f2; }
-    .show { display:block; animation:dropIn 0.15s ease; }
-    @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
-    
-    .container { max-width: 900px; margin: 0 auto;}
-    
+
+    .dropdown-content a:hover {
+      background:#fef2f2;
+    }
+
+    .show {
+      display:block;
+      animation:dropIn 0.15s ease;
+    }
+
+    @keyframes dropIn{
+      from{opacity:0; transform:translateY(-6px);}
+      to{opacity:1; transform:translateY(0);}
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
     .form-box {
-        position: relative;
-        overflow: hidden;
-        background: #ffffff;
-        border-radius: 16px;
-        padding: 25px;
-        color: var(--navy);
-        max-width: 600px;
-        margin: 0 auto;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        animation: fadeIn 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 25px;
+      color: var(--navy);
+      max-width: 600px;
+      margin: 0 auto;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s ease;
     }
+
     .form-box::before, .form-box::after {
-        content: "";
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(10px);
-        pointer-events: none;
-        z-index: 0;
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(10px);
+      pointer-events: none;
+      z-index: 0;
     }
+
     .form-box::before {
-        width: 320px; height: 320px;
-        background: radial-gradient(circle, rgba(0,104,88,0.16) 0%, transparent 70%);
-        top: -120px; left: -100px;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(0,104,88,0.16) 0%, transparent 70%);
+      top: -120px;
+      left: -100px;
     }
+
     .form-box::after {
-        width: 340px; height: 340px;
-        background: radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 70%);
-        bottom: -130px; right: -110px;
+      width: 340px;
+      height: 340px;
+      background: radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 70%);
+      bottom: -130px;
+      right: -110px;
     }
-    .form-box > * { position: relative; z-index: 1; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .form-box h2 { margin-bottom: 20px; color: var(--navy); border-bottom: 2px solid #e6ebef; padding-bottom: 10px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #5c6b7d; margin: 15px 0 5px; text-transform: uppercase; }
+
+    .form-box > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-box h2 {
+      margin-bottom: 20px;
+      color: var(--navy);
+      border-bottom: 2px solid #e6ebef;
+      padding-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #5c6b7d;
+      margin: 15px 0 5px;
+      text-transform: uppercase;
+    }
+
     input, select, textarea {
-        width: 100%; padding: 12px; border: 1px solid var(--grey); border-radius: 8px;
-        font-size: 0.95rem; font-family: 'Montserrat', sans-serif; background: #ffffff; transition: 0.2s; color: var(--navy);
-        box-shadow: 0 3px 10px rgba(0,104,88,0.07), 0 4px 14px rgba(59,130,246,0.06);
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--grey);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: 'Montserrat', sans-serif;
+      background: #ffffff;
+      transition: 0.2s;
+      color: var(--navy);
+      box-shadow:
+        0 3px 10px rgba(0,104,88,0.07),
+        0 4px 14px rgba(59,130,246,0.06);
     }
+
     input:focus, select:focus, textarea:focus {
-        outline: none; border-color: var(--green); background: #fff;
-        box-shadow: 0 0 0 3px var(--green-soft), 0 4px 14px rgba(59,130,246,0.1);
+      outline: none;
+      border-color: var(--green);
+      background: #fff;
+      box-shadow:
+        0 0 0 3px var(--green-soft),
+        0 4px 14px rgba(59,130,246,0.1);
     }
-    
-    input[type="date"], input[type="time"] { 
-      -webkit-appearance: none; 
-      appearance: none; 
-      min-width: 0; 
-      color: var(--navy) !important; 
-      -webkit-text-fill-color: var(--navy) !important; 
-      opacity: 1; 
+
+    input[type="date"], input[type="time"] {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 0;
+      color: var(--navy) !important;
+      -webkit-text-fill-color: var(--navy) !important;
+      opacity: 1;
     }
-    
-    .checkbox-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .checkbox-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: var(--navy); font-weight: 500; }
-    .checkbox-item input { width: auto; margin: 0; accent-color: var(--green); width: 18px; height: 18px; }
 
-    button.btn { background: var(--green); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 25px; cursor: pointer; transition: 0.2s; font-family: 'Montserrat', sans-serif; }
-    button.btn:hover { background: var(--green-dark); }
-    
-    .custom-select-wrapper { position: relative; margin-bottom: 14px; }
-    .custom-select-wrapper input { margin-bottom: 0; width: 100%; padding-right: 30px; }
-    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--green); pointer-events: none; }
-    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid var(--grey); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    .custom-select-list.show { display: block; }
-    .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: var(--navy); cursor: pointer; border-bottom: 1px solid #e6ebef; }
-    .custom-select-item:hover { background: var(--green-soft); color: var(--green); }
+    .checkbox-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
 
-    .pill { background: #e6ebef; color: var(--navy); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; border: 1px solid var(--grey);}
-    .pill b { cursor: pointer; color: #c0392b; font-size: 1rem; transition: color 0.2s;}
-    .pill b:hover { color: #922b21; }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.9rem;
+      color: var(--navy);
+      font-weight: 500;
+    }
 
-    /* ---------- Responsive: tablet ---------- */
+    .checkbox-item input {
+      width: auto;
+      margin: 0;
+      accent-color: var(--green);
+      width: 18px;
+      height: 18px;
+    }
+
+    button.btn {
+      background: var(--green);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      width: 100%;
+      margin-top: 25px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    button.btn:hover {
+      background: var(--green-dark);
+    }
+
+    .custom-select-wrapper {
+      position: relative;
+      margin-bottom: 14px;
+    }
+
+    .custom-select-wrapper input {
+      margin-bottom: 0;
+      width: 100%;
+      padding-right: 30px;
+    }
+
+    .custom-select-wrapper::after {
+      content: '▼';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      color: var(--green);
+      pointer-events: none;
+    }
+
+    .custom-select-list {
+      display: none;
+      position: absolute;
+      z-index: 1000;
+      top: calc(100% - 2px);
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1px solid var(--grey);
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .custom-select-list.show {
+      display: block;
+    }
+
+    .custom-select-item {
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      color: var(--navy);
+      cursor: pointer;
+      border-bottom: 1px solid #e6ebef;
+    }
+
+    .custom-select-item:hover {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .pill {
+      background: #e6ebef;
+      color: var(--navy);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      border: 1px solid var(--grey);
+    }
+
+    .pill b {
+      cursor: pointer;
+      color: #c0392b;
+      font-size: 1rem;
+      transition: color 0.2s;
+    }
+
+    .pill b:hover {
+      color: #922b21;
+    }
+
     @media (max-width: 900px) {
       .container { max-width: 100%; }
       .form-box { max-width: 100%; }
     }
 
-    /* ---------- Responsive: móvil ---------- */
     @media (max-width: 640px) {
       body { padding: 12px; }
-      .topbar { height: 52px; padding: 0 14px; border-radius: 10px; margin-bottom: 14px; }
+
+      .topbar {
+        height: 52px;
+        padding: 0 14px;
+        border-radius: 10px;
+        margin-bottom: 14px;
+      }
+
       .topbar img { height: 26px; }
-      .btn-back { height: 30px; padding: 0 12px; font-size: 13px; border-radius: 6px; }
 
-      .form-box { padding: 18px 16px; border-radius: 14px; }
-      .form-box h2 { font-size: 1.1rem; margin-bottom: 16px; padding-bottom: 8px; }
-      .form-box::before { width: 220px; height: 220px; top: -90px; left: -80px; }
-      .form-box::after { width: 240px; height: 240px; bottom: -100px; right: -90px; }
+      .btn-back {
+        height: 30px;
+        padding: 0 12px;
+        font-size: 13px;
+        border-radius: 6px;
+      }
 
-      label { font-size: 0.75rem; margin: 12px 0 5px; }
-      input, select, textarea { padding: 11px 10px; font-size: 0.9rem; }
+      .form-box {
+        padding: 18px 16px;
+        border-radius: 14px;
+      }
 
-      /* Fecha / Hora: apilar en columnas si no caben */
+      .form-box h2 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+      }
+
+      .form-box::before {
+        width: 220px;
+        height: 220px;
+        top: -90px;
+        left: -80px;
+      }
+
+      .form-box::after {
+        width: 240px;
+        height: 240px;
+        bottom: -100px;
+        right: -90px;
+      }
+
+      label {
+        font-size: 0.75rem;
+        margin: 12px 0 5px;
+      }
+
+      input, select, textarea {
+        padding: 11px 10px;
+        font-size: 0.9rem;
+      }
+
       .field-row { flex-wrap: wrap; }
-      .field-row > div { min-width: 47% !important; }
 
-      /* Fila máquina: input + botón añadir */
+      .field-row > div {
+        min-width: 47% !important;
+      }
+
       .maquina-row { gap: 8px; }
-      .maquina-row .custom-select-wrapper { min-width: 0; }
-      .btn-add-maquina { padding: 0 14px !important; font-size: 1.2rem !important; flex-shrink: 0; }
 
-      .checkbox-group { gap: 10px 16px; }
-      .checkbox-item { font-size: 0.85rem; }
+      .maquina-row .custom-select-wrapper {
+        min-width: 0;
+      }
 
-      .pill { font-size: 0.8rem; padding: 5px 10px; }
-      .custom-select-item { padding: 11px 14px; font-size: 0.9rem; }
+      .btn-add-maquina {
+        padding: 0 14px !important;
+        font-size: 1.2rem !important;
+        flex-shrink: 0;
+      }
 
-      button.btn { padding: 13px; font-size: 0.95rem; }
+      .checkbox-group {
+        gap: 10px 16px;
+      }
+
+      .checkbox-item {
+        font-size: 0.85rem;
+      }
+
+      .pill {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+      }
+
+      .custom-select-item {
+        padding: 11px 14px;
+        font-size: 0.9rem;
+      }
+
+      button.btn {
+        padding: 13px;
+        font-size: 0.95rem;
+      }
     }
 
-    /* ---------- Responsive: móviles muy pequeños ---------- */
     @media (max-width: 380px) {
       .form-box { padding: 16px 12px; }
+
       .field-row { gap: 8px; }
-      .field-row > div { min-width: 100% !important; }
+
+      .field-row > div {
+        min-width: 100% !important;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <div class="topbar">
@@ -194,8 +514,13 @@
 
     <div class="topbar-right" id="zona-usuario" style="display:none;">
       <div class="dot"></div>
+
       <div class="dropdown">
-        <span class="dropdown-trigger" id="user-display" onclick="toggleUserMenu()"><span id="user-name-text">Conectado</span> <span class="chev">&#9660;</span></span>
+        <span class="dropdown-trigger" id="user-display" onclick="toggleUserMenu()">
+          <span id="user-name-text">Conectado</span>
+          <span class="chev">&#9660;</span>
+        </span>
+
         <div id="user-menu" class="dropdown-content">
           <a href="#" onclick="cerrarSesion()">&#10162; Desconectar</a>
         </div>
@@ -206,217 +531,564 @@
   <div class="container">
     <div class="form-box">
       <h2>Nuevo Aviso</h2>
+
       <form id="form-nuevo-aviso">
+
         <div class="field-row" style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 140px;"><label>Fecha Entrada</label><input type="date" id="ni_fecha" required style="margin-bottom:0;"></div>
-          <div style="flex: 1; min-width: 110px;"><label>Hora</label><input type="time" id="ni_hora" required style="margin-bottom:0;"></div>
+          <div style="flex: 1; min-width: 140px;">
+            <label>Fecha Entrada</label>
+            <input type="date" id="ni_fecha" required style="margin-bottom:0;">
+          </div>
+
+          <div style="flex: 1; min-width: 110px;">
+            <label>Hora</label>
+            <input type="time" id="ni_hora" required style="margin-bottom:0;">
+          </div>
         </div>
-        
+
         <label>Cliente</label>
+
         <div class="custom-select-wrapper">
-          <input type="text" id="ni_cliente" autocomplete="off" required placeholder="Escribe para buscar o desplegar...">
+          <input
+            type="text"
+            id="ni_cliente"
+            autocomplete="off"
+            required
+            placeholder="Escribe para buscar o desplegar..."
+          >
           <div id="dropdown-clientes" class="custom-select-list"></div>
         </div>
-        
+
         <label>Población / Dirección</label>
         <input type="text" id="ni_poblacion" required>
-        
+
         <label>Máquina(s)</label>
+
         <div class="maquina-row" style="display: flex; gap: 10px;">
           <div class="custom-select-wrapper" style="flex: 1; margin-bottom: 0;">
-            <input type="text" id="ni_maquina" autocomplete="off" placeholder="Selecciona o escribe máquina...">
+            <input
+              type="text"
+              id="ni_maquina"
+              autocomplete="off"
+              placeholder="Selecciona o escribe máquina..."
+            >
             <div id="dropdown-maquinas" class="custom-select-list"></div>
           </div>
-          <button type="button" class="btn btn-add-maquina" style="width: auto; margin: 0; padding: 0 20px; font-size: 1.4rem;" onclick="addMaquinaManual()">+</button>
+
+          <button
+            type="button"
+            class="btn btn-add-maquina"
+            style="width: auto; margin: 0; padding: 0 20px; font-size: 1.4rem;"
+            onclick="addMaquinaManual()"
+          >+</button>
         </div>
-        <div id="maquinas-seleccionadas" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; margin-bottom: 14px;"></div>
+
+        <div
+          id="maquinas-seleccionadas"
+          style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; margin-bottom: 14px;"
+        ></div>
 
         <label>Explicar la Incidencia</label>
-        <textarea id="ni_desc" rows="3" required placeholder="Detalla el problema o anomalía reportada..."></textarea>
+        <textarea
+          id="ni_desc"
+          rows="3"
+          required
+          placeholder="Detalla el problema o anomalía reportada..."
+        ></textarea>
 
         <label>Etiquetas</label>
+
         <div class="checkbox-group">
-          <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_gar"> Garantía</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_man"> Mantenimiento</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
-          <label class="checkbox-item"><input type="checkbox" id="ni_rev"> Revisar</label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="ni_urg"> Urgente
+          </label>
+
+          <label class="checkbox-item">
+            <input type="checkbox" id="ni_gar"> Garantía
+          </label>
+
+          <label class="checkbox-item">
+            <input type="checkbox" id="ni_man"> Mantenimiento
+          </label>
+
+          <label class="checkbox-item">
+            <input type="checkbox" id="ni_ins"> Instalación
+          </label>
+
+          <label class="checkbox-item">
+            <input type="checkbox" id="ni_rev"> Revisar
+          </label>
         </div>
 
-        <button type="submit" class="btn" id="btn-save-inc">Crear Aviso</button>
+        <button type="submit" class="btn" id="btn-save-inc">
+          Crear Aviso
+        </button>
       </form>
     </div>
   </div>
 
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
-    if (!currentUser) window.location.href = "/";
-    if (currentUser === "Solo Visualizar") { alert("Tu perfil no puede crear avisos."); window.location.href = "/"; }
+
+    if (!currentUser) {
+      window.location.href = "/";
+    }
+
+    if (currentUser === "Solo Visualizar") {
+      alert("Tu perfil no puede crear avisos.");
+      window.location.href = "/";
+    }
 
     document.getElementById("user-name-text").innerText = currentUser;
     document.getElementById("zona-usuario").style.display = "flex";
 
+
     function toggleUserMenu() {
-        document.getElementById("user-menu").classList.toggle("show");
+      document.getElementById("user-menu").classList.toggle("show");
     }
 
+
     window.addEventListener("click", function(event) {
-        if (!event.target.closest(".dropdown")) {
-            var dropdowns = document.getElementsByClassName("dropdown-content");
-            for (var i = 0; i < dropdowns.length; i++) {
-                if (dropdowns[i].classList.contains("show")) {
-                    dropdowns[i].classList.remove("show");
-                }
-            }
+      if (!event.target.closest(".dropdown")) {
+        const dropdowns = document.getElementsByClassName("dropdown-content");
+
+        for (let i = 0; i < dropdowns.length; i++) {
+          if (dropdowns[i].classList.contains("show")) {
+            dropdowns[i].classList.remove("show");
+          }
         }
+      }
     });
+
 
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
       window.location.href = "/";
     }
 
+
     let dbEquipos = {};
     let maquinasSel = [];
 
-    document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
-    document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
+
+    document.getElementById('ni_fecha').value =
+      new Date().toISOString().split('T')[0];
+
+    document.getElementById('ni_hora').value =
+      new Date().toTimeString().substring(0, 5);
+
+
+    function normalizarTexto(texto) {
+      return String(texto ?? "")
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
+
+
+    function buscarClienteExacto(texto) {
+      const objetivo = normalizarTexto(texto);
+
+      if (!objetivo) {
+        return null;
+      }
+
+      const nombre = Object.keys(dbEquipos).find(
+        cliente => normalizarTexto(cliente) === objetivo
+      );
+
+      return nombre || null;
+    }
+
+
+    function cargarPoblacionCliente(clienteNombre) {
+      const poblacionInput = document.getElementById('ni_poblacion');
+
+      if (!clienteNombre) {
+        poblacionInput.value = '';
+        return;
+      }
+
+      const datosCliente = dbEquipos[clienteNombre];
+
+      if (datosCliente && datosCliente.poblacion) {
+        poblacionInput.value = datosCliente.poblacion;
+      } else {
+        poblacionInput.value = '';
+      }
+    }
+
+
+    function seleccionarCliente(clienteNombre) {
+      const clienteReal = buscarClienteExacto(clienteNombre);
+
+      if (!clienteReal) {
+        return;
+      }
+
+      const inputCliente = document.getElementById('ni_cliente');
+      inputCliente.value = clienteReal;
+
+      maquinasSel = [];
+      renderMaquinas();
+
+      document.getElementById('ni_maquina').value = '';
+      document.getElementById('ni_gar').checked = false;
+
+      // SOLO aquí cargamos la población.
+      cargarPoblacionCliente(clienteReal);
+
+      // Si el usuario había escrito una variante con acento/espacios,
+      // dejamos el nombre exactamente como está en el Excel.
+      inputCliente.dataset.selectedClient = clienteReal;
+    }
+
 
     async function cargarData() {
       const btn = document.getElementById('btn-save-inc');
-      btn.innerText = "Cargando clientes..."; btn.disabled = true;
+
+      btn.innerText = "Cargando clientes...";
+      btn.disabled = true;
+
       try {
         const res = await fetch('/api/generador/clientes-maquinas');
-        dbEquipos = await res.json();
-        
-        setupCustomDropdown('ni_cliente', 'dropdown-clientes', () => Object.keys(dbEquipos).sort(), (sel, isClick) => { 
-            maquinasSel = [];
-            renderMaquinas();
-            document.getElementById('ni_maquina').value = ''; 
-            document.getElementById('ni_gar').checked = false;
-            
-            const poblacionInput = document.getElementById('ni_poblacion');
-            if (dbEquipos[sel] && dbEquipos[sel].poblacion) {
-                poblacionInput.value = dbEquipos[sel].poblacion;
-            } else {
-                poblacionInput.value = '';
-            }
-        });
 
-        setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
-            const c = document.getElementById('ni_cliente').value;
-            if(!c || !dbEquipos[c]) return [];
-            return dbEquipos[c].maquinas.map(m => m.nombre).sort();
-        }, (sel, isClick) => {
-            if(isClick) {
-                addMaquina(sel);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        dbEquipos = await res.json();
+
+        if (!dbEquipos || dbEquipos.error) {
+          throw new Error(
+            dbEquipos?.error || "No se han podido cargar los clientes"
+          );
+        }
+
+        setupCustomDropdown(
+          'ni_cliente',
+          'dropdown-clientes',
+          () => Object.keys(dbEquipos).sort((a, b) => a.localeCompare(b, 'es')),
+          (sel, isClick) => {
+            // La población se carga ÚNICAMENTE al seleccionar.
+            if (isClick) {
+              seleccionarCliente(sel);
             }
-        });
+          }
+        );
+
+        setupCustomDropdown(
+          'ni_maquina',
+          'dropdown-maquinas',
+          () => {
+            const clienteEscrito =
+              document.getElementById('ni_cliente').value;
+
+            const clienteReal = buscarClienteExacto(clienteEscrito);
+
+            if (!clienteReal || !dbEquipos[clienteReal]) {
+              return [];
+            }
+
+            return dbEquipos[clienteReal].maquinas
+              .map(m => m.nombre)
+              .filter(Boolean)
+              .sort((a, b) => a.localeCompare(b, 'es'));
+          },
+          (sel, isClick) => {
+            if (isClick) {
+              addMaquina(sel);
+            }
+          }
+        );
+
+        // Por si hubiera un cliente ya escrito/cargado al iniciar.
+        const clienteInicial = buscarClienteExacto(
+          document.getElementById('ni_cliente').value
+        );
+
+        if (clienteInicial) {
+          seleccionarCliente(clienteInicial);
+        }
+
       } catch (err) {
-        console.error(err);
+        console.error("Error cargando clientes:", err);
+        alert("No se han podido cargar los clientes.");
       }
-      btn.innerText = "Crear Aviso"; btn.disabled = false;
+
+      btn.innerText = "Crear Aviso";
+      btn.disabled = false;
     }
-    
+
+
     cargarData();
 
-    function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
-        const input = document.getElementById(inputId);
-        const dropdown = document.getElementById(dropdownId);
-        
-        const renderOptions = (filterText = "") => {
-            const options = getOptionsCallback();
-            const filtered = options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()));
-            
-            if (filtered.length === 0) {
-                dropdown.innerHTML = `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">No hay coincidencias</div>`;
-                return;
-            }
-            dropdown.innerHTML = filtered.map(opt => `<div class="custom-select-item">${opt}</div>`).join('');
-            
-            dropdown.querySelectorAll('.custom-select-item').forEach(item => {
-                item.addEventListener('mousedown', (e) => {
-                    e.preventDefault(); 
-                    if (item.innerText === "No hay coincidencias") return;
-                    input.value = item.innerText;
-                    dropdown.classList.remove('show');
-                    if(onSelectCallback) onSelectCallback(item.innerText, true);
-                });
-            });
-        };
 
-        input.addEventListener('focus', () => { renderOptions(input.value); dropdown.classList.add('show'); });
-        input.addEventListener('input', (e) => { renderOptions(e.target.value); dropdown.classList.add('show'); if(onSelectCallback) onSelectCallback(e.target.value, false); });
-        input.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('show'), 150); });
+    function setupCustomDropdown(
+      inputId,
+      dropdownId,
+      getOptionsCallback,
+      onSelectCallback
+    ) {
+      const input = document.getElementById(inputId);
+      const dropdown = document.getElementById(dropdownId);
+
+      const renderOptions = (filterText = "") => {
+        const options = getOptionsCallback();
+
+        const filtroNormalizado = normalizarTexto(filterText);
+
+        const filtered = options.filter(option =>
+          normalizarTexto(option).includes(filtroNormalizado)
+        );
+
+        if (filtered.length === 0) {
+          dropdown.innerHTML =
+            `<div class="custom-select-item" style="color:#94a3b8; font-style:italic;">
+              No hay coincidencias
+            </div>`;
+          return;
+        }
+
+        dropdown.innerHTML = filtered
+          .map(option =>
+            `<div class="custom-select-item">${option}</div>`
+          )
+          .join('');
+
+        dropdown.querySelectorAll('.custom-select-item').forEach(item => {
+          item.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+
+            if (item.innerText === "No hay coincidencias") {
+              return;
+            }
+
+            input.value = item.innerText;
+            dropdown.classList.remove('show');
+
+            if (onSelectCallback) {
+              onSelectCallback(item.innerText, true);
+            }
+          });
+        });
+      };
+
+
+      input.addEventListener('focus', () => {
+        renderOptions(input.value);
+        dropdown.classList.add('show');
+      });
+
+
+      input.addEventListener('input', (e) => {
+        renderOptions(e.target.value);
+        dropdown.classList.add('show');
+
+        // MUY IMPORTANTE:
+        // NO ejecutamos onSelectCallback aquí.
+        // Escribir/buscar NO significa seleccionar un cliente.
+      });
+
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          dropdown.classList.remove('show');
+        }, 150);
+      });
     }
+
+
+    document.getElementById('ni_cliente').addEventListener('change', () => {
+      const input = document.getElementById('ni_cliente');
+      const clienteReal = buscarClienteExacto(input.value);
+
+      if (clienteReal) {
+        seleccionarCliente(clienteReal);
+      }
+    });
+
+
+    document.getElementById('ni_cliente').addEventListener('blur', () => {
+      setTimeout(() => {
+        const input = document.getElementById('ni_cliente');
+        const clienteReal = buscarClienteExacto(input.value);
+
+        // Si escribe manualmente un cliente válido y sale del campo,
+        // también intentamos cargar la población.
+        if (clienteReal) {
+          seleccionarCliente(clienteReal);
+        }
+      }, 160);
+    });
+
+
+    document.getElementById('ni_cliente').addEventListener('input', () => {
+      // Al empezar a cambiar el cliente seleccionado, invalidamos
+      // la selección anterior, pero NO tocamos la población todavía.
+      const input = document.getElementById('ni_cliente');
+
+      if (
+        input.dataset.selectedClient &&
+        normalizarTexto(input.dataset.selectedClient) !==
+          normalizarTexto(input.value)
+      ) {
+        delete input.dataset.selectedClient;
+
+        maquinasSel = [];
+        renderMaquinas();
+
+        document.getElementById('ni_maquina').value = '';
+        document.getElementById('ni_gar').checked = false;
+      }
+    });
+
 
     function addMaquinaManual() {
-        const v = document.getElementById('ni_maquina').value.trim();
-        if(v) addMaquina(v);
+      const v = document.getElementById('ni_maquina').value.trim();
+
+      if (v) {
+        addMaquina(v);
+      }
     }
+
 
     function addMaquina(nombre) {
-        if (!maquinasSel.includes(nombre)) {
-            maquinasSel.push(nombre);
-            renderMaquinas();
-            checkGarantiaGlobal();
-        }
-        document.getElementById('ni_maquina').value = '';
-    }
-
-    function removeMaquina(nombre) {
-        maquinasSel = maquinasSel.filter(m => m !== nombre);
+      if (!maquinasSel.includes(nombre)) {
+        maquinasSel.push(nombre);
         renderMaquinas();
         checkGarantiaGlobal();
+      }
+
+      document.getElementById('ni_maquina').value = '';
     }
+
+
+    function removeMaquina(nombre) {
+      maquinasSel = maquinasSel.filter(m => m !== nombre);
+      renderMaquinas();
+      checkGarantiaGlobal();
+    }
+
 
     function renderMaquinas() {
-        const cont = document.getElementById('maquinas-seleccionadas');
-        cont.innerHTML = maquinasSel.map(m => `<span class="pill">${m} <b onclick="removeMaquina('${m}')">×</b></span>`).join('');
+      const cont = document.getElementById('maquinas-seleccionadas');
+
+      cont.innerHTML = maquinasSel
+        .map(m =>
+          `<span class="pill">
+            ${m}
+            <b onclick="removeMaquina('${String(m).replace(/'/g, "\\'")}')">×</b>
+          </span>`
+        )
+        .join('');
     }
 
+
     function checkGarantiaGlobal() {
-        const c = document.getElementById('ni_cliente').value;
-        let isWarranty = false;
-        if (dbEquipos && dbEquipos[c]) {
-            for (let m of maquinasSel) {
-                const found = dbEquipos[c].maquinas.find(x => x.nombre === m);
-                if (found && found.f_garan) {
-                    const garanDate = new Date(found.f_garan);
-                    const today = new Date();
-                    today.setHours(0,0,0,0);
-                    if (garanDate >= today) {
-                        isWarranty = true;
-                        break;
-                    }
-                }
+      const clienteEscrito = document.getElementById('ni_cliente').value;
+      const clienteReal = buscarClienteExacto(clienteEscrito);
+
+      let isWarranty = false;
+
+      if (clienteReal && dbEquipos && dbEquipos[clienteReal]) {
+        for (const m of maquinasSel) {
+          const found = dbEquipos[clienteReal].maquinas.find(
+            x => x.nombre === m
+          );
+
+          if (found && found.f_garan) {
+            const garanDate = new Date(found.f_garan);
+
+            if (!Number.isNaN(garanDate.getTime())) {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              garanDate.setHours(0, 0, 0, 0);
+
+              if (garanDate >= today) {
+                isWarranty = true;
+                break;
+              }
             }
+          }
         }
-        document.getElementById('ni_gar').checked = isWarranty;
+      }
+
+      document.getElementById('ni_gar').checked = isWarranty;
     }
+
 
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
+      const clienteInput = document.getElementById('ni_cliente');
+      const clienteReal = buscarClienteExacto(clienteInput.value);
+
+      if (!clienteReal) {
+        alert("Debes seleccionar un cliente válido de la lista.");
+        clienteInput.focus();
+        return;
+      }
+
+      // Aseguramos que la población corresponde al cliente real.
+      seleccionarCliente(clienteReal);
+
       const v = document.getElementById('ni_maquina').value.trim();
-      if(v && !maquinasSel.includes(v)) { addMaquina(v); }
-      if (maquinasSel.length === 0) { alert("Debes seleccionar al menos una máquina."); return; }
+
+      if (v && !maquinasSel.includes(v)) {
+        addMaquina(v);
+      }
+
+      if (maquinasSel.length === 0) {
+        alert("Debes seleccionar al menos una máquina.");
+        return;
+      }
 
       const btn = document.getElementById('btn-save-inc');
-      btn.innerText = "Guardando en Excel..."; btn.disabled = true;
 
-      const cliente = document.getElementById('ni_cliente').value;
-      
-      let maquinaData = { equipo: "", marca: "", modelo: "", f_garan: "", f_instal: "" };
-      if (dbEquipos && dbEquipos[cliente]) {
-          const found = dbEquipos[cliente].maquinas.find(m => m.nombre === maquinasSel[0]);
-          if (found) maquinaData = found;
+      btn.innerText = "Guardando en Excel...";
+      btn.disabled = true;
+
+      let maquinaData = {
+        equipo: "",
+        marca: "",
+        modelo: "",
+        f_garan: "",
+        f_instal: ""
+      };
+
+      if (dbEquipos && dbEquipos[clienteReal]) {
+        const found = dbEquipos[clienteReal].maquinas.find(
+          m => m.nombre === maquinasSel[0]
+        );
+
+        if (found) {
+          maquinaData = found;
+        }
+      }
+
+      const poblacion =
+        dbEquipos[clienteReal]?.poblacion ||
+        document.getElementById('ni_poblacion').value.trim();
+
+      if (!poblacion) {
+        alert(
+          "Este cliente no tiene una población registrada en el Excel. " +
+          "Puedes escribirla manualmente antes de guardar."
+        );
+
+        btn.innerText = "Crear Aviso";
+        btn.disabled = false;
+        return;
       }
 
       const payload = {
         fecha_entrada: document.getElementById('ni_fecha').value,
-        cliente: cliente,
-        poblacion: document.getElementById('ni_poblacion').value,
+        cliente: clienteReal,
+        poblacion: poblacion,
         maquina: maquinasSel.join(" y "),
         equipo: maquinaData.equipo,
         marca: maquinaData.marca,
@@ -432,12 +1104,27 @@
       };
 
       try {
-        await fetch('/api/generador/avisos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        const response = await fetch('/api/generador/avisos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
         alert("Aviso guardado correctamente.");
         window.location.href = "/";
-      } catch (err) { 
-        alert("Error de red al guardar."); 
-        btn.innerText = "Crear Aviso"; 
+
+      } catch (err) {
+        console.error("Error guardando aviso:", err);
+
+        alert("Error de red al guardar.");
+
+        btn.innerText = "Crear Aviso";
         btn.disabled = false;
       }
     });
