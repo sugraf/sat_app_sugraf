@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -63,7 +64,6 @@ def listar_clientes_maquinas():
             _, done = downloader.next_chunk()
         fh.seek(0)
 
-        # Los encabezados están en la fila 5 del Excel.
         df = pd.read_excel(fh, header=4)
         df.columns = [str(col).replace("\u00a0", " ").strip() for col in df.columns]
 
@@ -78,19 +78,16 @@ def listar_clientes_maquinas():
         clientes_map = {}
 
         def normalize_key(value):
-            # Esta clave SOLO sirve para encontrar el cliente.
-            # No modifica el nombre que se muestra/guarda.
             text = clean(value)
             text = text.replace("\u200b", "").replace("\ufeff", "")
             text = " ".join(text.split())
             import unicodedata
             text = unicodedata.normalize("NFKD", text)
             text = "".join(ch for ch in text if not unicodedata.combining(ch))
+            text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
             return text.casefold()
 
         for _, row in df.iterrows():
-            # El nombre visible se conserva EXACTAMENTE como está en Excel:
-            # comas, tildes, ñ, puntos, dobles espacios, etc.
             c = clean(row.get("CLIENTE", ""))
             if not c:
                 continue
@@ -114,8 +111,6 @@ def listar_clientes_maquinas():
                     "maquinas": []
                 }
             elif poblacion and not clientes_map[key]["poblacion"]:
-                # Si el cliente aparece varias veces y una fila sí tiene población,
-                # usamos esa población.
                 clientes_map[key]["poblacion"] = poblacion
 
             if n and not any(m["nombre"] == n for m in clientes_map[key]["maquinas"]):
