@@ -1,6 +1,6 @@
 {
-  "name": "Sugraf Digital Manager",
-  "short_name": "Sugraf Hub",
+  "name": "Sugraf SAT App",
+  "short_name": "Sugraf SAT",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#070e1c",
