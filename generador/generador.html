@@ -279,6 +279,30 @@
     let dbEquipos = {};
     let maquinasSel = [];
 
+    function normalizarCliente(texto) {
+        return String(texto || "")
+            .replace(/[\u200B-\u200D\uFEFF]/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
+    }
+
+    function buscarCliente(texto) {
+        const buscado = normalizarCliente(texto);
+
+        if (!buscado) return null;
+
+        for (const key in dbEquipos) {
+            if (normalizarCliente(dbEquipos[key].nombre) === buscado) {
+                return dbEquipos[key];
+            }
+        }
+
+        return null;
+    }
+
     document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
 
@@ -294,27 +318,33 @@
         if (dbEquipos.error) throw new Error(dbEquipos.error);
 
         setupCustomDropdown('ni_cliente', 'dropdown-clientes',
-          () => Object.keys(dbEquipos).sort(),
+          () => Object.values(dbEquipos)
+                .map(c => c.nombre)
+                .sort(),
           (sel, isClick) => {
-            // Solo aquí, al pulsar una opción del desplegable,
-            // se considera seleccionado el cliente.
-            if (!isClick || !dbEquipos[sel]) return;
+            // Solo al pulsar una opción real del desplegable.
+            if (!isClick) return;
+
+            const cliente = buscarCliente(sel);
+            if (!cliente) return;
+
+            document.getElementById('ni_cliente').value = cliente.nombre;
 
             maquinasSel = [];
             renderMaquinas();
             document.getElementById('ni_maquina').value = '';
             document.getElementById('ni_gar').checked = false;
 
-            // La población sale directamente del cliente seleccionado.
+            // La población sale DIRECTAMENTE del registro del cliente.
             document.getElementById('ni_poblacion').value =
-              dbEquipos[sel].poblacion || '';
+              cliente.poblacion || '';
           }
         );
 
         setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
-          const c = document.getElementById('ni_cliente').value;
-          if (!c || !dbEquipos[c]) return [];
-          return dbEquipos[c].maquinas.map(m => m.nombre).sort();
+          const cliente = buscarCliente(document.getElementById('ni_cliente').value);
+          if (!cliente) return [];
+          return cliente.maquinas.map(m => m.nombre).sort();
         }, (sel, isClick) => {
           if (isClick) addMaquina(sel);
         });
@@ -335,8 +365,9 @@
 
         const renderOptions = (filterText = "") => {
             const options = getOptionsCallback();
+            const filtro = normalizarCliente(filterText);
             const filtered = options.filter(o =>
-                String(o).toLowerCase().includes(String(filterText).toLowerCase())
+                normalizarCliente(o).includes(filtro)
             );
 
             dropdown.innerHTML = '';
@@ -430,9 +461,11 @@
         const c = document.getElementById('ni_cliente').value;
         let isWarranty = false;
 
-        if (dbEquipos && dbEquipos[c]) {
+        const cliente = buscarCliente(c);
+
+        if (cliente) {
             for (let m of maquinasSel) {
-                const found = dbEquipos[c].maquinas.find(x => x.nombre === m);
+                const found = cliente.maquinas.find(x => x.nombre === m);
 
                 if (found && found.f_garan) {
                     const garanDate = new Date(found.f_garan);
@@ -462,17 +495,18 @@
         return;
       }
 
-      const cliente = document.getElementById('ni_cliente').value;
+      const clienteEscrito = document.getElementById('ni_cliente').value;
+      const cliente = buscarCliente(clienteEscrito);
 
-      // El cliente debe ser una opción real recibida desde Excel.
-      if (!dbEquipos[cliente]) {
+      // El cliente debe corresponder a una opción real del Excel.
+      if (!cliente) {
         alert("Debes seleccionar un cliente de la lista.");
         return;
       }
 
-      // Nunca usamos aquí lo que haya escrito manualmente en población:
-      // la población pertenece al cliente seleccionado.
-      const poblacion = dbEquipos[cliente].poblacion || '';
+      // La población se obtiene SIEMPRE del registro del cliente,
+      // nunca del texto escrito manualmente.
+      const poblacion = cliente.poblacion || '';
 
       if (!poblacion) {
         alert("Este cliente no tiene población registrada en el Excel.");
@@ -490,7 +524,7 @@
         f_instal: ""
       };
 
-      const found = dbEquipos[cliente].maquinas.find(
+      const found = cliente.maquinas.find(
         m => m.nombre === maquinasSel[0]
       );
 
@@ -498,7 +532,7 @@
 
       const payload = {
         fecha_entrada: document.getElementById('ni_fecha').value,
-        cliente: cliente,
+        cliente: cliente.nombre,
         poblacion: poblacion,
         maquina: maquinasSel.join(" y "),
         equipo: maquinaData.equipo,
