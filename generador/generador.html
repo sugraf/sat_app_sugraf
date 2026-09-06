@@ -137,7 +137,6 @@
     .pill b { cursor: pointer; color: #c0392b; font-size: 1rem; transition: color 0.2s;}
     .pill b:hover { color: #922b21; }
 
-    /* ---------- Responsive ---------- */
     @media (max-width: 900px) {
       .container { max-width: 100%; }
       .form-box { max-width: 100%; }
@@ -280,7 +279,7 @@
             .trim()
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-zA-Z0-9\s]/g, "") // Eliminar signos de puntuación para evitar duplicados
+            .replace(/[^a-zA-Z0-9\s]/g, "") 
             .toLowerCase();
     }
 
@@ -317,7 +316,6 @@
             const cliente = buscarCliente(sel);
             if (!cliente) return;
 
-            // Evitar resetear los datos visuales si es exactamente el mismo cliente seleccionado
             if (document.getElementById('ni_cliente').dataset.selected === cliente.nombre) return;
             document.getElementById('ni_cliente').dataset.selected = cliente.nombre;
 
@@ -404,7 +402,6 @@
         input.addEventListener('blur', () => {
             setTimeout(() => {
                 dropdown.classList.remove('show');
-                // Autocompletado si escribe el cliente exacto pero usa "Tabulador"
                 const options = getOptionsCallback();
                 const exactMatch = options.find(o => normalizarCliente(o) === normalizarCliente(input.value));
                 if (exactMatch && onSelectCallback) {
@@ -498,7 +495,6 @@
         return;
       }
 
-      // Permite usar lo que haya escrito el usuario en Población, respaldado por la BD
       let poblacion = document.getElementById('ni_poblacion').value.trim();
       if (!poblacion) {
         poblacion = cliente.poblacion || '';
