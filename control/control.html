@@ -89,7 +89,7 @@
     </div>
 
     <div class="chat-box" id="chat-content">
-      <div class="msg ai">Hola, . Estoy listo para consultar los excels. ¿En qué puedo ayudarte?</div>
+      <div class="msg ai">Hola, Master. Estoy listo para consultar los excels. ¿En qué puedo ayudarte?</div>
     </div>
 
     <div class="input-area">
@@ -100,7 +100,8 @@
 
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
-    if (currentUser !== "Master") {
+    // Corrected condition to account for uppercase 'Master' saved in localStorage
+    if (!currentUser || currentUser.toLowerCase() !== "master") {
         window.location.href = "/";
     }
 
