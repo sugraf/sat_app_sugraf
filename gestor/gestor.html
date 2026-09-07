@@ -409,11 +409,11 @@
             if (tecActual !== 'Pendiente' && tecActual !== currentUser) {
                 tecOptions += `<option value="${tecActual}" selected disabled>${tecActual}</option>`;
             }
-        } else if (currentUser === "master") {
+        } else if (currentUser === "Master") {
             TECNICOS_PERMITIDOS.forEach(t => { tecOptions += `<option value="${t}" ${tecActual === t ? 'selected' : ''}>${t}</option>`; });
         }
 
-        const disablePirineos = (currentUser !== "master") ? "disabled" : "";
+        const disablePirineos = (currentUser !== "Master") ? "disabled" : "";
         
         let badgesHtml = "";
         if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
@@ -423,7 +423,7 @@
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
 
         let btnDelete = "";
-        if (currentUser === "master") {
+        if (currentUser === "Master") {
             btnDelete = `<button class="btn-delete" onclick="event.stopPropagation(); eliminarAviso(${i}, '${fuente}')" title="Eliminar aviso">🗑️</button>`;
         }
 
