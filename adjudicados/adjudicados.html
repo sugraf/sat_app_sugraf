@@ -271,7 +271,7 @@
     </div>
 
     <div id="master-panel" style="display:none;">
-      <p class="master-intro">FILTRA LOS AVISOS POR T&Eacute;CNICO:</p>
+      <p class="master-intro">SELECCIONA UN T&Eacute;CNICO PARA VER SUS AVISOS EN PROGRESO:</p>
       <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
     </div>
 
@@ -378,6 +378,7 @@
         misAvisos = data.avisos || [];
 
         if (currentUser === "Master") {
+            if (!filtroTecnicoMaster) filtroTecnicoMaster = TECNICOS[0];
             document.getElementById('master-panel').style.display = 'block';
             renderBotonesMaster();
         }
@@ -389,7 +390,7 @@
     }
 
     function renderBotonesMaster() {
-        let html = `<button class="master-tab ${!filtroTecnicoMaster ? 'active' : ''}" onclick="filtroTecnicoMaster=null; renderBotonesMaster(); renderAvisos();">Todos <span>${misAvisos.filter(a => a['ESTADO'] !== 'Cerrado').length}</span></button>`;
+        let html = "";
         TECNICOS.forEach(t => {
             const count = misAvisos.filter(a => a['REALIZADO POR'] === t && a['ESTADO'] !== 'Cerrado').length;
             const isSelected = filtroTecnicoMaster === t;
@@ -434,12 +435,9 @@
         let noAbiertos = [];
 
         if (currentUser === 'Master') {
-            cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
-            let techAvisos = misAvisos.filter(a => a['ESTADO'] !== 'Cerrado');
-            if (filtroTecnicoMaster) {
-                techAvisos = techAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
-            }
+            const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
             abiertos = techAvisos.filter(a => a['ESTADO'] === 'Abierto');
+            cerrados = techAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             noAbiertos = techAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
         } else {
             abiertos = misAvisos.filter(a => a['ESTADO'] === 'Abierto');
@@ -448,13 +446,7 @@
         }
 
         if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
-            if (currentUser === 'Master' && !filtroTecnicoMaster) {
-                box.innerHTML = "<p class='empty-msg'>No hay avisos asignados en este momento.</p>";
-            } else if (currentUser === 'Master' && filtroTecnicoMaster) {
-                box.innerHTML = "<p class='empty-msg'>No hay avisos en curso para este técnico.</p>";
-            } else {
-                box.innerHTML = "<p class='empty-msg'>No hay avisos asignados a este técnico.</p>";
-            }
+            box.innerHTML = `<p class='empty-msg'>No hay avisos asignados a ${currentUser === 'Master' ? filtroTecnicoMaster : 'este técnico'}.</p>`;
             return;
         }
 
