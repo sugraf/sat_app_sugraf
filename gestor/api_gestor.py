@@ -63,6 +63,11 @@ class UpdateIndex(BaseModel):
     fuente: str
     valor: str
 
+class EditarAviso(BaseModel):
+    aviso_index: int
+    fuente: str
+    datos: dict
+
 @router.get("/avisos")
 def listar():
     try:
@@ -104,7 +109,6 @@ def update_tecnico(data: UpdateIndex):
         if data.fuente == 'sin_tratar':
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
             
-            # Verificación de índice fuera de rango para evitar solapamientos por clics rápidos
             if data.aviso_index >= len(df_sin) or data.aviso_index < 0:
                 raise HTTPException(status_code=400, detail="El aviso ya se ha movido o no existe. Refresca la vista.")
                 
@@ -112,7 +116,6 @@ def update_tecnico(data: UpdateIndex):
                 row = df_sin.iloc[data.aviso_index].copy()
                 fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
                 
-                # Evitar duplicados comprobando que no exista ya la fila idéntica
                 is_dup = False
                 c = str(row.get('CLIENTE', ''))
                 m = str(row.get('MÁQUINA', ''))
@@ -139,13 +142,11 @@ def update_tecnico(data: UpdateIndex):
         else: 
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
             
-            # Verificación de índice para solapamientos rápidos
             if data.aviso_index >= len(df_tra) or data.aviso_index < 0:
                 raise HTTPException(status_code=400, detail="El aviso ya se ha movido o no existe. Refresca la vista.")
                 
             row = df_tra.iloc[data.aviso_index].copy()
             
-            # Bloqueo estricto de reasignación/desasignación si el técnico ya lo ha abierto o cerrado
             estado = str(row.get('ESTADO', '')).strip()
             if estado in ['Abierto', 'Cerrado'] and data.valor != row.get('ASIGNADO A', ''):
                 raise HTTPException(status_code=400, detail="No se puede quitar ni reasignar un aviso que ya ha sido empezado o finalizado por un técnico.")
@@ -155,7 +156,6 @@ def update_tecnico(data: UpdateIndex):
                 row_sin = {k: row.get(k, '') for k in COLS_SIN}
                 row_sin['ASIGNADO A'] = 'Pendiente'
                 
-                # Evitar duplicados comprobando que no exista ya
                 is_dup = False
                 c = str(row_sin.get('CLIENTE', ''))
                 m = str(row_sin.get('MÁQUINA', ''))
@@ -175,6 +175,31 @@ def update_tecnico(data: UpdateIndex):
                 df_tra.loc[data.aviso_index, 'ASIGNADO A'] = data.valor
                 save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
 
+        return {"status": "ok"}
+    except HTTPException as he:
+        raise he
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/editar-aviso")
+def editar_aviso(data: EditarAviso):
+    try:
+        drive = get_drive_service()
+        filename = 'Avisos Sin Tratar.xlsx' if data.fuente == 'sin_tratar' else 'Avisos Tratados.xlsx'
+        cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
+        
+        fid, df = get_excel(drive, filename, cols)
+        if 0 <= data.aviso_index < len(df):
+            if data.fuente == 'tratados':
+                estado = str(df.loc[data.aviso_index].get('ESTADO', '')).strip()
+                if estado in ['Abierto', 'Cerrado']:
+                    raise HTTPException(status_code=400, detail="No se puede modificar un aviso que ya ha sido empezado o cerrado por un técnico.")
+            
+            for k, v in data.datos.items():
+                if k in df.columns:
+                    df.loc[data.aviso_index, k] = v
+                    
+            save_excel(drive, fid, filename, df)
         return {"status": "ok"}
     except HTTPException as he:
         raise he
