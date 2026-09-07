@@ -141,7 +141,7 @@ def get_mis_avisos(tecnico: str):
             row_dict['PIRINEOS'] = pirineos_val
             row_dict['aviso_index'] = index
 
-            if tecnico == 'master':
+            if tecnico == 'Master':
                 if asignado != 'Pendiente':
                     avisos_mios.append(row_dict)
             else:
