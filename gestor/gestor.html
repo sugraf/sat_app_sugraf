@@ -243,36 +243,43 @@
     .vertical-table th { text-align:left; padding:12px; background:#f1f5f8; border-bottom:1px solid #e6ebef; color:#5c6b7d; width:40%; font-weight:700; text-transform:uppercase; font-size:0.72rem; letter-spacing:0.05em; }
     .vertical-table td { padding:12px; border-bottom:1px solid #e6ebef; color:var(--navy); font-weight:500; word-break:break-word; background:#fff; }
 
-    /* ---------- Responsive: tablet ---------- */
+    /* ---------- Inputs Editables Modal ---------- */
+    .edit-input {
+        width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;
+        font-family: 'Montserrat', sans-serif; font-size: 0.85rem; background: #f8fafc; color: var(--navy);
+    }
+    .edit-input:focus { outline: none; border-color: var(--green); background: #fff; }
+    .btn-save-modal {
+        background: var(--green); color: #fff; border: none; padding: 10px 15px;
+        border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Montserrat', sans-serif;
+    }
+    .btn-cancel-modal {
+        background: #fff; color: var(--navy); border: 1px solid #cbd5e1; padding: 10px 15px;
+        border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Montserrat', sans-serif;
+    }
+
+    /* ---------- Responsive ---------- */
     @media (max-width: 900px) {
       .container { max-width: 100%; }
     }
-
-    /* ---------- Responsive: móvil ---------- */
     @media (max-width: 640px) {
       body { padding: 12px; }
       .topbar { height: 52px; padding: 0 14px; border-radius: 10px; margin-bottom: 14px; }
       .topbar img { height: 26px; }
       .btn-back { padding: 0 12px; height: 30px; font-size: 13px; border-radius: 6px; }
-
       .header-title { margin-bottom: 20px; }
       .header-title h2 { font-size: 1.5rem; }
-
       .filters-row{ flex-direction:column; }
       select.filter-sel{ min-width:100%; }
-
       .inc-item { padding: 14px 16px; border-radius: 14px; }
       .inc-title { font-size: 0.92rem; }
       .badge{ font-size: 0.62rem; padding: 2px 8px; }
-
       .modal-content { padding: 20px 16px; border-radius: 14px; }
       .modal-content::before { width: 220px; height: 220px; top: -90px; left: -80px; }
       .modal-content::after { width: 240px; height: 240px; bottom: -100px; right: -90px; }
       .modal-content h3 { font-size: 1.1rem; }
       .vertical-table th, .vertical-table td { padding: 9px; font-size: 0.85rem; }
     }
-
-    /* ---------- Responsive: móviles muy pequeños ---------- */
     @media (max-width: 380px) {
       .modal-content { padding: 16px 12px; }
       .inc-title > span:first-child { flex-wrap: wrap; }
@@ -466,13 +473,81 @@
         const av = avisosGlobales.find(a => a.original_index === index && a.fuente === fuente);
         let html = "";
         
+        const estadoAviso = av['ESTADO'] || '';
+        const canEdit = (currentUser === "Master" && estadoAviso !== 'Abierto' && estadoAviso !== 'Cerrado');
+        
         COLUMNAS_MOSTRAR.forEach(key => {
-            let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? av[key] : '-';
-            html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+            let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
+            
+            if (canEdit && key !== 'ASIGNADO A' && key !== 'ESTADO') {
+                if (['URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'].includes(key)) {
+                    html += `<tr><th>${key}</th><td>
+                        <select id="edit_${key}" class="edit-input">
+                            <option value="NO" ${val !== 'SI' ? 'selected' : ''}>NO</option>
+                            <option value="SI" ${val === 'SI' ? 'selected' : ''}>SI</option>
+                        </select>
+                    </td></tr>`;
+                } else if (key === 'DESCRIPCIÓN') {
+                    html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="3">${val}</textarea></td></tr>`;
+                } else {
+                    html += `<tr><th>${key}</th><td><input type="text" id="edit_${key}" class="edit-input" value="${val.replace(/"/g, '&quot;')}"></td></tr>`;
+                }
+            } else {
+                html += `<tr><th>${key}</th><td>${val || '-'}</td></tr>`;
+            }
         });
         
         document.getElementById('tabla-detalles').innerHTML = html;
+        
+        let footerContainer = document.getElementById('modal-footer');
+        if(!footerContainer) {
+            document.getElementById('tabla-detalles').insertAdjacentHTML('afterend', '<div id="modal-footer" style="margin-top: 15px; text-align: right; display:flex; justify-content:flex-end; gap:10px;"></div>');
+            footerContainer = document.getElementById('modal-footer');
+        }
+
+        if (canEdit) {
+            footerContainer.innerHTML = `
+                <button type="button" class="btn-cancel-modal" onclick="cerrarModal()">Cancelar</button>
+                <button type="button" class="btn-save-modal" onclick="guardarEdicionAviso(${index}, '${fuente}')">Guardar Cambios</button>
+            `;
+        } else {
+            footerContainer.innerHTML = ``;
+        }
+        
         document.getElementById('aviso-modal').style.display = 'flex';
+    }
+
+    async function guardarEdicionAviso(index, fuente) {
+        const btn = document.querySelector('.btn-save-modal');
+        if(btn) { btn.innerText = "Guardando..."; btn.disabled = true; }
+
+        const payload = { aviso_index: index, fuente: fuente, datos: {} };
+        COLUMNAS_MOSTRAR.forEach(key => {
+            if (key !== 'ASIGNADO A' && key !== 'ESTADO') {
+                const el = document.getElementById('edit_' + key);
+                if (el) {
+                    payload.datos[key] = el.value;
+                }
+            }
+        });
+
+        try {
+            const res = await fetch('/api/gestor/editar-aviso', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || "Error al guardar el aviso.");
+            } else {
+                cerrarModal();
+                cargarGestionAvisos();
+            }
+        } catch (e) {
+            alert("Error de red.");
+        }
+        if(btn) { btn.innerText = "Guardar Cambios"; btn.disabled = false; }
     }
 
     function cerrarModal() { document.getElementById('aviso-modal').style.display = 'none'; }
