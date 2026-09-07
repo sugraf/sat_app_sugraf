@@ -11,7 +11,7 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
+COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
 COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA']
 
 def get_drive_service():
@@ -125,7 +125,7 @@ def update_tecnico(data: UpdateIndex):
                 if not is_dup:
                     for col in COLS_TRA:
                         if col not in row: row[col] = ''
-                    row['REALIZADO POR'] = data.valor
+                    row['ASIGNADO A'] = data.valor
                     row['ESTADO'] = 'Vacío'
                     df_tra = pd.concat([df_tra, pd.DataFrame([row])], ignore_index=True)
                     save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
@@ -133,7 +133,7 @@ def update_tecnico(data: UpdateIndex):
                 df_sin = df_sin.drop(index=data.aviso_index).reset_index(drop=True)
                 save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
             else:
-                df_sin.loc[data.aviso_index, 'REALIZADO POR'] = data.valor
+                df_sin.loc[data.aviso_index, 'ASIGNADO A'] = data.valor
                 save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
                 
         else: 
@@ -147,13 +147,13 @@ def update_tecnico(data: UpdateIndex):
             
             # Bloqueo estricto de reasignación/desasignación si el técnico ya lo ha abierto o cerrado
             estado = str(row.get('ESTADO', '')).strip()
-            if estado in ['Abierto', 'Cerrado'] and data.valor != row.get('REALIZADO POR', ''):
+            if estado in ['Abierto', 'Cerrado'] and data.valor != row.get('ASIGNADO A', ''):
                 raise HTTPException(status_code=400, detail="No se puede quitar ni reasignar un aviso que ya ha sido empezado o finalizado por un técnico.")
 
             if data.valor == 'Pendiente':
                 fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
                 row_sin = {k: row.get(k, '') for k in COLS_SIN}
-                row_sin['REALIZADO POR'] = 'Pendiente'
+                row_sin['ASIGNADO A'] = 'Pendiente'
                 
                 # Evitar duplicados comprobando que no exista ya
                 is_dup = False
@@ -172,7 +172,7 @@ def update_tecnico(data: UpdateIndex):
                 df_tra = df_tra.drop(index=data.aviso_index).reset_index(drop=True)
                 save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
             else:
-                df_tra.loc[data.aviso_index, 'REALIZADO POR'] = data.valor
+                df_tra.loc[data.aviso_index, 'ASIGNADO A'] = data.valor
                 save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
 
         return {"status": "ok"}
