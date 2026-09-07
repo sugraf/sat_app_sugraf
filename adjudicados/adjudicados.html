@@ -386,7 +386,7 @@
         const data = await res.json();
         misAvisos = data.avisos || [];
 
-        if (currentUser === "master") {
+        if (currentUser === "Master") {
             document.getElementById('master-panel').style.display = 'block';
             renderBotonesMaster();
         }
@@ -420,7 +420,7 @@
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
 
         let actionBtn = "";
-        if (currentUser === 'master' && av['ESTADO'] === 'Cerrado') {
+        if (currentUser === 'Master' && av['ESTADO'] === 'Cerrado') {
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
 
@@ -442,7 +442,7 @@
         let cerrados = [];
         let noAbiertos = [];
 
-        if (currentUser === 'master') {
+        if (currentUser === 'Master') {
             cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             if (filtroTecnicoMaster) {
                 const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster && a['ESTADO'] !== 'Cerrado');
@@ -456,7 +456,7 @@
         }
 
         if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
-            if (currentUser === 'master' && !filtroTecnicoMaster) {
+            if (currentUser === 'Master' && !filtroTecnicoMaster) {
                 box.innerHTML = "<p class='empty-msg'>No hay avisos cerrados pendientes de archivar en Pirineos. Selecciona un técnico para ver sus avisos en curso.</p>";
             } else {
                 box.innerHTML = "<p class='empty-msg'>No hay avisos asignados a este técnico.</p>";
@@ -515,7 +515,7 @@
       document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
 
-      if (currentUser !== 'master') {
+      if (currentUser !== 'Master') {
           document.getElementById('div_pirineos').style.display = 'none';
       } else {
           document.getElementById('div_pirineos').style.display = 'block';
