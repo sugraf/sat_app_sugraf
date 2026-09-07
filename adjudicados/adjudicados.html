@@ -1,3 +1,4 @@
+<!-- adjudicados.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -183,7 +184,7 @@
       box-shadow:0 0 0 3px var(--green-soft), 0 4px 14px rgba(59,130,246,0.1);
     }
     select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23006858" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px; }
-    input[readonly] { background:#f1f5f8; color:#5c6b7d; border-style:dashed; cursor:not-allowed; box-shadow:none; }
+    input[readonly], textarea[readonly], select:disabled, input:disabled, textarea:disabled { background:#f1f5f8; color:#5c6b7d; border-style:dashed; cursor:not-allowed; box-shadow:none; }
     input[type="date"], input[type="time"] { -webkit-appearance:none; appearance:none; color:var(--navy) !important; -webkit-text-fill-color:var(--navy) !important; opacity:1; }
 
     button.btn {
@@ -233,14 +234,11 @@
       input, select, textarea { padding: 11px 10px; font-size: 0.9rem; }
 
       button.btn { padding: 13px; font-size: 0.95rem; }
-      #form-resolver > div { flex-wrap: wrap; }
-      #form-resolver > div > div { min-width: 47% !important; }
+      #botones-resolucion { flex-wrap: wrap; }
     }
 
     @media (max-width: 380px) {
       .form-box { padding: 16px 12px; }
-      #form-resolver > div { gap: 8px; }
-      #form-resolver > div > div { min-width: 100% !important; }
     }
   </style>
 </head>
@@ -325,9 +323,10 @@
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
 
-        <div style="display: flex; gap: 10px;">
-          <button type="button" class="btn btn-secondary" id="btn-progreso" onclick="guardarProgreso()">Guardar Progreso</button>
-          <button type="button" class="btn" id="btn-cerrar" onclick="cerrarAviso()">Cerrar Aviso Definitivo</button>
+        <div id="botones-resolucion" style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-progreso" onclick="guardarProgreso()" style="flex:1;">Guardar Progreso</button>
+          <button type="button" class="btn" id="btn-cerrar" onclick="cerrarAviso()" style="flex:1;">Cerrar Aviso Definitivo</button>
+          <button type="button" class="btn" id="btn-reabrir" style="background:#f59e0b; flex:1; display:none;" onclick="reabrirAviso()">Reabrir Aviso</button>
         </div>
       </form>
     </div>
@@ -390,7 +389,7 @@
     }
 
     function renderBotonesMaster() {
-        let html = "";
+        let html = `<button class="master-tab ${!filtroTecnicoMaster ? 'active' : ''}" onclick="filtroTecnicoMaster=null; renderBotonesMaster(); renderAvisos();">Todos <span>${misAvisos.filter(a => a['ESTADO'] !== 'Cerrado').length}</span></button>`;
         TECNICOS.forEach(t => {
             const count = misAvisos.filter(a => a['REALIZADO POR'] === t && a['ESTADO'] !== 'Cerrado').length;
             const isSelected = filtroTecnicoMaster === t;
@@ -491,10 +490,19 @@
     }
 
     function abrirResolucion(index) {
+      const box = document.getElementById('resolucion-box');
+      const currentIndex = document.getElementById('res_index').value;
+
+      // Cerrar parte si ya esta abierto
+      if (box.style.display === 'block' && parseInt(currentIndex) === index) {
+          box.style.display = 'none';
+          return;
+      }
+
       const av = misAvisos.find(a => a.aviso_index === index);
       if(!av) return;
 
-      document.getElementById('resolucion-box').style.display = 'block';
+      box.style.display = 'block';
       document.getElementById('res_index').value = index;
       document.getElementById('res_tecnico_original').value = av['REALIZADO POR'];
       document.getElementById('res_cliente').value = av['CLIENTE'];
@@ -523,7 +531,39 @@
       document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
 
-      setTimeout(() => { document.getElementById('resolucion-box').scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
+      const isMaster = currentUser === 'Master';
+      const isCerrado = av['ESTADO'] === 'Cerrado';
+      box.dataset.estado = av['ESTADO']; 
+
+      // Activar / Desactivar inputs según permisos
+      const camposEdicion = ['res_tipo_asistencia', 'res_pirineos', 'res_fecha', 'res_hora_ent', 'res_hora_sal', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
+      camposEdicion.forEach(f => {
+          const el = document.getElementById(f);
+          if(el) el.disabled = isCerrado && !isMaster;
+      });
+
+      // Lógica de visualización de los botones
+      const btnProgreso = document.getElementById('btn-progreso');
+      const btnCerrar = document.getElementById('btn-cerrar');
+      const btnReabrir = document.getElementById('btn-reabrir');
+
+      if (isCerrado) {
+          btnCerrar.style.display = 'none';
+          btnReabrir.style.display = 'block';
+          if (isMaster) {
+              btnProgreso.style.display = 'block';
+              btnProgreso.innerText = "Guardar Cambios (Master)";
+          } else {
+              btnProgreso.style.display = 'none';
+          }
+      } else {
+          btnCerrar.style.display = 'block';
+          btnReabrir.style.display = 'none';
+          btnProgreso.style.display = 'block';
+          btnProgreso.innerText = "Guardar Progreso";
+      }
+
+      setTimeout(() => { box.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
     }
 
     function buildPayload() {
@@ -545,11 +585,15 @@
     }
 
     async function guardarProgreso() {
+      const box = document.getElementById('resolucion-box');
+      const isCerrado = box.dataset.estado === 'Cerrado';
+      const endpoint = isCerrado ? '/api/adjudicados/editar-cerrado' : '/api/adjudicados/guardar-progreso';
+
       const btn = document.getElementById('btn-progreso');
       btn.innerText = "Guardando..."; btn.disabled = true;
 
       try {
-        const res = await fetch('/api/adjudicados/guardar-progreso', {
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(buildPayload())
@@ -560,15 +604,16 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert("Progreso guardado. El aviso ahora está ABIERTO.");
-        document.getElementById('resolucion-box').style.display = 'none';
+        alert(isCerrado ? "Cambios guardados correctamente." : "Progreso guardado. El aviso ahora está ABIERTO.");
+        box.style.display = 'none';
         cargarAvisos();
       } catch (err) {
         alert(`Error al guardar: ${err.message}`);
         console.error(err);
       }
 
-      btn.innerText = "Guardar Progreso"; btn.disabled = false;
+      btn.innerText = isCerrado ? "Guardar Cambios (Master)" : "Guardar Progreso"; 
+      btn.disabled = false;
     }
 
     async function cerrarAviso() {
@@ -603,6 +648,35 @@
       }
 
       btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
+    }
+
+    async function reabrirAviso() {
+      if(!confirm("¿Estás seguro de que quieres REABRIR este aviso? Volverá a estar en progreso.")) return;
+
+      const btn = document.getElementById('btn-reabrir');
+      btn.innerText = "Procesando..."; btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/adjudicados/reabrir', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildPayload())
+        });
+
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+        }
+
+        alert("Aviso reabierto con éxito.");
+        document.getElementById('resolucion-box').style.display = 'none';
+        cargarAvisos();
+      } catch (err) {
+        alert(`Error al reabrir el aviso: ${err.message}`);
+        console.error(err);
+      }
+
+      btn.innerText = "Reabrir Aviso"; btn.disabled = false;
     }
 
     cargarAvisos();
