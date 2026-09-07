@@ -235,6 +235,9 @@
 
       button.btn { padding: 13px; font-size: 0.95rem; }
       #botones-resolucion { flex-wrap: wrap; }
+      
+      .sesion-row { flex-wrap: wrap; gap: 5px; }
+      .sesion-row > input { flex: 1 1 30% !important; min-width: 80px; }
     }
 
     @media (max-width: 380px) {
@@ -303,17 +306,15 @@
           </div>
         </div>
 
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 140px;"><label>Fecha Realización</label><input type="date" id="res_fecha"></div>
+        <div style="margin:18px 0 7px; display:flex; justify-content:space-between; align-items:center;">
+          <label style="margin:0;">Sesiones de Trabajo (Fechas y Horas)</label>
+          <button type="button" class="btn-archive" id="btn-add-sesion" onclick="addSesionRow()">+ Añadir Sesión</button>
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 110px;"><label>Hora Entrada</label><input type="time" id="res_hora_ent"></div>
-          <div style="flex: 1; min-width: 110px;"><label>Hora Salida</label><input type="time" id="res_hora_sal"></div>
-        </div>
+        <div id="sesiones-container"></div>
 
         <label>Estado de Resolución</label>
         <select id="res_estado_resolucion">
-          <option value="Pendiente">Pendiente (Se requiere otra visita)</option>
+          <option value="Pendiente">Pendiente de Continuar (Se requiere otra visita)</option>
           <option value="Resuelto">Resuelto</option>
         </select>
 
@@ -415,6 +416,9 @@
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
 
+        // Para previsualizar las fechas en el subtítulo (mostramos solo la primera si hay varias)
+        let previewFecha = (av['FECHA REALIZACIÓN'] || '').toString().split('\n')[0] || av['F. ENTR.'];
+
         return `
         <div class="inc-item" onclick="abrirResolucion(${av.aviso_index})">
             <div class="inc-title">
@@ -422,7 +426,7 @@
                 ${actionBtn}
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
             </div>
-            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Entrada:</strong> ${av['F. ENTR.']} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['REALIZADO POR']}</div>
+            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fecha Asistencia:</strong> ${previewFecha} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['REALIZADO POR']}</div>
         </div>
         `;
     }
@@ -455,7 +459,7 @@
             finalHtml += cerrados.map(av => generateCard(av)).join('');
         }
         if (abiertos.length > 0) {
-            finalHtml += `<div class="section-divider"><span class="dot-status open"></span> Avisos Abiertos (En progreso)</div>`;
+            finalHtml += `<div class="section-divider"><span class="dot-status open"></span> Avisos en Progreso (Pendientes de continuar)</div>`;
             finalHtml += abiertos.map(av => generateCard(av)).join('');
         }
         if (noAbiertos.length > 0) {
@@ -489,11 +493,39 @@
         }
     }
 
+    function addSesionRow(f='', he='', hs='') {
+        const container = document.getElementById('sesiones-container');
+        const row = document.createElement('div');
+        row.className = 'sesion-row';
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.marginBottom = '8px';
+        row.style.alignItems = 'center';
+
+        const box = document.getElementById('resolucion-box');
+        const isCerrado = box.dataset.estado === 'Cerrado';
+        const isMaster = currentUser === 'Master';
+        const dis = (isCerrado && !isMaster) ? 'disabled' : '';
+
+        let dateVal = f ? String(f).trim() : '';
+        if(dateVal.includes(' ')) dateVal = dateVal.split(' ')[0];
+
+        let heVal = he ? String(he).trim().substring(0, 5) : '';
+        let hsVal = hs ? String(hs).trim().substring(0, 5) : '';
+
+        row.innerHTML = `
+            <input type="date" class="ses_fecha" value="${dateVal}" ${dis} style="flex:2; padding:10px;" title="Fecha">
+            <input type="time" class="ses_hora_ent" value="${heVal}" ${dis} style="flex:1; padding:10px;" title="Hora Entrada">
+            <input type="time" class="ses_hora_sal" value="${hsVal}" ${dis} style="flex:1; padding:10px;" title="Hora Salida">
+            ${(!dis) ? `<button type="button" style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.4); border-radius:8px; padding:8px 12px; cursor:pointer;" title="Eliminar sesión" onclick="this.parentElement.remove()">X</button>` : ''}
+        `;
+        container.appendChild(row);
+    }
+
     function abrirResolucion(index) {
       const box = document.getElementById('resolucion-box');
       const currentIndex = document.getElementById('res_index').value;
 
-      // Cerrar parte si ya esta abierto
       if (box.style.display === 'block' && parseInt(currentIndex) === index) {
           box.style.display = 'none';
           return;
@@ -503,6 +535,7 @@
       if(!av) return;
 
       box.style.display = 'block';
+      box.dataset.estado = av['ESTADO'];
       document.getElementById('res_index').value = index;
       document.getElementById('res_tecnico_original').value = av['REALIZADO POR'];
       document.getElementById('res_cliente').value = av['CLIENTE'];
@@ -518,31 +551,43 @@
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
       document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
 
-      let f = av['FECHA REALIZACIÓN'];
-      document.getElementById('res_fecha').value = f && f.includes('-') ? f.substring(0, 10) : new Date().toISOString().split('T')[0];
+      const isMaster = currentUser === 'Master';
+      const isCerrado = av['ESTADO'] === 'Cerrado';
+      
+      let f_arr = (av['FECHA REALIZACIÓN'] || "").toString().split('\n');
+      let he_arr = (av['HORA ENTRADA'] || "").toString().split('\n');
+      let hs_arr = (av['HORA SALIDA'] || "").toString().split('\n');
 
-      let hent = av['HORA ENTRADA'];
-      document.getElementById('res_hora_ent').value = hent ? String(hent).substring(0, 5) : '';
+      let max_len = Math.max(f_arr.length, he_arr.length, hs_arr.length);
+      if(max_len === 0 || (max_len === 1 && !f_arr[0] && !he_arr[0] && !hs_arr[0])) {
+          f_arr = [new Date().toISOString().split('T')[0]]; 
+          he_arr = ['']; 
+          hs_arr = ['']; 
+          max_len = 1;
+      }
 
-      let hsal = av['HORA SALIDA'];
-      document.getElementById('res_hora_sal').value = hsal ? String(hsal).substring(0, 5) : '';
+      document.getElementById('sesiones-container').innerHTML = '';
+      for(let i=0; i<max_len; i++) {
+          addSesionRow(f_arr[i] || '', he_arr[i] || '', hs_arr[i] || '');
+      }
+
+      const btnAdd = document.getElementById('btn-add-sesion');
+      if (isCerrado && !isMaster) {
+          btnAdd.style.display = 'none';
+      } else {
+          btnAdd.style.display = 'inline-block';
+      }
 
       document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
       document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
 
-      const isMaster = currentUser === 'Master';
-      const isCerrado = av['ESTADO'] === 'Cerrado';
-      box.dataset.estado = av['ESTADO']; 
-
-      // Activar / Desactivar inputs según permisos
-      const camposEdicion = ['res_tipo_asistencia', 'res_pirineos', 'res_fecha', 'res_hora_ent', 'res_hora_sal', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_pirineos', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado && !isMaster;
       });
 
-      // Lógica de visualización de los botones
       const btnProgreso = document.getElementById('btn-progreso');
       const btnCerrar = document.getElementById('btn-cerrar');
       const btnReabrir = document.getElementById('btn-reabrir');
@@ -567,13 +612,17 @@
     }
 
     function buildPayload() {
+        const fechas = Array.from(document.querySelectorAll('.ses_fecha')).map(el => el.value).join('\n');
+        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join('\n');
+        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join('\n');
+
         return {
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
             pirineos: document.getElementById('res_pirineos').value,
-            fecha_realizacion: document.getElementById('res_fecha').value,
-            hora_entrada: document.getElementById('res_hora_ent').value,
-            hora_salida: document.getElementById('res_hora_sal').value,
+            fecha_realizacion: fechas,
+            hora_entrada: ents,
+            hora_salida: sals,
             resuelto_pendiente: document.getElementById('res_estado_resolucion').value,
             piezas: document.getElementById('res_piezas').value,
             solucion: document.getElementById('res_solucion').value,
@@ -604,7 +653,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert(isCerrado ? "Cambios guardados correctamente." : "Progreso guardado. El aviso ahora está ABIERTO.");
+        alert(isCerrado ? "Cambios guardados correctamente." : "Progreso guardado. El aviso ahora está en progreso.");
         box.style.display = 'none';
         cargarAvisos();
       } catch (err) {
@@ -617,8 +666,11 @@
     }
 
     async function cerrarAviso() {
-      if(!document.getElementById('res_hora_ent').value || !document.getElementById('res_hora_sal').value || !document.getElementById('res_solucion').value) {
-          alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, salida y la solución.");
+      const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value);
+      const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value);
+      
+      if(ents.length === 0 || ents.some(e => !e) || sals.some(s => !s) || !document.getElementById('res_solucion').value) {
+          alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada y salida de TODAS las sesiones, y redactar la solución.");
           return;
       }
 
