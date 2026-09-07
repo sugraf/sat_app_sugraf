@@ -161,11 +161,29 @@ def guardar_progreso(parte: UpdateParte):
     except Exception as e: 
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/editar-cerrado")
+def editar_cerrado(parte: UpdateParte):
+    try:
+        drive = get_drive_service()
+        procesar_actualizacion_tratados(drive, parte, "Cerrado")
+        return {"status": "ok"}
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/resolver")
 def resolver_aviso(parte: UpdateParte):
     try:
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Cerrado")
+        return {"status": "ok"}
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reabrir")
+def reabrir_aviso(parte: UpdateParte):
+    try:
+        drive = get_drive_service()
+        procesar_actualizacion_tratados(drive, parte, "Abierto")
         return {"status": "ok"}
     except Exception as e: 
         raise HTTPException(status_code=500, detail=str(e))
