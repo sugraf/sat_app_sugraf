@@ -37,7 +37,6 @@
     }
     h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
 
-    /* ---------- Topbar (idéntica al Hub) ---------- */
     .topbar {
       background:#ffffff;
       height:64px;
@@ -80,7 +79,6 @@
     .show { display:block; animation:dropIn 0.15s ease; }
     @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
 
-    /* ---------- Page header ---------- */
     .container { max-width:960px; margin:0 auto; padding:20px; }
     .header-title{ text-align:center; margin:44px 0 34px; }
     .eyebrow{
@@ -92,7 +90,6 @@
     .header-title h2 { font-size:2rem; color:var(--ink); margin-bottom:8px; border:none; padding:0; }
     .header-title p{ color:var(--muted); font-size:0.95rem; }
 
-    /* ---------- Master technician selector ---------- */
     #master-panel{ margin-bottom:30px; }
     .master-intro{ font-size:0.78rem; color:var(--muted); margin-bottom:12px; font-weight:600; letter-spacing:0.04em; }
     .master-tab {
@@ -108,7 +105,6 @@
     .master-tab.active{ background:linear-gradient(160deg, var(--green) 0%, var(--green-dark) 100%); border-color:var(--green); box-shadow:0 10px 22px rgba(0,104,88,0.3); }
     .master-tab span{ background:rgba(0,0,0,0.25); padding:2px 9px; border-radius:12px; font-size:0.78rem; }
 
-    /* ---------- Section dividers ---------- */
     .section-divider{
       margin:32px 0 14px; padding-bottom:8px; font-size:1.05rem; font-weight:700;
       color:var(--ink); border-bottom:1px solid rgba(182,190,196,0.18);
@@ -119,7 +115,6 @@
     .dot-status.open{ background:#2fd9b8; box-shadow:0 0 0 4px var(--green-soft); }
     .dot-status.pending{ background:var(--grey); }
 
-    /* ---------- Incident cards ---------- */
     .inc-item {
       position:relative; overflow:hidden;
       background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
@@ -145,7 +140,6 @@
 
     .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
 
-    /* ---------- Resolution form: fondo blanco con reflejos verdes/azules ---------- */
     .form-box {
       position:relative;
       overflow:hidden;
@@ -211,13 +205,11 @@
     }
     button.btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
 
-    /* ---------- Responsive: tablet ---------- */
     @media (max-width: 900px) {
       .container { max-width: 100%; }
       .form-box { max-width: 100%; }
     }
 
-    /* ---------- Responsive: móvil ---------- */
     @media (max-width: 640px) {
       .container { padding: 12px; }
       .topbar { height: 52px; padding: 0 14px; }
@@ -245,7 +237,6 @@
       #form-resolver > div > div { min-width: 47% !important; }
     }
 
-    /* ---------- Responsive: móviles muy pequeños ---------- */
     @media (max-width: 380px) {
       .form-box { padding: 16px 12px; }
       #form-resolver > div { gap: 8px; }
@@ -280,7 +271,7 @@
     </div>
 
     <div id="master-panel" style="display:none;">
-      <p class="master-intro">SELECCIONA UN T&Eacute;CNICO PARA VER SUS AVISOS EN PROGRESO:</p>
+      <p class="master-intro">FILTRA LOS AVISOS POR T&Eacute;CNICO:</p>
       <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
     </div>
 
@@ -398,7 +389,7 @@
     }
 
     function renderBotonesMaster() {
-        let html = "";
+        let html = `<button class="master-tab ${!filtroTecnicoMaster ? 'active' : ''}" onclick="filtroTecnicoMaster=null; renderBotonesMaster(); renderAvisos();">Todos <span>${misAvisos.filter(a => a['ESTADO'] !== 'Cerrado').length}</span></button>`;
         TECNICOS.forEach(t => {
             const count = misAvisos.filter(a => a['REALIZADO POR'] === t && a['ESTADO'] !== 'Cerrado').length;
             const isSelected = filtroTecnicoMaster === t;
@@ -444,11 +435,12 @@
 
         if (currentUser === 'Master') {
             cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
+            let techAvisos = misAvisos.filter(a => a['ESTADO'] !== 'Cerrado');
             if (filtroTecnicoMaster) {
-                const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster && a['ESTADO'] !== 'Cerrado');
-                abiertos = techAvisos.filter(a => a['ESTADO'] === 'Abierto');
-                noAbiertos = techAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
+                techAvisos = techAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
             }
+            abiertos = techAvisos.filter(a => a['ESTADO'] === 'Abierto');
+            noAbiertos = techAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
         } else {
             abiertos = misAvisos.filter(a => a['ESTADO'] === 'Abierto');
             cerrados = misAvisos.filter(a => a['ESTADO'] === 'Cerrado');
@@ -457,7 +449,9 @@
 
         if(abiertos.length === 0 && noAbiertos.length === 0 && cerrados.length === 0){
             if (currentUser === 'Master' && !filtroTecnicoMaster) {
-                box.innerHTML = "<p class='empty-msg'>No hay avisos cerrados pendientes de archivar en Pirineos. Selecciona un técnico para ver sus avisos en curso.</p>";
+                box.innerHTML = "<p class='empty-msg'>No hay avisos asignados en este momento.</p>";
+            } else if (currentUser === 'Master' && filtroTecnicoMaster) {
+                box.innerHTML = "<p class='empty-msg'>No hay avisos en curso para este técnico.</p>";
             } else {
                 box.innerHTML = "<p class='empty-msg'>No hay avisos asignados a este técnico.</p>";
             }
