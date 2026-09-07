@@ -38,7 +38,7 @@
     }
     h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
 
-    /* ---------- Topbar (idéntica al Hub) ---------- */
+    /* ---------- Topbar ---------- */
     .topbar {
       background:#ffffff;
       height:64px;
@@ -358,7 +358,7 @@
       window.location.href = "/";
     }
 
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'];
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'];
 
     let avisosGlobales = [];
 
@@ -382,15 +382,15 @@
       let filtrados = avisosGlobales.map((av, index) => ({...av, original_index: index}));
 
       filtrados = filtrados.filter(av => {
-        const matchTec = filtroTec === "Todos" || (av['REALIZADO POR'] || 'Pendiente') === filtroTec;
+        const matchTec = filtroTec === "Todos" || (av['ASIGNADO A'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
         const matchEtiqueta = filtroEtiqueta === "Todos" || av[filtroEtiqueta] === 'SI';
         return matchTec && matchPir && matchEtiqueta;
       });
 
       filtrados.sort((a, b) => {
-          const aPendiente = (a['REALIZADO POR'] === 'Pendiente' || !a['REALIZADO POR']) ? 0 : 1;
-          const bPendiente = (b['REALIZADO POR'] === 'Pendiente' || !b['REALIZADO POR']) ? 0 : 1;
+          const aPendiente = (a['ASIGNADO A'] === 'Pendiente' || !a['ASIGNADO A']) ? 0 : 1;
+          const bPendiente = (b['ASIGNADO A'] === 'Pendiente' || !b['ASIGNADO A']) ? 0 : 1;
           return aPendiente - bPendiente;
       });
 
@@ -399,7 +399,7 @@
         const i = av.original_index;
         const fuente = av.fuente;
         const esPirineos = av['PIRINEOS'] === 'SI';
-        const tecActual = av['REALIZADO POR'] || 'Pendiente';
+        const tecActual = av['ASIGNADO A'] || 'Pendiente';
         const estadoAviso = av['ESTADO'] || '';
         
         const disableSelect = (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado') ? "disabled" : "";
