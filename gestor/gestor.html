@@ -201,7 +201,7 @@
 
     .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
 
-    /* ---------- Modal: fondo blanco con reflejos verdes/azules para mejor lectura ---------- */
+    /* ---------- Modal ---------- */
     .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .modal-content {
         position:relative;
@@ -318,10 +318,13 @@
         <option value="SI">En Pirineos</option>
         <option value="NO">No Pirineos</option>
       </select>
-      <select id="filtro-garantia" class="filter-sel" onchange="renderGestionAvisos()">
-        <option value="Todos">Garantía: Todos</option>
-        <option value="SI">Con Garantía</option>
-        <option value="NO">Sin Garantía</option>
+      <select id="filtro-etiqueta" class="filter-sel" onchange="renderGestionAvisos()">
+        <option value="Todos">Etiqueta: Todas</option>
+        <option value="URGENTE">Urgente</option>
+        <option value="GARANTÍA">Garantía</option>
+        <option value="MANTENIMIENTO">Mantenimiento</option>
+        <option value="INSTALACIÓN">Instalación</option>
+        <option value="REVISAR">Revisar</option>
       </select>
     </div>
 
@@ -372,7 +375,7 @@
       const box = document.getElementById('contenedor-gestionar');
       const filtroTec = document.getElementById('filtro-tecnico').value;
       const filtroPir = document.getElementById('filtro-pirineos').value;
-      const filtroGar = document.getElementById('filtro-garantia').value;
+      const filtroEtiqueta = document.getElementById('filtro-etiqueta').value;
       
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
 
@@ -381,8 +384,8 @@
       filtrados = filtrados.filter(av => {
         const matchTec = filtroTec === "Todos" || (av['REALIZADO POR'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
-        const matchGar = filtroGar === "Todos" || av['GARANTÍA'] === filtroGar;
-        return matchTec && matchPir && matchGar;
+        const matchEtiqueta = filtroEtiqueta === "Todos" || av[filtroEtiqueta] === 'SI';
+        return matchTec && matchPir && matchEtiqueta;
       });
 
       filtrados.sort((a, b) => {
