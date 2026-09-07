@@ -85,10 +85,27 @@ def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '': 
         return ""
     try:
-        t1 = datetime.strptime(str(h_in).strip()[:5], "%H:%M")
-        t2 = datetime.strptime(str(h_out).strip()[:5], "%H:%M")
-        diff = t2 - t1
-        return str(diff)[:-3] 
+        ins = str(h_in).strip().split('\n')
+        outs = str(h_out).strip().split('\n')
+        total_seconds = 0
+        for i in range(min(len(ins), len(outs))):
+            i_str = ins[i].strip()
+            o_str = outs[i].strip()
+            if not i_str or not o_str:
+                continue
+            t1 = datetime.strptime(i_str[:5], "%H:%M")
+            t2 = datetime.strptime(o_str[:5], "%H:%M")
+            if t2 >= t1:
+                total_seconds += (t2 - t1).total_seconds()
+            else:
+                total_seconds += (t2 - t1).total_seconds() + 86400
+        
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        
+        if hours == 0 and minutes == 0: 
+            return ""
+        return f"{hours:02d}:{minutes:02d}"
     except:
         return ""
 
