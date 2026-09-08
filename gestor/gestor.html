@@ -1,3 +1,4 @@
+<!-- gestor.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -358,8 +359,7 @@
       window.location.href = "/";
     }
 
-    // Aquí hemos retirado piezas y venta explícitamente, manteniendo la nueva de Observaciones
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES'];
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES'];
 
     let avisosGlobales = [];
 
@@ -491,7 +491,7 @@
         const canEdit = (currentUser === "Master" && estadoAviso !== 'Abierto' && estadoAviso !== 'Cerrado');
         
         COLUMNAS_MOSTRAR.forEach(key => {
-            if (key === 'OBSERVACIONES' && currentUser !== "Master") return; // Privacidad total para Observaciones
+            if (key === 'OBSERVACIONES' && currentUser !== "Master") return; 
 
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
             
