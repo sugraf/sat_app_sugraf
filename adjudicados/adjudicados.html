@@ -411,7 +411,7 @@
           <h4 style="color:var(--navy); margin-top:20px; margin-bottom:10px; font-family:'Montserrat';">Firma del Cliente</h4>
           <div style="margin-bottom:10px;">
               <label>Nombre del firmante (Cliente)</label>
-              <input type="text" id="prev_nombre_cliente" placeholder="Ej: Juan Pérez">
+              <input type="text" id="prev_nombre_cliente">
           </div>
           <p style="font-size:0.8rem; color:#64748b; margin-bottom:5px;">El cliente debe dibujar su firma abajo:</p>
           <div style="border:1px solid var(--green); border-radius:8px; overflow:hidden; margin-bottom:10px; touch-action:none; background:#f8fafc; text-align:center;">
@@ -986,6 +986,9 @@
         document.getElementById('prev_email_tecnico').value = correos[tecnico] !== undefined ? correos[tecnico] : '';
         document.getElementById('prev_email_cliente').value = "";
 
+        // REQUISITO: Que el Fdo. Cliente coja automáticamente el nombre de la empresa/cliente
+        document.getElementById('prev_nombre_cliente').value = document.getElementById('res_cliente').value;
+
         document.getElementById('modal-previa-parte').style.display = 'flex';
         
         if(!padTecnico) padTecnico = initSignaturePad('canvas-firma-tecnico');
@@ -993,7 +996,6 @@
         
         limpiarFirmaTecnico();
         limpiarFirmaCliente();
-        document.getElementById('prev_nombre_cliente').value = '';
     }
 
     function cerrarPreviaPDF() {
