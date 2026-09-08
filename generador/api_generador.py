@@ -1,3 +1,4 @@
+# api_generador.py
 import io
 import json
 import os
@@ -29,6 +30,7 @@ class NuevoAviso(BaseModel):
     equipo: str
     marca: str
     modelo: str
+    n_serie: str
     f_garan: str
     f_instal: str
     descripcion: str
@@ -43,7 +45,6 @@ def listar_clientes_maquinas():
     try:
         drive = get_drive_service()
         
-        # Busca el archivo por nombre en lugar de usar un ID fijo
         query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Clientes_maquinas.xlsx' and trashed = false"
         res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
         archivos = res.get("files", [])
@@ -77,6 +78,13 @@ def listar_clientes_maquinas():
 
         idx_cliente = list(df.columns).index("CLIENTE")
         idx_poblacion = idx_cliente + 3
+        
+        col_serie = None
+        if "MODELO" in df.columns:
+            idx_modelo = list(df.columns).index("MODELO")
+            idx_serie = idx_modelo + 2
+            if idx_serie < len(df.columns):
+                col_serie = df.columns[idx_serie]
 
         def clean(value):
             if pd.isna(value):
@@ -115,6 +123,7 @@ def listar_clientes_maquinas():
             equipo = clean(row.get("EQUIPO", ""))
             marca = clean(row.get("MARCA", ""))
             modelo = clean(row.get("MODELO", ""))
+            n_serie = clean(row.get(col_serie, "")) if col_serie else ""
             f_garan = clean(row.get("F.GARAN.", ""))
             f_instal = clean(row.get("F. INSTALACION", ""))
 
@@ -136,6 +145,7 @@ def listar_clientes_maquinas():
                     "equipo": equipo,
                     "marca": marca,
                     "modelo": modelo,
+                    "n_serie": n_serie,
                     "f_garan": f_garan[:10] if f_garan else "",
                     "f_instal": f_instal[:10] if f_instal else ""
                 })
@@ -154,7 +164,7 @@ def crear_aviso(aviso: NuevoAviso):
         res = drive.files().list(q=query, fields="files(id)").execute()
         archivos = res.get("files", [])
         
-        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
+        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
         if archivos:
             file_id = archivos[0]['id']
             request = drive.files().get_media(fileId=file_id)
@@ -178,7 +188,7 @@ def crear_aviso(aviso: NuevoAviso):
         fila_excel = {
             'F. ENTR.': aviso.fecha_entrada, 'CLIENTE': aviso.cliente, 'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina, 'EQUIPO': aviso.equipo, 'MARCA': aviso.marca, 'MODELO': aviso.modelo,
-            'F. GARANTÍA': aviso.f_garan, 'F. INSTALACIÓN': aviso.f_instal, 'DESCRIPCIÓN': aviso.descripcion,
+            'Nº SERIE': aviso.n_serie, 'F. GARANTÍA': aviso.f_garan, 'F. INSTALACIÓN': aviso.f_instal, 'DESCRIPCIÓN': aviso.descripcion,
             'REALIZADO POR': 'Pendiente', 'PIRINEOS': 'NO',
             'URGENTE': 'SI' if aviso.urgente else 'NO', 
             'GARANTÍA': 'SI' if aviso.garantia else 'NO',
