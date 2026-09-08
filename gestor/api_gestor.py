@@ -1,3 +1,4 @@
+# api_gestor.py
 import io
 import json
 import os
@@ -12,7 +13,7 @@ router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
-COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA']
+COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA', 'OPCIÓN A VENTA']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -126,11 +127,12 @@ def update_tecnico(data: UpdateIndex):
                         break
                         
                 if not is_dup:
+                    row_dict = row.to_dict()
                     for col in COLS_TRA:
-                        if col not in row: row[col] = ''
-                    row['ASIGNADO A'] = data.valor
-                    row['ESTADO'] = 'Vacío'
-                    df_tra = pd.concat([df_tra, pd.DataFrame([row])], ignore_index=True)
+                        if col not in row_dict: row_dict[col] = ''
+                    row_dict['ASIGNADO A'] = data.valor
+                    row_dict['ESTADO'] = 'Vacío'
+                    df_tra = pd.concat([df_tra, pd.DataFrame([row_dict])], ignore_index=True)
                     save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
                 
                 df_sin = df_sin.drop(index=data.aviso_index).reset_index(drop=True)
