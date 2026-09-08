@@ -365,7 +365,51 @@
         </div>
       </form>
     </div>
+  </div>
 
+  <!-- MODAL DE PREVISUALIZACION Y FIRMA -->
+  <div id="modal-previa-parte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px;">
+      <div style="background:#fff; width:100%; max-width:800px; border-radius:12px; padding:24px; position:relative; margin:auto;">
+          <h3 style="color:var(--navy); border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:20px; font-weight:700; font-family:'Montserrat';">Revisión y Firma del Parte</h3>
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
+              <div><label>Fechas</label><input type="text" id="prev_fechas"></div>
+              <div><label>Técnico</label><input type="text" id="prev_tecnico" readonly style="background:#f1f5f8;"></div>
+              
+              <div><label>Horas Inicio</label><input type="text" id="prev_horas_in"></div>
+              <div><label>Horas Fin</label><input type="text" id="prev_horas_out"></div>
+              
+              <div><label>Cliente</label><input type="text" id="prev_cliente"></div>
+              <div><label>Localidad</label><input type="text" id="prev_poblacion"></div>
+              
+              <div style="grid-column: 1 / -1;"><label>Máquina / Modelo</label><input type="text" id="prev_maquina"></div>
+              <div style="grid-column: 1 / -1;"><label>Motivo llamada/aviso</label><input type="text" id="prev_motivo"></div>
+              <div style="grid-column: 1 / -1;"><label>Piezas / Repuestos</label><textarea id="prev_piezas" rows="2"></textarea></div>
+              <div style="grid-column: 1 / -1;"><label>Trabajo Realizado</label><textarea id="prev_trabajo" rows="4"></textarea></div>
+              <div style="grid-column: 1 / -1;"><label>Observaciones</label><textarea id="prev_observaciones" rows="2"></textarea></div>
+              
+              <div><label>Estado</label><input type="text" id="prev_estado"></div>
+          </div>
+
+          <h4 style="color:var(--navy); margin-bottom:10px; font-family:'Montserrat';">Emails para el envío</h4>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:20px;">
+              <div><label>Técnico</label><input type="email" id="prev_email_tecnico"></div>
+              <div><label>Laura</label><input type="email" id="prev_email_laura" value="laura@sugraf.es"></div>
+              <div><label>Cliente</label><input type="email" id="prev_email_cliente" placeholder="cliente@correo.com"></div>
+          </div>
+
+          <h4 style="color:var(--navy); margin-bottom:10px; font-family:'Montserrat';">Firma del Técnico</h4>
+          <p style="font-size:0.8rem; color:#64748b; margin-bottom:5px;">Dibuja tu firma en el recuadro inferior:</p>
+          <div style="border:1px solid var(--grey); border-radius:8px; overflow:hidden; margin-bottom:10px; touch-action:none; background:#f8fafc; text-align:center;">
+              <canvas id="canvas-firma" width="600" height="200" style="width:100%; max-width:600px; height:200px; cursor:crosshair;"></canvas>
+          </div>
+          <button type="button" class="btn-archive" onclick="limpiarFirma()">Limpiar Firma</button>
+
+          <div style="display:flex; gap:10px; margin-top:30px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary" onclick="cerrarPreviaPDF()" style="flex:1; margin-top:0;">Volver a Edición (Atrás)</button>
+              <button type="button" class="btn" id="btn-cerrar-final" onclick="enviarYCerrarDefinitivo()" style="flex:2; margin-top:0;">Enviar y Cerrar Definitivamente</button>
+          </div>
+      </div>
   </div>
 
   <script>
@@ -558,9 +602,6 @@
         box.innerHTML = finalHtml;
     }
 
-    // -----------------------------------------------------------
-    // BOTÓN "INTRODUCIDO EN PIRINEOS" - LLAMADA QUE ENVÍA EL EMAIL
-    // -----------------------------------------------------------
     async function archivarPirineos(index) {
         if(!confirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.")) return;
 
@@ -577,8 +618,6 @@
             }
 
             let msg = "Aviso archivado correctamente en Partes Finalizados.";
-            
-            // CASO B y C: Se intentó enviar un email de Oportunidad de Venta
             if (data.email_attempted) {
                 if (data.email_sent) {
                     msg += "\n\nSe ha enviado correctamente el correo de oportunidad de venta.";
@@ -586,7 +625,6 @@
                     msg += "\n\nATENCIÓN: no se pudo enviar el correo de oportunidad de venta.\n\nError:\n" + data.email_error;
                 }
             }
-            // CASO A: email_attempted es false, así que solo muestra el mensaje normal.
 
             alert(msg);
             cargarAvisos();
@@ -812,51 +850,188 @@
       btn.disabled = false;
     }
 
-    // -----------------------------------------------------------
-    // CERRAR AVISO DEFINITIVO - NO ENVÍA EMAIL, SOLO CIERRA
-    // -----------------------------------------------------------
-    async function cerrarAviso() {
-      const ep = document.getElementById('res_estado_piezas').value;
-      if (ep === 'Sí necesita Piezas') {
-          alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
-          return;
-      }
+    //---------------------------------------------------------
+    // LÓGICA DE FIRMA Y PDF AL CERRAR DEFINITIVAMENTE
+    //---------------------------------------------------------
+    let canvas, ctx;
+    let isDrawing = false;
 
-      const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value);
-      const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value);
-      
-      if(ents.length === 0 || ents.some(e => !e) || sals.some(s => !s) || !document.getElementById('res_solucion').value) {
-          alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada y salida de TODAS las sesiones, y redactar la solución.");
-          return;
-      }
+    function initCanvas() {
+        canvas = document.getElementById('canvas-firma');
+        if(!canvas) return;
+        ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-      if(!confirm("¿Estás seguro de que quieres CERRAR definitivamente este aviso? Se pasará a la lista de cerrados.")) return;
+        const getPos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        };
 
-      const btn = document.getElementById('btn-cerrar');
-      btn.innerText = "Procesando..."; btn.disabled = true;
+        const startDraw = (e) => {
+            if(e.cancelable) e.preventDefault();
+            isDrawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        };
 
-      try {
-        const res = await fetch('/api/adjudicados/resolver', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(buildPayload())
-        });
+        const draw = (e) => {
+            if(!isDrawing) return;
+            if(e.cancelable) e.preventDefault();
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        };
 
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+        const stopDraw = () => { isDrawing = false; };
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
+
+        canvas.addEventListener('touchstart', startDraw, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDraw);
+    }
+
+    function limpiarFirma() {
+        if(ctx && canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function cerrarAviso() {
+        const ep = document.getElementById('res_estado_piezas').value;
+        if (ep === 'Sí necesita Piezas') {
+            alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
+            return;
         }
 
-        // AQUÍ EL MENSAJE YA NO HABLA DE EMAILS EN ABSOLUTO
-        alert("Aviso marcado como cerrado con éxito.");
-        document.getElementById('resolucion-box').style.display = 'none';
-        cargarAvisos();
-      } catch (err) {
-        alert(`Error al cerrar el aviso: ${err.message}`);
-        console.error(err);
-      }
+        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value);
+        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value);
+        
+        if(ents.length === 0 || ents.some(e => !e) || sals.some(s => !s) || !document.getElementById('res_solucion').value) {
+            alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada y salida de TODAS las sesiones, y redactar la solución.");
+            return;
+        }
 
-      btn.innerText = "Cerrar Aviso Definitivo"; btn.disabled = false;
+        mostrarPreviaPDF();
+    }
+
+    function mostrarPreviaPDF() {
+        const fechas = Array.from(document.querySelectorAll('.ses_fecha')).map(el => el.value).join(', ');
+        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join(', ');
+        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join(', ');
+
+        document.getElementById('prev_fechas').value = fechas;
+        document.getElementById('prev_horas_in').value = ents;
+        document.getElementById('prev_horas_out').value = sals;
+
+        document.getElementById('prev_tecnico').value = document.getElementById('res_tecnico_original').value;
+        document.getElementById('prev_cliente').value = document.getElementById('res_cliente').value;
+        document.getElementById('prev_poblacion').value = document.getElementById('res_poblacion').value;
+        document.getElementById('prev_maquina').value = document.getElementById('res_maquina').value;
+
+        const idx = parseInt(document.getElementById('res_index').value);
+        const av = misAvisos.find(a => a.aviso_index === idx);
+        
+        document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
+        document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
+        document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
+        document.getElementById('prev_observaciones').value = av ? (av['OBSERVACIONES'] || '') : '';
+        document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
+
+        const tecnico = document.getElementById('res_tecnico_original').value;
+        const correos = {
+            "Ion Volog": "ion@sugraf.es",
+            "Daniel Gargallo": "daniel@sugraf.es",
+            "Francisco Antúnez": "francisco@sugraf.es",
+            "Emilio Arrieta": ""
+        };
+        document.getElementById('prev_email_tecnico').value = correos[tecnico] !== undefined ? correos[tecnico] : '';
+        document.getElementById('prev_email_cliente').value = "";
+
+        document.getElementById('modal-previa-parte').style.display = 'flex';
+        if(!ctx) initCanvas();
+        limpiarFirma();
+    }
+
+    function cerrarPreviaPDF() {
+        document.getElementById('modal-previa-parte').style.display = 'none';
+    }
+
+    async function enviarYCerrarDefinitivo() {
+        const blank = document.createElement('canvas');
+        blank.width = canvas.width;
+        blank.height = canvas.height;
+        if(canvas.toDataURL() === blank.toDataURL()) {
+            alert("El técnico debe firmar el parte antes de enviar.");
+            return;
+        }
+
+        if(!confirm("¿Confirmas que deseas enviar los correos y CERRAR definitivamente este aviso?")) return;
+
+        const btn = document.getElementById('btn-cerrar-final');
+        btn.innerText = "Procesando..."; btn.disabled = true;
+
+        const payloadFinal = {
+            base_parte: buildPayload(),
+            pdf_fechas: document.getElementById('prev_fechas').value,
+            pdf_horas_in: document.getElementById('prev_horas_in').value,
+            pdf_horas_out: document.getElementById('prev_horas_out').value,
+            pdf_tecnico: document.getElementById('prev_tecnico').value,
+            pdf_cliente: document.getElementById('prev_cliente').value,
+            pdf_poblacion: document.getElementById('prev_poblacion').value,
+            pdf_maquina: document.getElementById('prev_maquina').value,
+            pdf_motivo: document.getElementById('prev_motivo').value,
+            pdf_piezas: document.getElementById('prev_piezas').value,
+            pdf_trabajo: document.getElementById('prev_trabajo').value,
+            pdf_observaciones: document.getElementById('prev_observaciones').value,
+            pdf_estado: document.getElementById('prev_estado').value,
+            email_tecnico: document.getElementById('prev_email_tecnico').value,
+            email_laura: document.getElementById('prev_email_laura').value,
+            email_cliente: document.getElementById('prev_email_cliente').value,
+            firma_tecnico_b64: canvas.toDataURL('image/png')
+        };
+
+        try {
+            const res = await fetch('/api/adjudicados/cerrar-parte-y-enviar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payloadFinal)
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || `Error HTTP: ${res.status}`);
+            }
+
+            let msg = "Aviso cerrado con éxito.";
+            if (data.email_error) {
+                msg += `\nATENCIÓN: Hubo un error enviando los correos:\n${data.email_error}`;
+            } else {
+                msg += `\nLos correos se han enviado correctamente con el PDF adjunto.`;
+            }
+
+            alert(msg);
+            cerrarPreviaPDF();
+            document.getElementById('resolucion-box').style.display = 'none';
+            cargarAvisos();
+        } catch (err) {
+            alert(`Error al cerrar el aviso: ${err.message}`);
+            console.error(err);
+        }
+
+        btn.innerText = "Enviar y Cerrar Definitivamente"; btn.disabled = false;
     }
 
     async function reabrirAviso() {
