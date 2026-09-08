@@ -1,4 +1,3 @@
-<!-- adjudicados.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -559,6 +558,9 @@
         box.innerHTML = finalHtml;
     }
 
+    // -----------------------------------------------------------
+    // BOTÓN "INTRODUCIDO EN PIRINEOS" - LLAMADA QUE ENVÍA EL EMAIL
+    // -----------------------------------------------------------
     async function archivarPirineos(index) {
         if(!confirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.")) return;
 
@@ -575,13 +577,16 @@
             }
 
             let msg = "Aviso archivado correctamente en Partes Finalizados.";
+            
+            // CASO B y C: Se intentó enviar un email de Oportunidad de Venta
             if (data.email_attempted) {
                 if (data.email_sent) {
-                    msg += "\n\nSe ha enviado el correo de oportunidad de venta correctamente.";
+                    msg += "\n\nSe ha enviado correctamente el correo de oportunidad de venta.";
                 } else {
-                    msg += "\n\nHubo un fallo al enviar el correo de oportunidad de venta:\n" + data.email_error;
+                    msg += "\n\nATENCIÓN: no se pudo enviar el correo de oportunidad de venta.\n\nError:\n" + data.email_error;
                 }
             }
+            // CASO A: email_attempted es false, así que solo muestra el mensaje normal.
 
             alert(msg);
             cargarAvisos();
@@ -807,6 +812,9 @@
       btn.disabled = false;
     }
 
+    // -----------------------------------------------------------
+    // CERRAR AVISO DEFINITIVO - NO ENVÍA EMAIL, SOLO CIERRA
+    // -----------------------------------------------------------
     async function cerrarAviso() {
       const ep = document.getElementById('res_estado_piezas').value;
       if (ep === 'Sí necesita Piezas') {
@@ -839,6 +847,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
+        // AQUÍ EL MENSAJE YA NO HABLA DE EMAILS EN ABSOLUTO
         alert("Aviso marcado como cerrado con éxito.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
