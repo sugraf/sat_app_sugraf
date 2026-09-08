@@ -1,3 +1,4 @@
+<!-- adjudicados.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -568,12 +569,21 @@
                 body: JSON.stringify({ aviso_index: index })
             });
 
+            const data = await res.json();
             if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+                throw new Error(data.detail || `Error HTTP: ${res.status}`);
             }
 
-            alert("Aviso archivado correctamente en Partes Finalizados.");
+            let msg = "Aviso archivado correctamente en Partes Finalizados.";
+            if (data.email_attempted) {
+                if (data.email_sent) {
+                    msg += "\n\nSe ha enviado el correo de oportunidad de venta correctamente.";
+                } else {
+                    msg += "\n\nHubo un fallo al enviar el correo de oportunidad de venta:\n" + data.email_error;
+                }
+            }
+
+            alert(msg);
             cargarAvisos();
         } catch (err) {
             alert(`Error al archivar el aviso: ${err.message}`);
@@ -704,13 +714,6 @@
           addSesionRow(f_arr[i] || '', he_arr[i] || '', hs_arr[i] || '');
       }
 
-      const btnAdd = document.getElementById('btn-add-sesion');
-      if (isCerrado && !isMaster) {
-          btnAdd.style.display = 'none';
-      } else {
-          btnAdd.style.display = 'inline-block';
-      }
-
       document.getElementById('res_estado_resolucion').innerHTML = `
           <option value="Pendiente">Pendiente en general</option>
           <option value="Resuelto">Resuelto</option>
@@ -836,7 +839,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert("Aviso marcado como cerrado con éxito. Se ha enviado el email automático si requería piezas o venta.");
+        alert("Aviso marcado como cerrado con éxito.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
       } catch (err) {
