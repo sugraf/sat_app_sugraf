@@ -1,3 +1,4 @@
+# api_adjudicados.py
 import io
 import json
 import os
@@ -19,7 +20,7 @@ from reportlab.lib.colors import HexColor
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -131,6 +132,7 @@ class CerrarYEnviarParte(BaseModel):
     pdf_maquina: str
     pdf_marca: str
     pdf_modelo: str
+    pdf_n_serie: str
     pdf_motivo: str
     pdf_piezas: str
     pdf_trabajo: str
@@ -222,7 +224,6 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
     y_cursor = height - 100
 
-    # 1. Fechas y Horas (Dinámico)
     fechas = [f.strip() for f in datos.pdf_fechas.split('\n')]
     horas_in = [h.strip() for h in datos.pdf_horas_in.split('\n')]
     horas_out = [h.strip() for h in datos.pdf_horas_out.split('\n')]
@@ -251,7 +252,6 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
     y_cursor -= (box1_h + 10)
 
-    # 2. Cliente y Máquina
     box2_h = 95
     c.rect(40, y_cursor - box2_h, width - 80, box2_h)
     c.setFont("Helvetica-Bold", 9)
@@ -280,10 +280,9 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.drawString(135, y_cursor - 75, datos.pdf_maquina[:45])
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: _________________________")
+    c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: {datos.pdf_n_serie}")
     y_cursor -= (box2_h + 10)
 
-    # 3. Trabajo Realizado (Se ajusta dinámicamente)
     box3_h = max(40, 130 - extra_height)
     c.rect(40, y_cursor - box3_h, width - 80, box3_h)
     c.setFont("Helvetica-Bold", 9)
@@ -298,7 +297,6 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         y_text -= 15
     y_cursor -= (box3_h + 10)
 
-    # 4. Piezas / Repuestos
     box4_h = 80
     c.rect(40, y_cursor - box4_h, width - 80, box4_h)
     c.setFont("Helvetica-Bold", 9)
@@ -311,7 +309,6 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         y_text -= 15
     y_cursor -= (box4_h + 10)
 
-    # 5. Observaciones
     box5_h = 70
     c.rect(40, y_cursor - box5_h, width - 80, box5_h)
     c.setFont("Helvetica-Bold", 9)
@@ -324,19 +321,16 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         y_text -= 15
     y_cursor -= (box5_h + 10)
 
-    # 6. Estado del Aviso
     c.setFont("Helvetica-Bold", 11)
     c.drawString(45, y_cursor - 15, f"Estado del Aviso: {datos.pdf_estado.upper()}")
     y_cursor -= 30
 
-    # 7. Firmas
     c.setFont("Helvetica-Bold", 10)
     c.drawString(60, y_cursor - 10, f"Fdo: {datos.pdf_tecnico} (Técnico)")
     c.drawString(width/2 + 30, y_cursor - 10, f"Fdo: {datos.pdf_nombre_cliente} (Cliente)")
 
     y_firmas = y_cursor - 90
 
-    # Cajas contenedoras de las firmas
     c.setStrokeColorRGB(0.8, 0.8, 0.8)
     c.rect(50, y_firmas, 180, 70)
     c.rect(width/2 + 20, y_firmas, 180, 70)
@@ -359,7 +353,6 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         except Exception as e:
             print("Error al dibujar la firma cliente:", e)
 
-    # Footer
     c.setFont("Helvetica", 8)
     c.setFillColorRGB(0.4, 0.4, 0.4)
     c.drawCentredString(width/2, 30, "TECNOLOGIA Y PRODUCTOS GRAFICOS, S.A. Pol. Alcalde Caballero")
@@ -485,6 +478,7 @@ def get_mis_avisos(tecnico: str):
             row_dict['DETALLE VENTA'] = row.get('DETALLE VENTA', '').strip()
             row_dict['ESTADO PIEZAS'] = row.get('ESTADO PIEZAS', '').strip()
             row_dict['HORAS TOTALES'] = row.get('HORAS TOTALES', '').strip()
+            row_dict['Nº SERIE'] = row.get('Nº SERIE', '').strip()
             row_dict['aviso_index'] = index
 
             if tecnico == 'Master':
