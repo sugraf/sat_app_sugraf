@@ -365,7 +365,7 @@
       window.location.href = "/";
     }
 
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA', 'ESTADO PIEZAS'];
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS'];
 
     let avisosGlobales = [];
 
@@ -386,7 +386,6 @@
       
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
 
-      // Usar filter directamente para conservar el original_index que viene del backend
       let filtrados = avisosGlobales.filter(av => {
         const matchTec = filtroTec === "Todos" || (av['ASIGNADO A'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
@@ -397,7 +396,13 @@
       filtrados.sort((a, b) => {
           const aPendiente = (a['ASIGNADO A'] === 'Pendiente' || !a['ASIGNADO A']) ? 0 : 1;
           const bPendiente = (b['ASIGNADO A'] === 'Pendiente' || !b['ASIGNADO A']) ? 0 : 1;
-          return aPendiente - bPendiente;
+          
+          if (aPendiente !== bPendiente) {
+              return aPendiente - bPendiente;
+          }
+          const clientA = (a['CLIENTE'] || '').toLowerCase();
+          const clientB = (b['CLIENTE'] || '').toLowerCase();
+          return clientA.localeCompare(clientB);
       });
 
       let html = "";
@@ -411,7 +416,6 @@
         let disableSelect = (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado') ? "disabled" : "";
         let titleText = disableSelect ? 'title="El aviso ya ha sido abierto por el técnico y no se puede reasignar."' : '';
         
-        // Bloquear asignación si el usuario es técnico y el aviso es de otro compañero
         if (isTecnico && tecActual !== 'Pendiente' && tecActual !== currentUser) {
             disableSelect = "disabled";
             titleText = 'title="No puedes modificar un aviso asignado a otro técnico."';
@@ -431,16 +435,19 @@
         const disablePirineos = (currentUser !== "Master") ? "disabled" : "";
         
         let badgesHtml = "";
+        
+        if(estadoAviso === 'Abierto') badgesHtml += `<span class="badge" style="background:#dbeafe; color:#2563eb; border-color:#bfdbfe;">Abierto</span>`;
+        if(estadoAviso === 'Cerrado') badgesHtml += `<span class="badge" style="background:#f3f4f6; color:#4b5563; border-color:#d1d5db;">Cerrado</span>`;
+        
         if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
         if(av['GARANTÍA'] === 'SI') badgesHtml += `<span class="badge bg-gar">Garantía</span>`;
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
         
-        // Insignias Nuevas
         if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
-        if(av['ESTADO PIEZAS'] === 'Pedidas') badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pedidas</span>`;
-        else if (av['ESTADO PIEZAS'] === 'Recibidas') badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
+        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas') badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pedidas</span>`;
+        else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas') badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
 
         let btnDelete = "";
         if (currentUser === "Master") {
@@ -497,14 +504,14 @@
                             <option value="SI" ${val === 'SI' ? 'selected' : ''}>SI</option>
                         </select>
                     </td></tr>`;
-                } else if (key === 'DESCRIPCIÓN') {
+                } else if (key === 'DESCRIPCIÓN' || key === 'DETALLE VENTA') {
                     html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="3">${val}</textarea></td></tr>`;
                 } else if (key === 'ESTADO PIEZAS') {
                     html += `<tr><th>${key}</th><td>
                         <select id="edit_${key}" class="edit-input">
-                            <option value="" ${val === '' ? 'selected' : ''}>No necesita / Ya instaladas</option>
-                            <option value="Pedidas" ${val === 'Pedidas' ? 'selected' : ''}>Pedidas</option>
-                            <option value="Recibidas" ${val === 'Recibidas' ? 'selected' : ''}>Recibidas</option>
+                            <option value="No necesita piezas" ${val === 'No necesita piezas' || val === '' ? 'selected' : ''}>No necesita piezas</option>
+                            <option value="Sí necesita Piezas" ${val === 'Sí necesita Piezas' ? 'selected' : ''}>Sí necesita Piezas</option>
+                            <option value="Piezas Recibidas" ${val === 'Piezas Recibidas' ? 'selected' : ''}>Piezas Recibidas</option>
                         </select>
                     </td></tr>`;
                 } else {
