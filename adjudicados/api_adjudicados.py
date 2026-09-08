@@ -342,7 +342,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
             img = ImageReader(io.BytesIO(img_bytes))
             c.drawImage(img, 50, y_firmas, width=180, height=70, mask='auto')
         except Exception as e:
-            print("Error al dibujar la firma técnico:", e)
+            pass
 
     if datos.firma_cliente_b64 and "," in datos.firma_cliente_b64:
         b64_data = datos.firma_cliente_b64.split(",")[1]
@@ -351,7 +351,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
             img = ImageReader(io.BytesIO(img_bytes))
             c.drawImage(img, width/2 + 20, y_firmas, width=180, height=70, mask='auto')
         except Exception as e:
-            print("Error al dibujar la firma cliente:", e)
+            pass
 
     c.setFont("Helvetica", 8)
     c.setFillColorRGB(0.4, 0.4, 0.4)
@@ -392,7 +392,12 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
     )
 
     msg.set_content(cuerpo)
-    msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename=f'Parte_Trabajo_Sugraf_{num_parte}.pdf')
+    
+    safe_cliente = str(datos.pdf_cliente).replace('/', '-').replace('\\', '-')
+    safe_maquina = str(datos.pdf_maquina).replace('/', '-').replace('\\', '-')
+    nombre_archivo = f'Parte Nº {num_parte} - {safe_cliente} - {safe_maquina}.pdf'
+    
+    msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename=nombre_archivo)
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
