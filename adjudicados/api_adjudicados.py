@@ -208,7 +208,6 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     color_sugraf = HexColor("#006858")
     c.setStrokeColor(color_sugraf)
 
-    # Intentar cargar el logo desde la raíz del proyecto
     logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logo_grande.png")
     if os.path.exists(logo_path):
         c.drawImage(logo_path, 40, height - 70, width=140, height=45, preserveAspectRatio=True, mask='auto')
@@ -223,13 +222,33 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
     y_cursor = height - 100
 
-    # 1. Fechas y Horas (Todo en la misma línea)
-    box1_h = 35
+    # 1. Fechas y Horas (Dinámico)
+    fechas = [f.strip() for f in datos.pdf_fechas.split('\n')]
+    horas_in = [h.strip() for h in datos.pdf_horas_in.split('\n')]
+    horas_out = [h.strip() for h in datos.pdf_horas_out.split('\n')]
+
+    num_lineas = max(len(fechas), len(horas_in), len(horas_out))
+    if num_lineas == 0:
+        num_lineas = 1
+
+    extra_height = max(0, (num_lineas - 1) * 15)
+    box1_h = 35 + extra_height
+
     c.rect(40, y_cursor - box1_h, width - 80, box1_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Fechas y Horas:")
     c.setFont("Helvetica", 9)
-    c.drawString(45, y_cursor - 28, f"Fecha(s): {datos.pdf_fechas}    |    Hora inicio: {datos.pdf_horas_in}    |    Hora fin: {datos.pdf_horas_out}")
+
+    y_text = y_cursor - 28
+    for i in range(num_lineas):
+        f = fechas[i] if i < len(fechas) else ""
+        hin = horas_in[i] if i < len(horas_in) else ""
+        hout = horas_out[i] if i < len(horas_out) else ""
+
+        line_str = f"Fecha: {f}    |    Hora inicio: {hin}    |    Hora fin: {hout}"
+        c.drawString(45, y_text, line_str)
+        y_text -= 15
+
     y_cursor -= (box1_h + 10)
 
     # 2. Cliente y Máquina
@@ -264,15 +283,17 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: _________________________")
     y_cursor -= (box2_h + 10)
 
-    # 3. Trabajo Realizado
-    box3_h = 130
+    # 3. Trabajo Realizado (Se ajusta dinámicamente)
+    box3_h = max(40, 130 - extra_height)
     c.rect(40, y_cursor - box3_h, width - 80, box3_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Trabajo realizado:")
     c.setFont("Helvetica", 9)
     lines = simpleSplit(datos.pdf_trabajo, "Helvetica", 9, width - 90)
     y_text = y_cursor - 30
-    for l in lines[:7]:
+
+    max_lines_trabajo = int((box3_h - 20) / 15)
+    for l in lines[:max_lines_trabajo]:
         c.drawString(45, y_text, l)
         y_text -= 15
     y_cursor -= (box3_h + 10)
@@ -373,7 +394,7 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
         f"Buenos días,\n\n"
         f"Desde Sugraf escribimos para confirmar que se ha cerrado el parte del aviso:\n"
         f"{datos.pdf_cliente} - {datos.pdf_maquina}\n\n"
-        f"Se adjunta en este mensaje el parte firmado por el técnico.\n\n"
+        f"Se adjunta en este mensaje el parte firmado por el técnico y el cliente.\n\n"
         f"Un saludo."
     )
 
