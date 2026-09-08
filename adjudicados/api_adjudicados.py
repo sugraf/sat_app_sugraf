@@ -1,7 +1,8 @@
-# api_adjudicados.py
 import io
 import json
 import os
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
@@ -13,7 +14,7 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'ESTADO PIEZAS']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -79,6 +80,7 @@ class UpdateParte(BaseModel):
     tipo_asistencia: str
     pirineos: str
     opcion_venta: str
+    detalle_venta: str
     estado_piezas: str
 
 class ArchivarParte(BaseModel):
@@ -115,6 +117,38 @@ def calcular_horas(h_in, h_out):
     except:
         return ""
 
+def enviar_email_cierre(parte: UpdateParte):
+    if parte.opcion_venta == "SI" or parte.estado_piezas in ["Sí necesita Piezas", "Piezas Recibidas"]:
+        try:
+            user = os.environ.get("SMTP_USER", "")
+            pwd = os.environ.get("SMTP_PASS", "")
+            if not user or not pwd:
+                print("Aviso: Configura SMTP_USER y SMTP_PASS para enviar emails.")
+                return
+
+            msg = EmailMessage()
+            msg['Subject'] = f"Parte Cerrado - {parte.cliente}"
+            msg['From'] = user
+            msg['To'] = "lucia@sugraf.es, info@sugraf.es"
+
+            cuerpo = f"Buenos días,\n\nSe ha cerrado un parte a nombre de {parte.tecnico}.\n\n"
+
+            if parte.opcion_venta == "SI":
+                cuerpo += "Se ha registrado esta opción a venta:\n"
+                cuerpo += f"{parte.detalle_venta}\n\n"
+
+            if parte.estado_piezas in ["Sí necesita Piezas", "Piezas Recibidas"]:
+                cuerpo += "Piezas involucradas/registradas en este parte:\n"
+                cuerpo += f"{parte.piezas}\n\n"
+
+            msg.set_content(cuerpo)
+
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(user, pwd)
+                smtp.send_message(msg)
+        except Exception as e:
+            print(f"Error al enviar email: {e}")
+
 def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
     
@@ -132,6 +166,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'SOLUCIÓN'] = parte.solucion
     df.loc[idx, 'ESTADO'] = estado
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
+    df.loc[idx, 'DETALLE VENTA'] = parte.detalle_venta
     df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
     
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
@@ -165,6 +200,7 @@ def get_mis_avisos(tecnico: str):
             row_dict['TIPO ASISTENCIA'] = tipo_asis
             row_dict['PIRINEOS'] = pirineos_val
             row_dict['OPCIÓN A VENTA'] = row.get('OPCIÓN A VENTA', '').strip() or 'NO'
+            row_dict['DETALLE VENTA'] = row.get('DETALLE VENTA', '').strip()
             row_dict['ESTADO PIEZAS'] = row.get('ESTADO PIEZAS', '').strip()
             row_dict['HORAS TOTALES'] = row.get('HORAS TOTALES', '').strip()
             row_dict['aviso_index'] = index
@@ -188,7 +224,7 @@ def marcar_piezas(data: MarcarPiezas):
         idx = int(data.aviso_index)
         
         if 0 <= idx < len(df):
-            df.loc[idx, 'ESTADO PIEZAS'] = 'Recibidas'
+            df.loc[idx, 'ESTADO PIEZAS'] = 'Piezas Recibidas'
             save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df)
             return {"status": "ok"}
         else:
@@ -219,6 +255,7 @@ def resolver_aviso(parte: UpdateParte):
     try:
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Cerrado")
+        enviar_email_cierre(parte)
         return {"status": "ok"}
     except Exception as e: 
         raise HTTPException(status_code=500, detail=str(e))
