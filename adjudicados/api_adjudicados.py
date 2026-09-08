@@ -1,3 +1,4 @@
+# api_adjudicados.py
 import io
 import json
 import os
@@ -12,7 +13,7 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -77,6 +78,7 @@ class UpdateParte(BaseModel):
     tecnico: str
     tipo_asistencia: str
     pirineos: str
+    opcion_venta: str
 
 class ArchivarParte(BaseModel):
     aviso_index: int
@@ -125,6 +127,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'PIEZAS NECESARIAS'] = parte.piezas
     df.loc[idx, 'SOLUCIÓN'] = parte.solucion
     df.loc[idx, 'ESTADO'] = estado
+    df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
     
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
     return horas_totales
@@ -139,7 +142,7 @@ def get_mis_avisos(tecnico: str):
         
         avisos_mios = []
         for index, row in df.iterrows():
-            asignado = row.get('REALIZADO POR', '').strip()
+            asignado = row.get('ASIGNADO A', '').strip()
             if not asignado: asignado = 'Pendiente'
             
             estado = row.get('ESTADO', '').strip()
@@ -152,10 +155,11 @@ def get_mis_avisos(tecnico: str):
             if not pirineos_val: pirineos_val = 'NO'
             
             row_dict = row.to_dict()
-            row_dict['REALIZADO POR'] = asignado
+            row_dict['ASIGNADO A'] = asignado
             row_dict['ESTADO'] = estado
             row_dict['TIPO ASISTENCIA'] = tipo_asis
             row_dict['PIRINEOS'] = pirineos_val
+            row_dict['OPCIÓN A VENTA'] = row.get('OPCIÓN A VENTA', '').strip() or 'NO'
             row_dict['aviso_index'] = index
 
             if tecnico == 'Master':
