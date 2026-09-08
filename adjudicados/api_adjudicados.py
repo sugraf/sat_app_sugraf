@@ -367,7 +367,7 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
     pwd = "dbsn dinz jakv vkay"
 
     msg = EmailMessage()
-    msg['Subject'] = f"Parte de Trabajo Sugraf - {datos.pdf_cliente} - {datos.pdf_maquina}"
+    msg['Subject'] = f"Parte de Trabajo Sugraf Nº {num_parte} - {datos.pdf_cliente} - {datos.pdf_maquina}"
     msg['From'] = user
 
     destinatarios = []
