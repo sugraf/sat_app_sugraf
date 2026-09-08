@@ -124,7 +124,7 @@ def enviar_email_venta(row_data):
         return False, False, None
 
     user = "sugraf.digitalhub@gmail.com"
-    pwd = "sugrafmarketing_digitalhub"
+    pwd = "dbsn dinz jakv vkay"
 
     cliente = str(row_data.get('CLIENTE', '')).strip()
     poblacion = str(row_data.get('POBLACIÓN', '')).strip()
