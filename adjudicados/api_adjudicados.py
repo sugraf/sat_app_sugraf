@@ -1,3 +1,4 @@
+# api_adjudicados.py
 import io
 import json
 import os
@@ -117,37 +118,51 @@ def calcular_horas(h_in, h_out):
     except:
         return ""
 
-def enviar_email_cierre(parte: UpdateParte):
-    if parte.opcion_venta == "SI" or parte.estado_piezas in ["Sí necesita Piezas", "Piezas Recibidas"]:
-        try:
-            user = os.environ.get("SMTP_USER", "")
-            pwd = os.environ.get("SMTP_PASS", "")
-            if not user or not pwd:
-                print("Aviso: Configura SMTP_USER y SMTP_PASS para enviar emails.")
-                return
+def enviar_email_venta(row_data):
+    opcion_venta = str(row_data.get('OPCIÓN A VENTA', '')).strip().upper()
+    if opcion_venta != 'SI':
+        return False, False, None
 
-            msg = EmailMessage()
-            msg['Subject'] = f"Parte Cerrado - {parte.cliente}"
-            msg['From'] = user
-            msg['To'] = "lucia@sugraf.es, info@sugraf.es"
+    user = "sugraf.digitalhub@gmail.com"
+    pwd = "sugrafmarketing_digitalhub"
 
-            cuerpo = f"Buenos días,\n\nSe ha cerrado un parte a nombre de {parte.tecnico}.\n\n"
+    cliente = str(row_data.get('CLIENTE', '')).strip()
+    poblacion = str(row_data.get('POBLACIÓN', '')).strip()
+    maquina = str(row_data.get('MÁQUINA', '')).strip()
+    tecnico = str(row_data.get('ASIGNADO A', '')).strip()
+    detalle_venta = str(row_data.get('DETALLE VENTA', '')).strip()
 
-            if parte.opcion_venta == "SI":
-                cuerpo += "Se ha registrado esta opción a venta:\n"
-                cuerpo += f"{parte.detalle_venta}\n\n"
+    msg = EmailMessage()
+    msg['Subject'] = f"Posible oportunidad de venta - {cliente}"
+    msg['From'] = user
+    msg['To'] = "lucia@sugraf.es, info@sugraf.es"
 
-            if parte.estado_piezas in ["Sí necesita Piezas", "Piezas Recibidas"]:
-                cuerpo += "Piezas involucradas/registradas en este parte:\n"
-                cuerpo += f"{parte.piezas}\n\n"
+    cuerpo = (
+        f"Buenos días,\n\n"
+        f"Se ha detectado una posible oportunidad de venta en un parte de trabajo.\n\n"
+        f"Cliente: {cliente}\n"
+        f"Población: {poblacion}\n"
+        f"Máquina: {maquina}\n"
+        f"Técnico: {tecnico}\n\n"
+        f"Detalle de la posible venta:\n"
+        f"{detalle_venta}\n\n"
+        f"Un saludo."
+    )
 
-            msg.set_content(cuerpo)
+    msg.set_content(cuerpo)
 
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(user, pwd)
-                smtp.send_message(msg)
-        except Exception as e:
-            print(f"Error al enviar email: {e}")
+    try:
+        print(f"Intentando enviar email de oportunidad de venta para {cliente}...")
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(user, pwd)
+            print("Autenticación SMTP correcta.")
+            smtp.send_message(msg)
+            print("Email enviado correctamente.")
+        return True, True, None
+    except Exception as e:
+        error_str = str(e)
+        print(f"Error al enviar email: {error_str}")
+        return True, False, error_str
 
 def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
@@ -255,7 +270,6 @@ def resolver_aviso(parte: UpdateParte):
     try:
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Cerrado")
-        enviar_email_cierre(parte)
         return {"status": "ok"}
     except Exception as e: 
         raise HTTPException(status_code=500, detail=str(e))
@@ -279,6 +293,9 @@ def archivar_aviso(parte: ArchivarParte):
         if 0 <= idx < len(df_tra):
             row_to_archive = df_tra.iloc[idx].copy()
             
+            # Enviar el email SOLO cuando se procesa a Pirineos (archivo final)
+            attempted, sent, err = enviar_email_venta(row_to_archive)
+            
             fid_fin, df_fin = get_excel(drive, 'Partes Finalizados.xlsx', COLS_TRA)
             df_fin = pd.concat([df_fin, pd.DataFrame([row_to_archive])], ignore_index=True)
             
@@ -286,7 +303,13 @@ def archivar_aviso(parte: ArchivarParte):
             
             save_excel(drive, fid_fin, 'Partes Finalizados.xlsx', df_fin)
             save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
-            return {"status": "ok"}
+            
+            return {
+                "status": "ok",
+                "email_attempted": attempted,
+                "email_sent": sent,
+                "email_error": err
+            }
         else:
             raise Exception("Index out of bounds")
     except Exception as e:
