@@ -1,4 +1,3 @@
-# api_adjudicados.py
 import io
 import json
 import os
@@ -32,30 +31,30 @@ def get_excel(drive, name, cols):
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
     res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
     archivos = res.get("files", [])
-    
+
     if archivos:
         file_info = archivos[0]
         file_id = file_info['id']
         mime_type = file_info.get('mimeType', '')
-        
+
         if mime_type == 'application/vnd.google-apps.spreadsheet':
             request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         else:
             request = drive.files().get_media(fileId=file_id)
-            
+
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while not done: 
+        while not done:
             _, done = downloader.next_chunk()
         fh.seek(0)
-        
+
         df = pd.read_excel(fh, engine='openpyxl', dtype=object)
-        
+
         for c in cols:
-            if c not in df.columns: 
+            if c not in df.columns:
                 df[c] = ''
-                
+
         df = df.astype(object)
         return file_id, df
     else:
@@ -63,7 +62,7 @@ def get_excel(drive, name, cols):
 
 def save_excel(drive, file_id, name, df):
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer: 
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
     media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     if file_id:
@@ -75,14 +74,15 @@ def get_and_increment_part_number(drive):
     query = f"'{FOLDER_ID}' in parents and name = 'numeracion_partes.txt' and trashed = false"
     res = drive.files().list(q=query, fields="files(id)").execute()
     archivos = res.get("files", [])
-    
+
     if archivos:
         file_id = archivos[0]['id']
         request = drive.files().get_media(fileId=file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while not done: _, done = downloader.next_chunk()
+        while not done:
+            _, done = downloader.next_chunk()
         current_num = fh.getvalue().decode('utf-8').strip()
         try:
             num = int(current_num)
@@ -91,15 +91,15 @@ def get_and_increment_part_number(drive):
     else:
         file_id = None
         num = 10000
-        
+
     next_num = num + 1
-    
+
     media = MediaIoBaseUpload(io.BytesIO(str(next_num).encode('utf-8')), mimetype='text/plain')
     if file_id:
         drive.files().update(fileId=file_id, media_body=media).execute()
     else:
         drive.files().create(body={'name': 'numeracion_partes.txt', 'parents': [FOLDER_ID]}, media_body=media).execute()
-        
+
     return num
 
 class UpdateParte(BaseModel):
@@ -129,6 +129,8 @@ class CerrarYEnviarParte(BaseModel):
     pdf_cliente: str
     pdf_poblacion: str
     pdf_maquina: str
+    pdf_marca: str
+    pdf_modelo: str
     pdf_motivo: str
     pdf_piezas: str
     pdf_trabajo: str
@@ -138,6 +140,8 @@ class CerrarYEnviarParte(BaseModel):
     email_laura: str
     email_cliente: str
     firma_tecnico_b64: str
+    firma_cliente_b64: str
+    pdf_nombre_cliente: str
 
 class ArchivarParte(BaseModel):
     aviso_index: int
@@ -146,7 +150,7 @@ class MarcarPiezas(BaseModel):
     aviso_index: int
 
 def calcular_horas(h_in, h_out):
-    if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '': 
+    if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '':
         return ""
     try:
         ins = str(h_in).strip().split('\n')
@@ -163,11 +167,11 @@ def calcular_horas(h_in, h_out):
                 total_seconds += (t2 - t1).total_seconds()
             else:
                 total_seconds += (t2 - t1).total_seconds() + 86400
-        
+
         hours = int(total_seconds // 3600)
         minutes = int((total_seconds % 3600) // 60)
-        
-        if hours == 0 and minutes == 0: 
+
+        if hours == 0 and minutes == 0:
             return ""
         return f"{hours:02d}:{minutes:02d}"
     except:
@@ -175,10 +179,10 @@ def calcular_horas(h_in, h_out):
 
 def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-    
+
     idx = int(parte.aviso_index)
     horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
-    
+
     df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
     df.loc[idx, 'PIRINEOS'] = parte.pirineos
     df.loc[idx, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
@@ -192,7 +196,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
     df.loc[idx, 'DETALLE VENTA'] = parte.detalle_venta
     df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
-    
+
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
     return horas_totales
 
@@ -202,103 +206,139 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     width, height = A4
 
     color_sugraf = HexColor("#006858")
-    
-    c.setFont("Helvetica-Bold", 24)
-    c.setFillColor(color_sugraf)
-    c.drawString(40, height - 60, "SUGRAF")
-    
+    c.setStrokeColor(color_sugraf)
+
+    # Intentar cargar el logo desde la raíz del proyecto
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logo_grande.png")
+    if os.path.exists(logo_path):
+        c.drawImage(logo_path, 40, height - 70, width=140, height=45, preserveAspectRatio=True, mask='auto')
+    else:
+        c.setFont("Helvetica-Bold", 24)
+        c.setFillColor(color_sugraf)
+        c.drawString(40, height - 60, "SUGRAF")
+
     c.setFont("Helvetica-Bold", 11)
     c.setFillColorRGB(0,0,0)
     c.drawString(width - 250, height - 60, f"ORDEN DE TRABAJO Nº: {num_parte}")
 
-    c.rect(40, height - 120, width - 80, 40)
+    y_cursor = height - 100
+
+    # 1. Fechas y Horas (Todo en la misma línea)
+    box1_h = 35
+    c.rect(40, y_cursor - box1_h, width - 80, box1_h)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 95, "Fecha:")
+    c.drawString(45, y_cursor - 15, "Fechas y Horas:")
     c.setFont("Helvetica", 9)
-    c.drawString(85, height - 95, datos.pdf_fechas)
+    c.drawString(45, y_cursor - 28, f"Fecha(s): {datos.pdf_fechas}    |    Hora inicio: {datos.pdf_horas_in}    |    Hora fin: {datos.pdf_horas_out}")
+    y_cursor -= (box1_h + 10)
+
+    # 2. Cliente y Máquina
+    box2_h = 95
+    c.rect(40, y_cursor - box2_h, width - 80, box2_h)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(45, y_cursor - 15, "Técnico:")
+    c.setFont("Helvetica", 9)
+    c.drawString(95, y_cursor - 15, datos.pdf_tecnico)
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 115, "Hora inicio:")
+    c.drawString(width/2, y_cursor - 15, "Cliente:")
     c.setFont("Helvetica", 9)
-    c.drawString(110, height - 115, datos.pdf_horas_in)
+    c.drawString(width/2 + 45, y_cursor - 15, datos.pdf_cliente)
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(width/2, height - 115, "Hora fin:")
+    c.drawString(45, y_cursor - 35, "Localidad:")
     c.setFont("Helvetica", 9)
-    c.drawString(width/2 + 50, height - 115, datos.pdf_horas_out)
-
-    c.rect(40, height - 230, width - 80, 100)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 145, "Técnico:")
-    c.setFont("Helvetica", 9)
-    c.drawString(100, height - 145, datos.pdf_tecnico)
+    c.drawString(100, y_cursor - 35, datos.pdf_poblacion)
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(width/2, height - 145, "Cliente:")
+    c.drawString(45, y_cursor - 55, "Motivo aviso:")
     c.setFont("Helvetica", 9)
-    c.drawString(width/2 + 50, height - 145, datos.pdf_cliente)
+    c.drawString(115, y_cursor - 55, datos.pdf_motivo[:80])
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 170, "Motivo llamada/aviso:")
+    c.drawString(45, y_cursor - 75, "Máquina / Equipo:")
     c.setFont("Helvetica", 9)
-    c.drawString(170, height - 170, datos.pdf_motivo[:80]) 
+    c.drawString(135, y_cursor - 75, datos.pdf_maquina[:45])
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 195, "Localidad:")
-    c.setFont("Helvetica", 9)
-    c.drawString(110, height - 195, datos.pdf_poblacion)
+    c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: _________________________")
+    y_cursor -= (box2_h + 10)
 
+    # 3. Trabajo Realizado
+    box3_h = 130
+    c.rect(40, y_cursor - box3_h, width - 80, box3_h)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 220, "Máquina / Equipo / Modelo:")
-    c.setFont("Helvetica", 9)
-    c.drawString(200, height - 220, datos.pdf_maquina)
-
-    c.rect(40, height - 310, width - 80, 70)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 255, "Piezas / Repuestos:")
-    c.setFont("Helvetica", 9)
-    lines = simpleSplit(datos.pdf_piezas, "Helvetica", 9, width - 90)
-    y = height - 275
-    for l in lines[:2]:
-        c.drawString(45, y, l)
-        y -= 15
-
-    c.rect(40, height - 440, width - 80, 120)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 335, "Trabajo realizado:")
+    c.drawString(45, y_cursor - 15, "Trabajo realizado:")
     c.setFont("Helvetica", 9)
     lines = simpleSplit(datos.pdf_trabajo, "Helvetica", 9, width - 90)
-    y = height - 355
-    for l in lines[:6]:
-        c.drawString(45, y, l)
-        y -= 15
+    y_text = y_cursor - 30
+    for l in lines[:7]:
+        c.drawString(45, y_text, l)
+        y_text -= 15
+    y_cursor -= (box3_h + 10)
 
-    c.rect(40, height - 520, width - 80, 70)
+    # 4. Piezas / Repuestos
+    box4_h = 80
+    c.rect(40, y_cursor - box4_h, width - 80, box4_h)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, height - 465, "Observaciones:")
+    c.drawString(45, y_cursor - 15, "Piezas / Repuestos:")
+    c.setFont("Helvetica", 9)
+    lines = simpleSplit(datos.pdf_piezas, "Helvetica", 9, width - 90)
+    y_text = y_cursor - 30
+    for l in lines[:3]:
+        c.drawString(45, y_text, l)
+        y_text -= 15
+    y_cursor -= (box4_h + 10)
+
+    # 5. Observaciones
+    box5_h = 70
+    c.rect(40, y_cursor - box5_h, width - 80, box5_h)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(45, y_cursor - 15, "Observaciones:")
     c.setFont("Helvetica", 9)
     lines = simpleSplit(datos.pdf_observaciones, "Helvetica", 9, width - 90)
-    y = height - 485
+    y_text = y_cursor - 30
     for l in lines[:2]:
-        c.drawString(45, y, l)
-        y -= 15
+        c.drawString(45, y_text, l)
+        y_text -= 15
+    y_cursor -= (box5_h + 10)
 
+    # 6. Estado del Aviso
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(45, height - 550, f"Estado del Aviso: {datos.pdf_estado.upper()}")
+    c.drawString(45, y_cursor - 15, f"Estado del Aviso: {datos.pdf_estado.upper()}")
+    y_cursor -= 30
 
+    # 7. Firmas
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(100, height - 600, "Técnico:")
-    c.drawString(width - 200, height - 600, "El Cliente,")
-    
+    c.drawString(60, y_cursor - 10, f"Fdo: {datos.pdf_tecnico} (Técnico)")
+    c.drawString(width/2 + 30, y_cursor - 10, f"Fdo: {datos.pdf_nombre_cliente} (Cliente)")
+
+    y_firmas = y_cursor - 90
+
+    # Cajas contenedoras de las firmas
+    c.setStrokeColorRGB(0.8, 0.8, 0.8)
+    c.rect(50, y_firmas, 180, 70)
+    c.rect(width/2 + 20, y_firmas, 180, 70)
+
     if datos.firma_tecnico_b64 and "," in datos.firma_tecnico_b64:
         b64_data = datos.firma_tecnico_b64.split(",")[1]
         try:
             img_bytes = base64.b64decode(b64_data)
             img = ImageReader(io.BytesIO(img_bytes))
-            c.drawImage(img, 60, height - 700, width=160, height=80, mask='auto')
+            c.drawImage(img, 50, y_firmas, width=180, height=70, mask='auto')
         except Exception as e:
-            print("Error al dibujar la firma:", e)
+            print("Error al dibujar la firma técnico:", e)
 
+    if datos.firma_cliente_b64 and "," in datos.firma_cliente_b64:
+        b64_data = datos.firma_cliente_b64.split(",")[1]
+        try:
+            img_bytes = base64.b64decode(b64_data)
+            img = ImageReader(io.BytesIO(img_bytes))
+            c.drawImage(img, width/2 + 20, y_firmas, width=180, height=70, mask='auto')
+        except Exception as e:
+            print("Error al dibujar la firma cliente:", e)
+
+    # Footer
     c.setFont("Helvetica", 8)
     c.setFillColorRGB(0.4, 0.4, 0.4)
     c.drawCentredString(width/2, 30, "TECNOLOGIA Y PRODUCTOS GRAFICOS, S.A. Pol. Alcalde Caballero")
@@ -315,12 +355,15 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
     msg = EmailMessage()
     msg['Subject'] = f"Parte de Trabajo Sugraf - {datos.pdf_cliente} - {datos.pdf_maquina}"
     msg['From'] = user
-    
+
     destinatarios = []
-    if datos.email_laura.strip(): destinatarios.append(datos.email_laura.strip())
-    if datos.email_tecnico.strip(): destinatarios.append(datos.email_tecnico.strip())
-    if datos.email_cliente.strip(): destinatarios.append(datos.email_cliente.strip())
-    
+    if datos.email_laura.strip():
+        destinatarios.append(datos.email_laura.strip())
+    if datos.email_tecnico.strip():
+        destinatarios.append(datos.email_tecnico.strip())
+    if datos.email_cliente.strip():
+        destinatarios.append(datos.email_cliente.strip())
+
     if not destinatarios:
         return True, True, None
 
@@ -344,7 +387,6 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
         return True, True, None
     except Exception as e:
         return True, False, str(e)
-
 
 def enviar_email_venta(row_data):
     opcion_venta = str(row_data.get('OPCIÓN A VENTA', '')).strip().upper()
@@ -392,23 +434,27 @@ def get_mis_avisos(tecnico: str):
     try:
         drive = get_drive_service()
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-        
+
         df = df.fillna('').astype(str).replace('nan', '')
-        
+
         avisos_mios = []
         for index, row in df.iterrows():
             asignado = row.get('ASIGNADO A', '').strip()
-            if not asignado: asignado = 'Pendiente'
-            
+            if not asignado:
+                asignado = 'Pendiente'
+
             estado = row.get('ESTADO', '').strip()
-            if not estado: estado = 'Vacío'
-            
+            if not estado:
+                estado = 'Vacío'
+
             tipo_asis = row.get('TIPO ASISTENCIA', '').strip()
-            if not tipo_asis: tipo_asis = 'Presencial'
+            if not tipo_asis:
+                tipo_asis = 'Presencial'
 
             pirineos_val = row.get('PIRINEOS', '').strip()
-            if not pirineos_val: pirineos_val = 'NO'
-            
+            if not pirineos_val:
+                pirineos_val = 'NO'
+
             row_dict = row.to_dict()
             row_dict['ASIGNADO A'] = asignado
             row_dict['ESTADO'] = estado
@@ -426,9 +472,9 @@ def get_mis_avisos(tecnico: str):
             else:
                 if asignado == tecnico:
                     avisos_mios.append(row_dict)
-                
+
         return {"avisos": avisos_mios}
-    except Exception as e: 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/piezas-recibidas")
@@ -437,7 +483,7 @@ def marcar_piezas(data: MarcarPiezas):
         drive = get_drive_service()
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
         idx = int(data.aviso_index)
-        
+
         if 0 <= idx < len(df):
             df.loc[idx, 'ESTADO PIEZAS'] = 'Piezas Recibidas'
             save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df)
@@ -453,7 +499,7 @@ def guardar_progreso(parte: UpdateParte):
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Abierto")
         return {"status": "ok"}
-    except Exception as e: 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/editar-cerrado")
@@ -462,7 +508,7 @@ def editar_cerrado(parte: UpdateParte):
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Cerrado")
         return {"status": "ok"}
-    except Exception as e: 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/resolver")
@@ -471,7 +517,7 @@ def resolver_aviso(parte: UpdateParte):
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Cerrado")
         return {"status": "ok"}
-    except Exception as e: 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/cerrar-parte-y-enviar")
@@ -480,10 +526,10 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
         drive = get_drive_service()
         num_parte = get_and_increment_part_number(drive)
         pdf_bytes = generar_pdf_parte(payload, num_parte)
-        
+
         attempted, sent, err = enviar_email_cierre(payload, pdf_bytes, num_parte)
         horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
-        
+
         return {
             "status": "ok",
             "email_sent": sent,
@@ -498,7 +544,7 @@ def reabrir_aviso(parte: UpdateParte):
         drive = get_drive_service()
         procesar_actualizacion_tratados(drive, parte, "Abierto")
         return {"status": "ok"}
-    except Exception as e: 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/archivar")
@@ -507,19 +553,19 @@ def archivar_aviso(parte: ArchivarParte):
         drive = get_drive_service()
         fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
         idx = int(parte.aviso_index)
-        
+
         if 0 <= idx < len(df_tra):
             row_to_archive = df_tra.iloc[idx].copy()
             attempted, sent, err = enviar_email_venta(row_to_archive)
-            
+
             fid_fin, df_fin = get_excel(drive, 'Partes Finalizados.xlsx', COLS_TRA)
             df_fin = pd.concat([df_fin, pd.DataFrame([row_to_archive])], ignore_index=True)
-            
+
             df_tra = df_tra.drop(index=idx).reset_index(drop=True)
-            
+
             save_excel(drive, fid_fin, 'Partes Finalizados.xlsx', df_fin)
             save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
-            
+
             return {
                 "status": "ok",
                 "email_attempted": attempted,
