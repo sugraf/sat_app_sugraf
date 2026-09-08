@@ -818,7 +818,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert("Aviso marcado como cerrado con éxito.");
+        alert("Aviso marcado como cerrado con éxito. Se ha enviado el email automático si requería piezas o venta.");
         document.getElementById('resolucion-box').style.display = 'none';
         cargarAvisos();
       } catch (err) {
