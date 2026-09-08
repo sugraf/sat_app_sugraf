@@ -304,6 +304,13 @@
               <option value="SI">Sí</option>
             </select>
           </div>
+          <div style="flex: 1; min-width: 120px;">
+            <label>Opción a Venta</label>
+            <select id="res_opcion_venta">
+              <option value="NO">No</option>
+              <option value="SI">Sí (Máquina antigua/Mejora)</option>
+            </select>
+          </div>
         </div>
 
         <div style="margin:18px 0 7px; display:flex; justify-content:space-between; align-items:center;">
@@ -392,7 +399,7 @@
     function renderBotonesMaster() {
         let html = `<button class="master-tab ${!filtroTecnicoMaster ? 'active' : ''}" onclick="filtroTecnicoMaster=null; renderBotonesMaster(); renderAvisos();">Todos <span>${misAvisos.filter(a => a['ESTADO'] !== 'Cerrado').length}</span></button>`;
         TECNICOS.forEach(t => {
-            const count = misAvisos.filter(a => a['REALIZADO POR'] === t && a['ESTADO'] !== 'Cerrado').length;
+            const count = misAvisos.filter(a => a['ASIGNADO A'] === t && a['ESTADO'] !== 'Cerrado').length;
             const isSelected = filtroTecnicoMaster === t;
             const activeClass = isSelected ? 'active' : '';
             html += `<button class="master-tab ${activeClass}" onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();">
@@ -410,13 +417,13 @@
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
+        if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
 
         let actionBtn = "";
         if (currentUser === 'Master' && av['ESTADO'] === 'Cerrado') {
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
 
-        // Para previsualizar las fechas en el subtítulo (mostramos solo la primera si hay varias)
         let previewFecha = (av['FECHA REALIZACIÓN'] || '').toString().split('\n')[0] || av['F. ENTR.'];
 
         return `
@@ -426,7 +433,7 @@
                 ${actionBtn}
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
             </div>
-            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fecha Asistencia:</strong> ${previewFecha} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['REALIZADO POR']}</div>
+            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fecha Asistencia:</strong> ${previewFecha} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['ASIGNADO A']}</div>
         </div>
         `;
     }
@@ -438,7 +445,7 @@
         let noAbiertos = [];
 
         if (currentUser === 'Master') {
-            const techAvisos = misAvisos.filter(a => a['REALIZADO POR'] === filtroTecnicoMaster);
+            const techAvisos = misAvisos.filter(a => a['ASIGNADO A'] === filtroTecnicoMaster);
             abiertos = techAvisos.filter(a => a['ESTADO'] === 'Abierto');
             cerrados = techAvisos.filter(a => a['ESTADO'] === 'Cerrado');
             noAbiertos = techAvisos.filter(a => !a['ESTADO'] || a['ESTADO'] === 'Vacío');
@@ -537,7 +544,7 @@
       box.style.display = 'block';
       box.dataset.estado = av['ESTADO'];
       document.getElementById('res_index').value = index;
-      document.getElementById('res_tecnico_original').value = av['REALIZADO POR'];
+      document.getElementById('res_tecnico_original').value = av['ASIGNADO A'];
       document.getElementById('res_cliente').value = av['CLIENTE'];
       document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
@@ -550,6 +557,7 @@
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
       document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
+      document.getElementById('res_opcion_venta').value = av['OPCIÓN A VENTA'] || 'NO';
 
       const isMaster = currentUser === 'Master';
       const isCerrado = av['ESTADO'] === 'Cerrado';
@@ -582,7 +590,7 @@
       document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_pirineos', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_pirineos', 'res_opcion_venta', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado && !isMaster;
@@ -620,6 +628,7 @@
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
             pirineos: document.getElementById('res_pirineos').value,
+            opcion_venta: document.getElementById('res_opcion_venta').value,
             fecha_realizacion: fechas,
             hora_entrada: ents,
             hora_salida: sals,
