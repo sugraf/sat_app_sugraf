@@ -351,7 +351,7 @@
 
         <label>Estado de Resolución</label>
         <select id="res_estado_resolucion">
-          <option value="Pendiente">Pendiente de Continuar (Se requiere otra visita)</option>
+          <option value="Pendiente">Pendiente en general</option>
           <option value="Resuelto">Resuelto</option>
         </select>
 
@@ -440,17 +440,33 @@
         const ep = document.getElementById('res_estado_piezas').value;
         const estRes = document.getElementById('res_estado_resolucion');
         const btnCerrar = document.getElementById('btn-cerrar');
+        const valActual = estRes.value; 
+        
+        const isMaster = currentUser === 'Master';
+        const isCerrado = document.getElementById('resolucion-box').dataset.estado === 'Cerrado';
+        const canEdit = !isCerrado || isMaster;
         
         if (ep === 'Sí necesita Piezas') {
+            estRes.innerHTML = `<option value="Pendiente">Pendiente por piezas</option>`;
             estRes.value = 'Pendiente';
             estRes.disabled = true;
             if(btnCerrar) btnCerrar.disabled = true;
+        } else if (ep === 'Piezas Recibidas') {
+            estRes.innerHTML = `
+                <option value="Pendiente">Pendiente (Piezas recibidas)</option>
+                <option value="Resuelto">Resuelto</option>
+            `;
+            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
+            estRes.disabled = !canEdit;
+            if(btnCerrar) btnCerrar.disabled = !canEdit;
         } else {
-            const box = document.getElementById('resolucion-box');
-            if (box.dataset.estado !== 'Cerrado' || currentUser === 'Master') {
-                estRes.disabled = false;
-                if(btnCerrar) btnCerrar.disabled = false;
-            }
+            estRes.innerHTML = `
+                <option value="Pendiente">Pendiente en general</option>
+                <option value="Resuelto">Resuelto</option>
+            `;
+            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
+            estRes.disabled = !canEdit;
+            if(btnCerrar) btnCerrar.disabled = !canEdit;
         }
     }
 
@@ -695,9 +711,11 @@
           btnAdd.style.display = 'inline-block';
       }
 
+      document.getElementById('res_estado_resolucion').innerHTML = `
+          <option value="Pendiente">Pendiente en general</option>
+          <option value="Resuelto">Resuelto</option>
+      `;
       document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
-      document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
-      document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
 
       const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
       camposEdicion.forEach(f => {
