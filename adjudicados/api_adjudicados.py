@@ -13,7 +13,7 @@ import pandas as pd
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'ESTADO PIEZAS']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -79,8 +79,12 @@ class UpdateParte(BaseModel):
     tipo_asistencia: str
     pirineos: str
     opcion_venta: str
+    estado_piezas: str
 
 class ArchivarParte(BaseModel):
+    aviso_index: int
+
+class MarcarPiezas(BaseModel):
     aviso_index: int
 
 def calcular_horas(h_in, h_out):
@@ -128,6 +132,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'SOLUCIÓN'] = parte.solucion
     df.loc[idx, 'ESTADO'] = estado
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
+    df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
     
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
     return horas_totales
@@ -160,6 +165,8 @@ def get_mis_avisos(tecnico: str):
             row_dict['TIPO ASISTENCIA'] = tipo_asis
             row_dict['PIRINEOS'] = pirineos_val
             row_dict['OPCIÓN A VENTA'] = row.get('OPCIÓN A VENTA', '').strip() or 'NO'
+            row_dict['ESTADO PIEZAS'] = row.get('ESTADO PIEZAS', '').strip()
+            row_dict['HORAS TOTALES'] = row.get('HORAS TOTALES', '').strip()
             row_dict['aviso_index'] = index
 
             if tecnico == 'Master':
@@ -171,6 +178,22 @@ def get_mis_avisos(tecnico: str):
                 
         return {"avisos": avisos_mios}
     except Exception as e: 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/piezas-recibidas")
+def marcar_piezas(data: MarcarPiezas):
+    try:
+        drive = get_drive_service()
+        fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+        idx = int(data.aviso_index)
+        
+        if 0 <= idx < len(df):
+            df.loc[idx, 'ESTADO PIEZAS'] = 'Recibidas'
+            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df)
+            return {"status": "ok"}
+        else:
+            raise Exception("Index out of bounds")
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/guardar-progreso")
