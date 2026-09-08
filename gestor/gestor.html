@@ -358,7 +358,8 @@
       window.location.href = "/";
     }
 
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES'];
+    // Aquí hemos retirado piezas y venta explícitamente, manteniendo la nueva de Observaciones
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES'];
 
     let avisosGlobales = [];
 
@@ -445,10 +446,6 @@
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
         
-        if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
-        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas') badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pedidas</span>`;
-        else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas') badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
-
         let btnDelete = "";
         if (currentUser === "Master") {
             btnDelete = `<button class="btn-delete" onclick="event.stopPropagation(); eliminarAviso(${i}, '${fuente}')" title="Eliminar aviso">🗑️</button>`;
@@ -499,25 +496,17 @@
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
             
             if (canEdit && key !== 'ASIGNADO A' && key !== 'ESTADO') {
-                if (['URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA'].includes(key)) {
+                if (['URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'].includes(key)) {
                     html += `<tr><th>${key}</th><td>
                         <select id="edit_${key}" class="edit-input">
                             <option value="NO" ${val !== 'SI' ? 'selected' : ''}>NO</option>
                             <option value="SI" ${val === 'SI' ? 'selected' : ''}>SI</option>
                         </select>
                     </td></tr>`;
-                } else if (key === 'DESCRIPCIÓN' || key === 'DETALLE VENTA') {
+                } else if (key === 'DESCRIPCIÓN') {
                     html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="3">${val}</textarea></td></tr>`;
                 } else if (key === 'OBSERVACIONES') {
                     html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="4" placeholder="Solo visible por Master...">${val}</textarea></td></tr>`;
-                } else if (key === 'ESTADO PIEZAS') {
-                    html += `<tr><th>${key}</th><td>
-                        <select id="edit_${key}" class="edit-input">
-                            <option value="No necesita piezas" ${val === 'No necesita piezas' || val === '' ? 'selected' : ''}>No necesita piezas</option>
-                            <option value="Sí necesita Piezas" ${val === 'Sí necesita Piezas' ? 'selected' : ''}>Sí necesita Piezas</option>
-                            <option value="Piezas Recibidas" ${val === 'Piezas Recibidas' ? 'selected' : ''}>Piezas Recibidas</option>
-                        </select>
-                    </td></tr>`;
                 } else {
                     html += `<tr><th>${key}</th><td><input type="text" id="edit_${key}" class="edit-input" value="${val.replace(/"/g, '&quot;')}"></td></tr>`;
                 }
