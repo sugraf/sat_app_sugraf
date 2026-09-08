@@ -38,7 +38,6 @@
     }
     h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight:700; letter-spacing:-0.01em; }
 
-    /* ---------- Topbar ---------- */
     .topbar {
       background:#ffffff;
       height:64px;
@@ -94,7 +93,6 @@
     .eyebrow .dot-sm{ width:6px; height:6px; background:#2fd9b8; border-radius:50%; }
     .header-title h2{ font-size:2rem; color:var(--ink); border:none; padding:0; margin:0; }
 
-    /* ---------- Filters ---------- */
     .filters-row{ display:flex; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
     select.filter-sel {
         padding:12px 14px;
@@ -118,7 +116,6 @@
     }
     select.filter-sel:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
 
-    /* ---------- Incident cards ---------- */
     .inc-item {
         position:relative; overflow:hidden;
         background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
@@ -201,7 +198,6 @@
 
     .empty-msg{ color:var(--muted); font-size:0.98rem; padding:20px 0; }
 
-    /* ---------- Modal ---------- */
     .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .modal-content {
         position:relative;
@@ -243,7 +239,6 @@
     .vertical-table th { text-align:left; padding:12px; background:#f1f5f8; border-bottom:1px solid #e6ebef; color:#5c6b7d; width:40%; font-weight:700; text-transform:uppercase; font-size:0.72rem; letter-spacing:0.05em; }
     .vertical-table td { padding:12px; border-bottom:1px solid #e6ebef; color:var(--navy); font-weight:500; word-break:break-word; background:#fff; }
 
-    /* ---------- Inputs Editables Modal ---------- */
     .edit-input {
         width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;
         font-family: 'Montserrat', sans-serif; font-size: 0.85rem; background: #f8fafc; color: var(--navy);
@@ -258,10 +253,7 @@
         border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Montserrat', sans-serif;
     }
 
-    /* ---------- Responsive ---------- */
-    @media (max-width: 900px) {
-      .container { max-width: 100%; }
-    }
+    @media (max-width: 900px) { .container { max-width: 100%; } }
     @media (max-width: 640px) {
       body { padding: 12px; }
       .topbar { height: 52px; padding: 0 14px; border-radius: 10px; margin-bottom: 14px; }
@@ -327,6 +319,7 @@
       </select>
       <select id="filtro-etiqueta" class="filter-sel" onchange="renderGestionAvisos()">
         <option value="Todos">Etiqueta: Todas</option>
+        <option value="Ninguna">Sin Etiqueta</option>
         <option value="URGENTE">Urgente</option>
         <option value="GARANTÍA">Garantía</option>
         <option value="MANTENIMIENTO">Mantenimiento</option>
@@ -365,7 +358,7 @@
       window.location.href = "/";
     }
 
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS'];
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES'];
 
     let avisosGlobales = [];
 
@@ -389,7 +382,14 @@
       let filtrados = avisosGlobales.filter(av => {
         const matchTec = filtroTec === "Todos" || (av['ASIGNADO A'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
-        const matchEtiqueta = filtroEtiqueta === "Todos" || av[filtroEtiqueta] === 'SI';
+        
+        let matchEtiqueta = true;
+        if (filtroEtiqueta === "Ninguna") {
+            matchEtiqueta = av['URGENTE'] !== 'SI' && av['GARANTÍA'] !== 'SI' && av['MANTENIMIENTO'] !== 'SI' && av['INSTALACIÓN'] !== 'SI' && av['REVISAR'] !== 'SI';
+        } else if (filtroEtiqueta !== "Todos") {
+            matchEtiqueta = av[filtroEtiqueta] === 'SI';
+        }
+
         return matchTec && matchPir && matchEtiqueta;
       });
 
@@ -494,6 +494,8 @@
         const canEdit = (currentUser === "Master" && estadoAviso !== 'Abierto' && estadoAviso !== 'Cerrado');
         
         COLUMNAS_MOSTRAR.forEach(key => {
+            if (key === 'OBSERVACIONES' && currentUser !== "Master") return; // Privacidad total para Observaciones
+
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
             
             if (canEdit && key !== 'ASIGNADO A' && key !== 'ESTADO') {
@@ -506,6 +508,8 @@
                     </td></tr>`;
                 } else if (key === 'DESCRIPCIÓN' || key === 'DETALLE VENTA') {
                     html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="3">${val}</textarea></td></tr>`;
+                } else if (key === 'OBSERVACIONES') {
+                    html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="4" placeholder="Solo visible por Master...">${val}</textarea></td></tr>`;
                 } else if (key === 'ESTADO PIEZAS') {
                     html += `<tr><th>${key}</th><td>
                         <select id="edit_${key}" class="edit-input">
