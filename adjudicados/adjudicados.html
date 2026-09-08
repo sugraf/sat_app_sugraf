@@ -1,4 +1,3 @@
-<!-- adjudicados.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -171,6 +170,9 @@
     }
 
     label { display:block; font-size:0.72rem; font-weight:700; color:#5c6b7d; margin:18px 0 7px; text-transform:uppercase; letter-spacing:0.08em; }
+    .box-group { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 18px; }
+    .box-group label { margin-top: 0; }
+
     input, select, textarea {
       width:100%; padding:12px 14px; border:1px solid var(--grey); border-radius:10px;
       font-size:0.92rem; font-family:'Montserrat', sans-serif; background:#ffffff; color:var(--navy);
@@ -296,9 +298,9 @@
         <input type="hidden" id="res_poblacion">
         <input type="hidden" id="res_maquina">
 
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;">
           <div style="flex: 1; min-width: 140px;">
-            <label>Modalidad de Asistencia</label>
+            <label>Asistencia</label>
             <select id="res_tipo_asistencia">
               <option value="Presencial">Presencial</option>
               <option value="Telemático">Telemático</option>
@@ -311,13 +313,29 @@
               <option value="SI">Sí</option>
             </select>
           </div>
-          <div style="flex: 1; min-width: 120px;">
+        </div>
+
+        <div class="box-group">
+            <label>Estado de Piezas</label>
+            <select id="res_estado_piezas" onchange="verificarEstadoPiezas()">
+              <option value="No necesita piezas">No necesita piezas</option>
+              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="Piezas Recibidas" disabled style="display:none;">Piezas Recibidas</option>
+            </select>
+            <label style="margin-top: 10px;">Piezas Necesarias / Cambiadas</label>
+            <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
+        </div>
+
+        <div class="box-group">
             <label>Opción a Venta</label>
-            <select id="res_opcion_venta">
+            <select id="res_opcion_venta" onchange="verificarVenta()">
               <option value="NO">No</option>
               <option value="SI">Sí (Máquina antigua/Mejora)</option>
             </select>
-          </div>
+            <div id="div_detalle_venta" style="display:none; margin-top: 10px;">
+                <label>Detalle de la posible venta</label>
+                <textarea id="res_detalle_venta" rows="2" placeholder="Explica la oportunidad de venta..."></textarea>
+            </div>
         </div>
 
         <div class="horas-summary" id="div_horas_summary">
@@ -331,21 +349,11 @@
         </div>
         <div id="sesiones-container"></div>
 
-        <label>Estado de Piezas</label>
-        <select id="res_estado_piezas" onchange="verificarEstadoPiezas()">
-          <option value="">No se necesitan piezas / Ya instaladas</option>
-          <option value="Pedidas">Necesita Piezas (Forzará estado Pendiente)</option>
-          <option value="Recibidas" disabled style="display:none;">Piezas Recibidas</option>
-        </select>
-
         <label>Estado de Resolución</label>
         <select id="res_estado_resolucion">
           <option value="Pendiente">Pendiente de Continuar (Se requiere otra visita)</option>
           <option value="Resuelto">Resuelto</option>
         </select>
-
-        <label>Piezas Necesarias / Cambiadas</label>
-        <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
 
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
@@ -433,7 +441,7 @@
         const estRes = document.getElementById('res_estado_resolucion');
         const btnCerrar = document.getElementById('btn-cerrar');
         
-        if (ep === 'Pedidas') {
+        if (ep === 'Sí necesita Piezas') {
             estRes.value = 'Pendiente';
             estRes.disabled = true;
             if(btnCerrar) btnCerrar.disabled = true;
@@ -444,6 +452,11 @@
                 if(btnCerrar) btnCerrar.disabled = false;
             }
         }
+    }
+
+    function verificarVenta() {
+        const val = document.getElementById('res_opcion_venta').value;
+        document.getElementById('div_detalle_venta').style.display = val === 'SI' ? 'block' : 'none';
     }
 
     function generateCard(av) {
@@ -457,12 +470,12 @@
         if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
         
         let extraBtnMaster = "";
-        if(av['ESTADO PIEZAS'] === 'Pedidas') {
-            badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pedidas</span>`;
+        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas') {
+            badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pendientes</span>`;
             if (currentUser === 'Master') {
                 extraBtnMaster = `<button onclick="event.stopPropagation(); marcarPiezasRecibidas(${av.aviso_index})" class="btn-archive" style="color:#22c55e; border-color:#86efac; margin-left:8px;">✓ Marcar Piezas Recibidas</button>`;
             }
-        } else if (av['ESTADO PIEZAS'] === 'Recibidas') {
+        } else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas') {
             badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
         }
 
@@ -617,36 +630,39 @@
       document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
 
+      const isCerrado = av['ESTADO'] === 'Cerrado';
+      const isMaster = currentUser === 'Master';
+
       if (currentUser !== 'Master') {
           document.getElementById('div_pirineos').style.display = 'none';
       } else {
           document.getElementById('div_pirineos').style.display = 'block';
+          document.getElementById('res_pirineos').disabled = !isCerrado;
       }
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
       document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
       document.getElementById('res_opcion_venta').value = av['OPCIÓN A VENTA'] || 'NO';
+      document.getElementById('res_detalle_venta').value = av['DETALLE VENTA'] || '';
+      verificarVenta();
       
       const selPiezas = document.getElementById('res_estado_piezas');
       const valPiezas = av['ESTADO PIEZAS'] || '';
       
-      if(valPiezas === 'Recibidas') {
+      if(valPiezas === 'Piezas Recibidas') {
           selPiezas.innerHTML = `
-              <option value="">No se necesitan piezas / Ya instaladas (Aviso continuable)</option>
-              <option value="Pedidas">Necesita Piezas (Forzará estado Pendiente)</option>
-              <option value="Recibidas">Piezas Recibidas</option>
+              <option value="No necesita piezas">No necesita piezas</option>
+              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="Piezas Recibidas">Piezas Recibidas</option>
           `;
-          selPiezas.value = 'Recibidas';
+          selPiezas.value = 'Piezas Recibidas';
       } else {
           selPiezas.innerHTML = `
-              <option value="">No se necesitan piezas / Ya instaladas</option>
-              <option value="Pedidas">Necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="No necesita piezas">No necesita piezas</option>
+              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
           `;
-          selPiezas.value = valPiezas === 'Pedidas' ? 'Pedidas' : '';
+          selPiezas.value = valPiezas === 'Sí necesita Piezas' ? 'Sí necesita Piezas' : 'No necesita piezas';
       }
-      
-      const isMaster = currentUser === 'Master';
-      const isCerrado = av['ESTADO'] === 'Cerrado';
       
       if (isCerrado) {
           document.getElementById('div_horas_summary').style.display = 'block';
@@ -683,7 +699,7 @@
       document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'] || '';
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_pirineos', 'res_opcion_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado && !isMaster;
@@ -723,6 +739,7 @@
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
             pirineos: document.getElementById('res_pirineos').value,
             opcion_venta: document.getElementById('res_opcion_venta').value,
+            detalle_venta: document.getElementById('res_detalle_venta').value,
             estado_piezas: document.getElementById('res_estado_piezas').value,
             fecha_realizacion: fechas,
             hora_entrada: ents,
@@ -771,7 +788,7 @@
 
     async function cerrarAviso() {
       const ep = document.getElementById('res_estado_piezas').value;
-      if (ep === 'Pedidas') {
+      if (ep === 'Sí necesita Piezas') {
           alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
           return;
       }
