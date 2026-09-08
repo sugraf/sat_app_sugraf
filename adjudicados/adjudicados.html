@@ -372,6 +372,9 @@
       <div style="background:#fff; width:100%; max-width:800px; border-radius:12px; padding:24px; position:relative; margin:auto;">
           <h3 style="color:var(--navy); border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:20px; font-weight:700; font-family:'Montserrat';">Revisión y Firma del Parte</h3>
           
+          <input type="hidden" id="prev_marca">
+          <input type="hidden" id="prev_modelo">
+
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
               <div><label>Fechas</label><input type="text" id="prev_fechas"></div>
               <div><label>Técnico</label><input type="text" id="prev_tecnico" readonly style="background:#f1f5f8;"></div>
@@ -384,8 +387,8 @@
               
               <div style="grid-column: 1 / -1;"><label>Máquina / Modelo</label><input type="text" id="prev_maquina"></div>
               <div style="grid-column: 1 / -1;"><label>Motivo llamada/aviso</label><input type="text" id="prev_motivo"></div>
-              <div style="grid-column: 1 / -1;"><label>Piezas / Repuestos</label><textarea id="prev_piezas" rows="2"></textarea></div>
               <div style="grid-column: 1 / -1;"><label>Trabajo Realizado</label><textarea id="prev_trabajo" rows="4"></textarea></div>
+              <div style="grid-column: 1 / -1;"><label>Piezas / Repuestos</label><textarea id="prev_piezas" rows="2"></textarea></div>
               <div style="grid-column: 1 / -1;"><label>Observaciones</label><textarea id="prev_observaciones" rows="2"></textarea></div>
               
               <div><label>Estado</label><input type="text" id="prev_estado"></div>
@@ -400,10 +403,21 @@
 
           <h4 style="color:var(--navy); margin-bottom:10px; font-family:'Montserrat';">Firma del Técnico</h4>
           <p style="font-size:0.8rem; color:#64748b; margin-bottom:5px;">Dibuja tu firma en el recuadro inferior:</p>
-          <div style="border:1px solid var(--grey); border-radius:8px; overflow:hidden; margin-bottom:10px; touch-action:none; background:#f8fafc; text-align:center;">
-              <canvas id="canvas-firma" width="600" height="200" style="width:100%; max-width:600px; height:200px; cursor:crosshair;"></canvas>
+          <div style="border:1px solid var(--green); border-radius:8px; overflow:hidden; margin-bottom:10px; touch-action:none; background:#f8fafc; text-align:center;">
+              <canvas id="canvas-firma-tecnico" width="600" height="200" style="width:100%; max-width:600px; height:200px; cursor:crosshair;"></canvas>
           </div>
-          <button type="button" class="btn-archive" onclick="limpiarFirma()">Limpiar Firma</button>
+          <button type="button" class="btn-archive" onclick="limpiarFirmaTecnico()">Limpiar Firma Técnico</button>
+
+          <h4 style="color:var(--navy); margin-top:20px; margin-bottom:10px; font-family:'Montserrat';">Firma del Cliente</h4>
+          <div style="margin-bottom:10px;">
+              <label>Nombre del firmante (Cliente)</label>
+              <input type="text" id="prev_nombre_cliente" placeholder="Ej: Juan Pérez">
+          </div>
+          <p style="font-size:0.8rem; color:#64748b; margin-bottom:5px;">El cliente debe dibujar su firma abajo:</p>
+          <div style="border:1px solid var(--green); border-radius:8px; overflow:hidden; margin-bottom:10px; touch-action:none; background:#f8fafc; text-align:center;">
+              <canvas id="canvas-firma-cliente" width="600" height="200" style="width:100%; max-width:600px; height:200px; cursor:crosshair;"></canvas>
+          </div>
+          <button type="button" class="btn-archive" onclick="limpiarFirmaCliente()">Limpiar Firma Cliente</button>
 
           <div style="display:flex; gap:10px; margin-top:30px; flex-wrap:wrap;">
               <button type="button" class="btn btn-secondary" onclick="cerrarPreviaPDF()" style="flex:1; margin-top:0;">Volver a Edición (Atrás)</button>
@@ -853,17 +867,16 @@
     //---------------------------------------------------------
     // LÓGICA DE FIRMA Y PDF AL CERRAR DEFINITIVAMENTE
     //---------------------------------------------------------
-    let canvas, ctx;
-    let isDrawing = false;
-
-    function initCanvas() {
-        canvas = document.getElementById('canvas-firma');
-        if(!canvas) return;
-        ctx = canvas.getContext('2d');
+    function initSignaturePad(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if(!canvas) return null;
+        const ctx = canvas.getContext('2d');
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        
+        let isDrawing = false;
 
         const getPos = (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -897,16 +910,22 @@
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDraw);
         canvas.addEventListener('mouseleave', stopDraw);
-
         canvas.addEventListener('touchstart', startDraw, {passive: false});
         canvas.addEventListener('touchmove', draw, {passive: false});
         canvas.addEventListener('touchend', stopDraw);
+        
+        return { canvas, ctx };
     }
+    
+    let padTecnico = null;
+    let padCliente = null;
 
-    function limpiarFirma() {
-        if(ctx && canvas) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+    function limpiarFirmaTecnico() {
+        if(padTecnico) padTecnico.ctx.clearRect(0, 0, padTecnico.canvas.width, padTecnico.canvas.height);
+    }
+    
+    function limpiarFirmaCliente() {
+        if(padCliente) padCliente.ctx.clearRect(0, 0, padCliente.canvas.width, padCliente.canvas.height);
     }
 
     function cerrarAviso() {
@@ -944,10 +963,17 @@
         const idx = parseInt(document.getElementById('res_index').value);
         const av = misAvisos.find(a => a.aviso_index === idx);
         
+        // Recoger Marca y Modelo para los inputs ocultos
+        document.getElementById('prev_marca').value = av ? (av['MARCA'] || '') : '';
+        document.getElementById('prev_modelo').value = av ? (av['MODELO'] || '') : '';
+
         document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
         document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
         document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
-        document.getElementById('prev_observaciones').value = av ? (av['OBSERVACIONES'] || '') : '';
+        
+        // REQUISITO: Observaciones deben aparecer en blanco al generar PDF
+        document.getElementById('prev_observaciones').value = '';
+        
         document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
 
         const tecnico = document.getElementById('res_tecnico_original').value;
@@ -961,8 +987,13 @@
         document.getElementById('prev_email_cliente').value = "";
 
         document.getElementById('modal-previa-parte').style.display = 'flex';
-        if(!ctx) initCanvas();
-        limpiarFirma();
+        
+        if(!padTecnico) padTecnico = initSignaturePad('canvas-firma-tecnico');
+        if(!padCliente) padCliente = initSignaturePad('canvas-firma-cliente');
+        
+        limpiarFirmaTecnico();
+        limpiarFirmaCliente();
+        document.getElementById('prev_nombre_cliente').value = '';
     }
 
     function cerrarPreviaPDF() {
@@ -971,10 +1002,19 @@
 
     async function enviarYCerrarDefinitivo() {
         const blank = document.createElement('canvas');
-        blank.width = canvas.width;
-        blank.height = canvas.height;
-        if(canvas.toDataURL() === blank.toDataURL()) {
-            alert("El técnico debe firmar el parte antes de enviar.");
+        blank.width = 600;
+        blank.height = 200;
+        
+        if(padTecnico.canvas.toDataURL() === blank.toDataURL()) {
+            alert("El técnico debe firmar el parte en su recuadro.");
+            return;
+        }
+        if(padCliente.canvas.toDataURL() === blank.toDataURL()) {
+            alert("El cliente debe firmar el parte en su recuadro.");
+            return;
+        }
+        if(!document.getElementById('prev_nombre_cliente').value.trim()) {
+            alert("Debes indicar el nombre de la persona que firma por el cliente.");
             return;
         }
 
@@ -992,6 +1032,8 @@
             pdf_cliente: document.getElementById('prev_cliente').value,
             pdf_poblacion: document.getElementById('prev_poblacion').value,
             pdf_maquina: document.getElementById('prev_maquina').value,
+            pdf_marca: document.getElementById('prev_marca').value,
+            pdf_modelo: document.getElementById('prev_modelo').value,
             pdf_motivo: document.getElementById('prev_motivo').value,
             pdf_piezas: document.getElementById('prev_piezas').value,
             pdf_trabajo: document.getElementById('prev_trabajo').value,
@@ -1000,7 +1042,9 @@
             email_tecnico: document.getElementById('prev_email_tecnico').value,
             email_laura: document.getElementById('prev_email_laura').value,
             email_cliente: document.getElementById('prev_email_cliente').value,
-            firma_tecnico_b64: canvas.toDataURL('image/png')
+            firma_tecnico_b64: padTecnico.canvas.toDataURL('image/png'),
+            firma_cliente_b64: padCliente.canvas.toDataURL('image/png'),
+            pdf_nombre_cliente: document.getElementById('prev_nombre_cliente').value.trim()
         };
 
         try {
