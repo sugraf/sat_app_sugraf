@@ -6,3 +6,4 @@ pandas
 openpyxl
 openai
 reportlab
+Pillow
