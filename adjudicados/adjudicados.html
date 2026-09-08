@@ -376,11 +376,11 @@
           <input type="hidden" id="prev_modelo">
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
-              <div><label>Fechas</label><input type="text" id="prev_fechas"></div>
+              <div><label>Fechas</label><textarea id="prev_fechas" rows="2"></textarea></div>
               <div><label>Técnico</label><input type="text" id="prev_tecnico" readonly style="background:#f1f5f8;"></div>
               
-              <div><label>Horas Inicio</label><input type="text" id="prev_horas_in"></div>
-              <div><label>Horas Fin</label><input type="text" id="prev_horas_out"></div>
+              <div><label>Horas Inicio</label><textarea id="prev_horas_in" rows="2"></textarea></div>
+              <div><label>Horas Fin</label><textarea id="prev_horas_out" rows="2"></textarea></div>
               
               <div><label>Cliente</label><input type="text" id="prev_cliente"></div>
               <div><label>Localidad</label><input type="text" id="prev_poblacion"></div>
@@ -947,9 +947,9 @@
     }
 
     function mostrarPreviaPDF() {
-        const fechas = Array.from(document.querySelectorAll('.ses_fecha')).map(el => el.value).join(', ');
-        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join(', ');
-        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join(', ');
+        const fechas = Array.from(document.querySelectorAll('.ses_fecha')).map(el => el.value).join('\n');
+        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join('\n');
+        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join('\n');
 
         document.getElementById('prev_fechas').value = fechas;
         document.getElementById('prev_horas_in').value = ents;
