@@ -192,7 +192,7 @@
         padding-right:28px;
     }
     select.action-sel:focus { outline:none; border-color:var(--green); }
-    select.action-sel:disabled { background-color:rgba(255,255,255,0.04); color:#5c7291; cursor:not-allowed; border-color:transparent; }
+    select.action-sel:disabled { background-color:rgba(255,255,255,0.04); color:#5c7291; cursor:not-allowed; border-color:transparent; background-image:none; padding-right:10px; }
 
     .meta-pair{ font-size:0.85rem; color:var(--muted); font-weight:500; display:flex; align-items:center; gap:6px; }
     .meta-pair strong{ color:#d7e2ef; }
@@ -365,7 +365,7 @@
       window.location.href = "/";
     }
 
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'];
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA', 'ESTADO PIEZAS'];
 
     let avisosGlobales = [];
 
@@ -386,9 +386,8 @@
       
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
 
-      let filtrados = avisosGlobales.map((av, index) => ({...av, original_index: index}));
-
-      filtrados = filtrados.filter(av => {
+      // Usar filter directamente para conservar el original_index que viene del backend
+      let filtrados = avisosGlobales.filter(av => {
         const matchTec = filtroTec === "Todos" || (av['ASIGNADO A'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
         const matchEtiqueta = filtroEtiqueta === "Todos" || av[filtroEtiqueta] === 'SI';
@@ -409,8 +408,14 @@
         const tecActual = av['ASIGNADO A'] || 'Pendiente';
         const estadoAviso = av['ESTADO'] || '';
         
-        const disableSelect = (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado') ? "disabled" : "";
-        const titleText = disableSelect ? 'title="El aviso ya ha sido abierto por el técnico y no se puede reasignar."' : '';
+        let disableSelect = (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado') ? "disabled" : "";
+        let titleText = disableSelect ? 'title="El aviso ya ha sido abierto por el técnico y no se puede reasignar."' : '';
+        
+        // Bloquear asignación si el usuario es técnico y el aviso es de otro compañero
+        if (isTecnico && tecActual !== 'Pendiente' && tecActual !== currentUser) {
+            disableSelect = "disabled";
+            titleText = 'title="No puedes modificar un aviso asignado a otro técnico."';
+        }
         
         let tecOptions = `<option value="Pendiente" ${tecActual === 'Pendiente' ? 'selected' : ''}>Sin Asignar</option>`;
         
@@ -431,6 +436,11 @@
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        
+        // Insignias Nuevas
+        if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
+        if(av['ESTADO PIEZAS'] === 'Pedidas') badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pedidas</span>`;
+        else if (av['ESTADO PIEZAS'] === 'Recibidas') badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
 
         let btnDelete = "";
         if (currentUser === "Master") {
@@ -480,7 +490,7 @@
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
             
             if (canEdit && key !== 'ASIGNADO A' && key !== 'ESTADO') {
-                if (['URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'].includes(key)) {
+                if (['URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OPCIÓN A VENTA'].includes(key)) {
                     html += `<tr><th>${key}</th><td>
                         <select id="edit_${key}" class="edit-input">
                             <option value="NO" ${val !== 'SI' ? 'selected' : ''}>NO</option>
@@ -489,6 +499,14 @@
                     </td></tr>`;
                 } else if (key === 'DESCRIPCIÓN') {
                     html += `<tr><th>${key}</th><td><textarea id="edit_${key}" class="edit-input" rows="3">${val}</textarea></td></tr>`;
+                } else if (key === 'ESTADO PIEZAS') {
+                    html += `<tr><th>${key}</th><td>
+                        <select id="edit_${key}" class="edit-input">
+                            <option value="" ${val === '' ? 'selected' : ''}>No necesita / Ya instaladas</option>
+                            <option value="Pedidas" ${val === 'Pedidas' ? 'selected' : ''}>Pedidas</option>
+                            <option value="Recibidas" ${val === 'Recibidas' ? 'selected' : ''}>Recibidas</option>
+                        </select>
+                    </td></tr>`;
                 } else {
                     html += `<tr><th>${key}</th><td><input type="text" id="edit_${key}" class="edit-input" value="${val.replace(/"/g, '&quot;')}"></td></tr>`;
                 }
