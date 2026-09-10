@@ -317,17 +317,6 @@
         </div>
 
         <div class="box-group">
-            <label>Estado de Piezas</label>
-            <select id="res_estado_piezas" onchange="verificarEstadoPiezas()">
-              <option value="No necesita piezas">No necesita piezas</option>
-              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
-              <option value="Piezas Recibidas" disabled style="display:none;">Piezas Recibidas</option>
-            </select>
-            <label style="margin-top: 10px;">Piezas Necesarias / Cambiadas</label>
-            <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
-        </div>
-
-        <div class="box-group">
             <label>Opción a Venta</label>
             <select id="res_opcion_venta" onchange="verificarVenta()">
               <option value="NO">No</option>
@@ -350,11 +339,27 @@
         </div>
         <div id="sesiones-container"></div>
 
-        <label>Estado de Resolución</label>
-        <select id="res_estado_resolucion">
-          <option value="Pendiente">Pendiente en general</option>
-          <option value="Resuelto">Resuelto</option>
-        </select>
+        <div class="box-group">
+            <label>Estado de Resolución</label>
+            <select id="res_estado_resolucion" onchange="togglePiezasUI()">
+              <option value="" disabled selected>Selecciona estado...</option>
+              <option value="Pendiente">Pendiente (Continuará otro día/Faltan Piezas)</option>
+              <option value="Resuelto">Resuelto</option>
+            </select>
+
+            <div id="div_necesita_pieza" style="display:none; margin-top:10px;">
+                <label>¿Se necesita pieza?</label>
+                <select id="res_necesita_pieza" onchange="togglePiezasTexto()">
+                    <option value="" disabled selected>Selecciona...</option>
+                    <option value="SI">SÍ</option>
+                    <option value="NO">NO</option>
+                </select>
+                <div id="div_piezas_texto" style="display:none; margin-top:10px;">
+                    <label>Piezas Necesarias</label>
+                    <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
+                </div>
+            </div>
+        </div>
 
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
@@ -433,7 +438,7 @@
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
-    const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
+    const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Técnico 4"];
 
     document.getElementById("user-name-text").innerText = currentUser;
     document.getElementById("zona-usuario").style.display = "flex";
@@ -498,38 +503,22 @@
         document.getElementById('botones-tecnicos').innerHTML = html;
     }
 
-    function verificarEstadoPiezas() {
-        const ep = document.getElementById('res_estado_piezas').value;
-        const estRes = document.getElementById('res_estado_resolucion');
-        const btnCerrar = document.getElementById('btn-cerrar');
-        const valActual = estRes.value; 
-        
-        const isMaster = currentUser === 'Master';
-        const isCerrado = document.getElementById('resolucion-box').dataset.estado === 'Cerrado';
-        const canEdit = !isCerrado || isMaster;
-        
-        if (ep === 'Sí necesita Piezas') {
-            estRes.innerHTML = `<option value="Pendiente">Pendiente por piezas</option>`;
-            estRes.value = 'Pendiente';
-            estRes.disabled = true;
-            if(btnCerrar) btnCerrar.disabled = true;
-        } else if (ep === 'Piezas Recibidas') {
-            estRes.innerHTML = `
-                <option value="Pendiente">Pendiente (Piezas recibidas)</option>
-                <option value="Resuelto">Resuelto</option>
-            `;
-            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
-            estRes.disabled = !canEdit;
-            if(btnCerrar) btnCerrar.disabled = !canEdit;
+    function togglePiezasUI() {
+        const res = document.getElementById('res_estado_resolucion').value;
+        const divP = document.getElementById('div_necesita_pieza');
+        if (res === 'Pendiente') {
+            divP.style.display = 'block';
         } else {
-            estRes.innerHTML = `
-                <option value="Pendiente">Pendiente en general</option>
-                <option value="Resuelto">Resuelto</option>
-            `;
-            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
-            estRes.disabled = !canEdit;
-            if(btnCerrar) btnCerrar.disabled = !canEdit;
+            divP.style.display = 'none';
+            document.getElementById('res_necesita_pieza').value = "";
+            document.getElementById('res_piezas').value = "";
+            togglePiezasTexto();
         }
+    }
+
+    function togglePiezasTexto() {
+        const val = document.getElementById('res_necesita_pieza').value;
+        document.getElementById('div_piezas_texto').style.display = val === 'SI' ? 'block' : 'none';
     }
 
     function verificarVenta() {
@@ -547,14 +536,16 @@
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
         if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
         
-        let extraBtnMaster = "";
-        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas') {
-            badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pendientes</span>`;
-            if (currentUser === 'Master') {
-                extraBtnMaster = `<button onclick="event.stopPropagation(); marcarPiezasRecibidas(${av.aviso_index})" class="btn-archive" style="color:#22c55e; border-color:#86efac; margin-left:8px;">✓ Marcar Piezas Recibidas</button>`;
+        if(av['NUEVO'] === 'SI') badgesHtml += `<span class="badge" style="background:#e0f2fe; color:#0284c7; border-color:#bae6fd;">Nuevo</span>`;
+        if(av['PARADO'] === 'SI') badgesHtml += `<span class="badge" style="background:#fee2e2; color:#b91c1c; border-color:#fecaca;">Parado</span>`;
+        if(av['RECLAMA'] === 'SI') badgesHtml += `<span class="badge" style="background:#f3e8ff; color:#7e22ce; border-color:#e9d5ff;">Reclama</span>`;
+        if(av['PRESUPUESTO'] === 'SI') badgesHtml += `<span class="badge" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;">Presupuesto</span>`;
+        if(av['PIEZAS'] === 'SI') {
+            if(av['ESTADO PIEZAS'] === 'Listo') {
+                badgesHtml += `<span class="badge" style="background:#dcfce7; color:#15803d; border-color:#bbf7d0;">Piezas Listo</span>`;
+            } else {
+                badgesHtml += `<span class="badge" style="background:#ffedd5; color:#c2410c; border-color:#fed7aa;">Piezas Pdt</span>`;
             }
-        } else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas') {
-            badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
         }
 
         let actionBtn = "";
@@ -571,7 +562,6 @@
             <div class="inc-title">
                 <span style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
                     ${av['CLIENTE']}
-                    ${extraBtnMaster}
                 </span>
                 ${actionBtn}
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
@@ -651,22 +641,6 @@
             console.error(err);
         }
     }
-    
-    async function marcarPiezasRecibidas(index) {
-        if(!confirm("¿Confirmas que las piezas para este aviso ya han llegado?")) return;
-        try {
-            const res = await fetch('/api/adjudicados/piezas-recibidas', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ aviso_index: index })
-            });
-            if (!res.ok) throw new Error(await res.text());
-            alert("Estado actualizado a Piezas Recibidas.");
-            cargarAvisos();
-        } catch(err) {
-            alert(`Error: ${err.message}`);
-        }
-    }
 
     function addSesionRow(f='', he='', hs='') {
         const container = document.getElementById('sesiones-container');
@@ -733,24 +707,6 @@
       document.getElementById('res_detalle_venta').value = av['DETALLE VENTA'] || '';
       verificarVenta();
       
-      const selPiezas = document.getElementById('res_estado_piezas');
-      const valPiezas = av['ESTADO PIEZAS'] || '';
-      
-      if(valPiezas === 'Piezas Recibidas') {
-          selPiezas.innerHTML = `
-              <option value="No necesita piezas">No necesita piezas</option>
-              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
-              <option value="Piezas Recibidas">Piezas Recibidas</option>
-          `;
-          selPiezas.value = 'Piezas Recibidas';
-      } else {
-          selPiezas.innerHTML = `
-              <option value="No necesita piezas">No necesita piezas</option>
-              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
-          `;
-          selPiezas.value = valPiezas === 'Sí necesita Piezas' ? 'Sí necesita Piezas' : 'No necesita piezas';
-      }
-      
       if (isCerrado) {
           document.getElementById('div_horas_summary').style.display = 'block';
           document.getElementById('res_total_horas').innerText = av['HORAS TOTALES'] || '00:00';
@@ -775,13 +731,21 @@
           addSesionRow(f_arr[i] || '', he_arr[i] || '', hs_arr[i] || '');
       }
 
-      document.getElementById('res_estado_resolucion').innerHTML = `
-          <option value="Pendiente">Pendiente en general</option>
-          <option value="Resuelto">Resuelto</option>
-      `;
-      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
+      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || '';
+      togglePiezasUI();
+      
+      // Si antes se habían pedido piezas y se regeneró con la nueva lógica o es histórico
+      if(av['PIEZAS NECESARIAS'] && av['PIEZAS NECESARIAS'] !== 'Se necesitan piezas? NO') {
+          document.getElementById('res_necesita_pieza').value = 'SI';
+          document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'];
+      } else if(av['PIEZAS NECESARIAS'] === 'Se necesitan piezas? NO') {
+          document.getElementById('res_necesita_pieza').value = 'NO';
+      }
+      togglePiezasTexto();
+      
+      document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_pieza', 'res_piezas', 'res_solucion'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado && !isMaster;
@@ -793,13 +757,8 @@
 
       if (isCerrado) {
           btnCerrar.style.display = 'none';
-          btnReabrir.style.display = 'block';
-          if (isMaster) {
-              btnProgreso.style.display = 'block';
-              btnProgreso.innerText = "Guardar Cambios (Master)";
-          } else {
-              btnProgreso.style.display = 'none';
-          }
+          btnReabrir.style.display = 'none'; // Nadie puede reabrir según las reglas del Master
+          btnProgreso.style.display = 'none'; // Ni master puede modificar
       } else {
           btnCerrar.style.display = 'block';
           btnReabrir.style.display = 'none';
@@ -807,7 +766,6 @@
           btnProgreso.innerText = "Guardar Progreso";
       }
 
-      verificarEstadoPiezas();
       setTimeout(() => { box.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
     }
 
@@ -816,18 +774,29 @@
         const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join('\n');
         const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join('\n');
 
+        let piezasText = "";
+        const estadoRes = document.getElementById('res_estado_resolucion').value;
+        if (estadoRes === 'Pendiente') {
+            const nec = document.getElementById('res_necesita_pieza').value;
+            if (nec === 'SI') {
+                piezasText = document.getElementById('res_piezas').value;
+            } else if (nec === 'NO') {
+                piezasText = "Se necesitan piezas? NO";
+            }
+        }
+
         return {
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
             pirineos: document.getElementById('res_pirineos').value,
             opcion_venta: document.getElementById('res_opcion_venta').value,
             detalle_venta: document.getElementById('res_detalle_venta').value,
-            estado_piezas: document.getElementById('res_estado_piezas').value,
+            estado_piezas: '', // Deprecado, lo gestionará el master ahora
             fecha_realizacion: fechas,
             hora_entrada: ents,
             hora_salida: sals,
-            resuelto_pendiente: document.getElementById('res_estado_resolucion').value,
-            piezas: document.getElementById('res_piezas').value,
+            resuelto_pendiente: estadoRes || '',
+            piezas: piezasText,
             solucion: document.getElementById('res_solucion').value,
             cliente: document.getElementById('res_cliente').value,
             poblacion: document.getElementById('res_poblacion').value,
@@ -838,8 +807,7 @@
 
     async function guardarProgreso() {
       const box = document.getElementById('resolucion-box');
-      const isCerrado = box.dataset.estado === 'Cerrado';
-      const endpoint = isCerrado ? '/api/adjudicados/editar-cerrado' : '/api/adjudicados/guardar-progreso';
+      const endpoint = '/api/adjudicados/guardar-progreso';
 
       const btn = document.getElementById('btn-progreso');
       btn.innerText = "Guardando..."; btn.disabled = true;
@@ -856,7 +824,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert(isCerrado ? "Cambios guardados correctamente." : "Progreso guardado. El aviso ahora está en progreso.");
+        alert("Progreso guardado. El aviso ahora está en progreso.");
         box.style.display = 'none';
         cargarAvisos();
       } catch (err) {
@@ -864,7 +832,7 @@
         console.error(err);
       }
 
-      btn.innerText = isCerrado ? "Guardar Cambios (Master)" : "Guardar Progreso"; 
+      btn.innerText = "Guardar Progreso"; 
       btn.disabled = false;
     }
 
@@ -930,18 +898,26 @@
     }
 
     function cerrarAviso() {
-        const ep = document.getElementById('res_estado_piezas').value;
-        if (ep === 'Sí necesita Piezas') {
-            alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
-            return;
-        }
-
         const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value);
         const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value);
         
         if(ents.length === 0 || ents.some(e => !e) || sals.some(s => !s) || !document.getElementById('res_solucion').value) {
             alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada y salida de TODAS las sesiones, y redactar la solución.");
             return;
+        }
+
+        const estResol = document.getElementById('res_estado_resolucion').value;
+        if (!estResol) {
+            alert("Debes seleccionar el estado de resolución para cerrar el aviso (Pendiente o Resuelto).");
+            return;
+        }
+
+        if (estResol === "Pendiente") {
+            const necPieza = document.getElementById('res_necesita_pieza').value;
+            if (!necPieza) {
+                alert("Has marcado Pendiente. Debes indicar obligatoriamente si se necesitan piezas o no.");
+                return;
+            }
         }
 
         mostrarPreviaPDF();
@@ -969,9 +945,17 @@
         document.getElementById('prev_n_serie').value = av ? (av['Nº SERIE'] || '') : '';
 
         document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
-        document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
-        document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
         
+        const estResol = document.getElementById('res_estado_resolucion').value;
+        if(estResol === 'Pendiente') {
+            const nec = document.getElementById('res_necesita_pieza').value;
+            if(nec === 'NO') document.getElementById('prev_piezas').value = "Se necesitan piezas? NO";
+            else document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
+        } else {
+            document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
+        }
+
+        document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
         document.getElementById('prev_observaciones').value = '';
         
         document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
@@ -981,7 +965,7 @@
             "Ion Volog": "ion@sugraf.es",
             "Daniel Gargallo": "daniel@sugraf.es",
             "Francisco Antúnez": "francisco@sugraf.es",
-            "Emilio Arrieta": ""
+            "Técnico 4": ""
         };
         document.getElementById('prev_email_tecnico').value = correos[tecnico] !== undefined ? correos[tecnico] : '';
         document.getElementById('prev_email_cliente').value = "";
@@ -1085,38 +1069,7 @@
         btn.innerText = "Enviar y Cerrar Definitivamente"; btn.disabled = false;
     }
 
-    async function reabrirAviso() {
-      if(!confirm("¿Estás seguro de que quieres REABRIR este aviso? Volverá a estar en progreso.")) return;
-
-      const btn = document.getElementById('btn-reabrir');
-      btn.innerText = "Procesando..."; btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/adjudicados/reabrir', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(buildPayload())
-        });
-
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
-        }
-
-        alert("Aviso reabierto con éxito.");
-        document.getElementById('resolucion-box').style.display = 'none';
-        cargarAvisos();
-      } catch (err) {
-        alert(`Error al reabrir el aviso: ${err.message}`);
-        console.error(err);
-      }
-
-      btn.innerText = "Reabrir Aviso"; btn.disabled = false;
-    }
-
     cargarAvisos();
   </script>
-</body>
-</html>
 </body>
 </html>
