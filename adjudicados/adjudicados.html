@@ -201,13 +201,6 @@
     button.btn:disabled{ opacity:0.6; cursor:not-allowed; transform:none; }
     button.btn-secondary{ background:var(--navy); border:1px solid rgba(16,38,59,0.15); }
     button.btn-secondary:hover{ background:var(--navy-light); }
-
-    button.btn-archive {
-      background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5);
-      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
-      text-transform:uppercase; letter-spacing:0.03em; transition:background 0.15s, border-color 0.15s;
-    }
-    button.btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
     
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
@@ -317,6 +310,17 @@
         </div>
 
         <div class="box-group">
+            <label>Estado de Piezas</label>
+            <select id="res_estado_piezas" onchange="verificarEstadoPiezas()">
+              <option value="No necesita piezas">No necesita piezas</option>
+              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="Piezas Recibidas" disabled style="display:none;">Piezas Recibidas</option>
+            </select>
+            <label style="margin-top: 10px;">Piezas Necesarias / Cambiadas</label>
+            <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
+        </div>
+
+        <div class="box-group">
             <label>Opción a Venta</label>
             <select id="res_opcion_venta" onchange="verificarVenta()">
               <option value="NO">No</option>
@@ -333,33 +337,18 @@
           <p id="res_total_horas">00:00</p>
         </div>
 
-        <div style="margin:18px 0 7px; display:flex; justify-content:space-between; align-items:center;">
-          <label style="margin:0;">Sesiones de Trabajo (Fechas y Horas)</label>
-          <button type="button" class="btn-archive" id="btn-add-sesion" onclick="addSesionRow()">+ Añadir Sesión</button>
+        <label style="margin-bottom:8px;">Fecha y Horas de Trabajo</label>
+        <div class="sesion-row" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+            <input type="date" id="ses_fecha" style="flex:2; padding:10px;" title="Fecha">
+            <input type="time" id="ses_hora_ent" style="flex:1; padding:10px;" title="Hora Entrada">
+            <input type="time" id="ses_hora_sal" style="flex:1; padding:10px;" title="Hora Salida">
         </div>
-        <div id="sesiones-container"></div>
 
-        <div class="box-group">
-            <label>Estado de Resolución</label>
-            <select id="res_estado_resolucion" onchange="togglePiezasUI()">
-              <option value="" disabled selected>Selecciona estado...</option>
-              <option value="Pendiente">Pendiente (Continuará otro día/Faltan Piezas)</option>
-              <option value="Resuelto">Resuelto</option>
-            </select>
-
-            <div id="div_necesita_pieza" style="display:none; margin-top:10px;">
-                <label>¿Se necesita pieza?</label>
-                <select id="res_necesita_pieza" onchange="togglePiezasTexto()">
-                    <option value="" disabled selected>Selecciona...</option>
-                    <option value="SI">SÍ</option>
-                    <option value="NO">NO</option>
-                </select>
-                <div id="div_piezas_texto" style="display:none; margin-top:10px;">
-                    <label>Piezas Necesarias</label>
-                    <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
-                </div>
-            </div>
-        </div>
+        <label>Estado de Resolución</label>
+        <select id="res_estado_resolucion">
+          <option value="Pendiente">Pendiente en general</option>
+          <option value="Resuelto">Resuelto</option>
+        </select>
 
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
@@ -378,11 +367,11 @@
           <h3 style="color:var(--navy); border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:20px; font-weight:700; font-family:'Montserrat';">Revisión y Firma del Parte</h3>
           
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
-              <div><label>Fechas</label><textarea id="prev_fechas" rows="2"></textarea></div>
+              <div><label>Fecha</label><input type="text" id="prev_fechas" readonly></div>
               <div><label>Técnico</label><input type="text" id="prev_tecnico" readonly style="background:#f1f5f8;"></div>
               
-              <div><label>Horas Inicio</label><textarea id="prev_horas_in" rows="2"></textarea></div>
-              <div><label>Horas Fin</label><textarea id="prev_horas_out" rows="2"></textarea></div>
+              <div><label>Hora Inicio</label><input type="text" id="prev_horas_in" readonly></div>
+              <div><label>Hora Fin</label><input type="text" id="prev_horas_out" readonly></div>
               
               <div><label>Cliente</label><input type="text" id="prev_cliente"></div>
               <div><label>Localidad</label><input type="text" id="prev_poblacion"></div>
@@ -503,22 +492,38 @@
         document.getElementById('botones-tecnicos').innerHTML = html;
     }
 
-    function togglePiezasUI() {
-        const res = document.getElementById('res_estado_resolucion').value;
-        const divP = document.getElementById('div_necesita_pieza');
-        if (res === 'Pendiente') {
-            divP.style.display = 'block';
+    function verificarEstadoPiezas() {
+        const ep = document.getElementById('res_estado_piezas').value;
+        const estRes = document.getElementById('res_estado_resolucion');
+        const btnCerrar = document.getElementById('btn-cerrar');
+        const valActual = estRes.value; 
+        
+        const isMaster = currentUser === 'Master';
+        const isCerrado = document.getElementById('resolucion-box').dataset.estado === 'Cerrado';
+        const canEdit = !isCerrado || isMaster;
+        
+        if (ep === 'Sí necesita Piezas') {
+            estRes.innerHTML = `<option value="Pendiente">Pendiente por piezas</option>`;
+            estRes.value = 'Pendiente';
+            estRes.disabled = true;
+            if(btnCerrar) btnCerrar.disabled = true;
+        } else if (ep === 'Piezas Recibidas') {
+            estRes.innerHTML = `
+                <option value="Pendiente">Pendiente (Piezas recibidas)</option>
+                <option value="Resuelto">Resuelto</option>
+            `;
+            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
+            estRes.disabled = !canEdit;
+            if(btnCerrar) btnCerrar.disabled = !canEdit;
         } else {
-            divP.style.display = 'none';
-            document.getElementById('res_necesita_pieza').value = "";
-            document.getElementById('res_piezas').value = "";
-            togglePiezasTexto();
+            estRes.innerHTML = `
+                <option value="Pendiente">Pendiente en general</option>
+                <option value="Resuelto">Resuelto</option>
+            `;
+            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
+            estRes.disabled = !canEdit;
+            if(btnCerrar) btnCerrar.disabled = !canEdit;
         }
-    }
-
-    function togglePiezasTexto() {
-        const val = document.getElementById('res_necesita_pieza').value;
-        document.getElementById('div_piezas_texto').style.display = val === 'SI' ? 'block' : 'none';
     }
 
     function verificarVenta() {
@@ -536,16 +541,14 @@
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
         if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
         
-        if(av['NUEVO'] === 'SI') badgesHtml += `<span class="badge" style="background:#e0f2fe; color:#0284c7; border-color:#bae6fd;">Nuevo</span>`;
-        if(av['PARADO'] === 'SI') badgesHtml += `<span class="badge" style="background:#fee2e2; color:#b91c1c; border-color:#fecaca;">Parado</span>`;
-        if(av['RECLAMA'] === 'SI') badgesHtml += `<span class="badge" style="background:#f3e8ff; color:#7e22ce; border-color:#e9d5ff;">Reclama</span>`;
-        if(av['PRESUPUESTO'] === 'SI') badgesHtml += `<span class="badge" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;">Presupuesto</span>`;
-        if(av['PIEZAS'] === 'SI') {
-            if(av['ESTADO PIEZAS'] === 'Listo') {
-                badgesHtml += `<span class="badge" style="background:#dcfce7; color:#15803d; border-color:#bbf7d0;">Piezas Listo</span>`;
-            } else {
-                badgesHtml += `<span class="badge" style="background:#ffedd5; color:#c2410c; border-color:#fed7aa;">Piezas Pdt</span>`;
+        let extraBtnMaster = "";
+        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas') {
+            badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pendientes</span>`;
+            if (currentUser === 'Master') {
+                extraBtnMaster = `<button onclick="event.stopPropagation(); marcarPiezasRecibidas(${av.aviso_index})" class="btn-archive" style="color:#22c55e; border-color:#86efac; margin-left:8px;">✓ Marcar Piezas Recibidas</button>`;
             }
+        } else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas') {
+            badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
         }
 
         let actionBtn = "";
@@ -554,7 +557,7 @@
         }
         
         let fechasArr = (av['FECHA REALIZACIÓN'] || '').toString().split('\n').filter(f => f.trim() !== '');
-        let fechasDisplay = fechasArr.length > 0 ? fechasArr.join(', ') : (av['F. ENTR.'] || 'Sin fecha');
+        let fechasDisplay = fechasArr.length > 0 ? fechasArr[0] : (av['F. ENTR.'] || 'Sin fecha');
         let horasTotales = av['HORAS TOTALES'] || '00:00';
 
         return `
@@ -562,11 +565,12 @@
             <div class="inc-title">
                 <span style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
                     ${av['CLIENTE']}
+                    ${extraBtnMaster}
                 </span>
                 ${actionBtn}
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
             </div>
-            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fechas:</strong> ${fechasDisplay} &nbsp;|&nbsp; <strong>Total Horas:</strong> ${horasTotales} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['ASIGNADO A']}</div>
+            <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fecha:</strong> ${fechasDisplay} &nbsp;|&nbsp; <strong>Total Horas:</strong> ${horasTotales} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['ASIGNADO A']}</div>
         </div>
         `;
     }
@@ -641,34 +645,21 @@
             console.error(err);
         }
     }
-
-    function addSesionRow(f='', he='', hs='') {
-        const container = document.getElementById('sesiones-container');
-        const row = document.createElement('div');
-        row.className = 'sesion-row';
-        row.style.display = 'flex';
-        row.style.gap = '8px';
-        row.style.marginBottom = '8px';
-        row.style.alignItems = 'center';
-
-        const box = document.getElementById('resolucion-box');
-        const isCerrado = box.dataset.estado === 'Cerrado';
-        const isMaster = currentUser === 'Master';
-        const dis = (isCerrado && !isMaster) ? 'disabled' : '';
-
-        let dateVal = f ? String(f).trim() : '';
-        if(dateVal.includes(' ')) dateVal = dateVal.split(' ')[0];
-
-        let heVal = he ? String(he).trim().substring(0, 5) : '';
-        let hsVal = hs ? String(hs).trim().substring(0, 5) : '';
-
-        row.innerHTML = `
-            <input type="date" class="ses_fecha" value="${dateVal}" ${dis} style="flex:2; padding:10px;" title="Fecha">
-            <input type="time" class="ses_hora_ent" value="${heVal}" ${dis} style="flex:1; padding:10px;" title="Hora Entrada">
-            <input type="time" class="ses_hora_sal" value="${hsVal}" ${dis} style="flex:1; padding:10px;" title="Hora Salida">
-            ${(!dis) ? `<button type="button" style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.4); border-radius:8px; padding:8px 12px; cursor:pointer;" title="Eliminar sesión" onclick="this.parentElement.remove()">X</button>` : ''}
-        `;
-        container.appendChild(row);
+    
+    async function marcarPiezasRecibidas(index) {
+        if(!confirm("¿Confirmas que las piezas para este aviso ya han llegado?")) return;
+        try {
+            const res = await fetch('/api/adjudicados/piezas-recibidas', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ aviso_index: index })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            alert("Estado actualizado a Piezas Recibidas.");
+            cargarAvisos();
+        } catch(err) {
+            alert(`Error: ${err.message}`);
+        }
     }
 
     function abrirResolucion(index) {
@@ -707,6 +698,24 @@
       document.getElementById('res_detalle_venta').value = av['DETALLE VENTA'] || '';
       verificarVenta();
       
+      const selPiezas = document.getElementById('res_estado_piezas');
+      const valPiezas = av['ESTADO PIEZAS'] || '';
+      
+      if(valPiezas === 'Piezas Recibidas') {
+          selPiezas.innerHTML = `
+              <option value="No necesita piezas">No necesita piezas</option>
+              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="Piezas Recibidas">Piezas Recibidas</option>
+          `;
+          selPiezas.value = 'Piezas Recibidas';
+      } else {
+          selPiezas.innerHTML = `
+              <option value="No necesita piezas">No necesita piezas</option>
+              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+          `;
+          selPiezas.value = valPiezas === 'Sí necesita Piezas' ? 'Sí necesita Piezas' : 'No necesita piezas';
+      }
+      
       if (isCerrado) {
           document.getElementById('div_horas_summary').style.display = 'block';
           document.getElementById('res_total_horas').innerText = av['HORAS TOTALES'] || '00:00';
@@ -718,34 +727,25 @@
       let he_arr = (av['HORA ENTRADA'] || "").toString().split('\n');
       let hs_arr = (av['HORA SALIDA'] || "").toString().split('\n');
 
-      let max_len = Math.max(f_arr.length, he_arr.length, hs_arr.length);
-      if(max_len === 0 || (max_len === 1 && !f_arr[0] && !he_arr[0] && !hs_arr[0])) {
-          f_arr = [new Date().toISOString().split('T')[0]]; 
-          he_arr = ['']; 
-          hs_arr = ['']; 
-          max_len = 1;
-      }
-
-      document.getElementById('sesiones-container').innerHTML = '';
-      for(let i=0; i<max_len; i++) {
-          addSesionRow(f_arr[i] || '', he_arr[i] || '', hs_arr[i] || '');
-      }
-
-      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || '';
-      togglePiezasUI();
+      let dateVal = f_arr[0] || new Date().toISOString().split('T')[0];
+      if(dateVal.includes(' ')) dateVal = dateVal.split(' ')[0];
       
-      // Si antes se habían pedido piezas y se regeneró con la nueva lógica o es histórico
-      if(av['PIEZAS NECESARIAS'] && av['PIEZAS NECESARIAS'] !== 'Se necesitan piezas? NO') {
-          document.getElementById('res_necesita_pieza').value = 'SI';
-          document.getElementById('res_piezas').value = av['PIEZAS NECESARIAS'];
-      } else if(av['PIEZAS NECESARIAS'] === 'Se necesitan piezas? NO') {
-          document.getElementById('res_necesita_pieza').value = 'NO';
-      }
-      togglePiezasTexto();
-      
-      document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
+      document.getElementById('ses_fecha').value = dateVal;
+      document.getElementById('ses_hora_ent').value = (he_arr[0] || '').substring(0, 5);
+      document.getElementById('ses_hora_sal').value = (hs_arr[0] || '').substring(0, 5);
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_pieza', 'res_piezas', 'res_solucion'];
+      const dis = isCerrado && !isMaster;
+      document.getElementById('ses_fecha').disabled = dis;
+      document.getElementById('ses_hora_ent').disabled = dis;
+      document.getElementById('ses_hora_sal').disabled = dis;
+
+      document.getElementById('res_estado_resolucion').innerHTML = `
+          <option value="Pendiente">Pendiente en general</option>
+          <option value="Resuelto">Resuelto</option>
+      `;
+      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
+
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado && !isMaster;
@@ -757,8 +757,13 @@
 
       if (isCerrado) {
           btnCerrar.style.display = 'none';
-          btnReabrir.style.display = 'none'; // Nadie puede reabrir según las reglas del Master
-          btnProgreso.style.display = 'none'; // Ni master puede modificar
+          btnReabrir.style.display = 'block';
+          if (isMaster) {
+              btnProgreso.style.display = 'block';
+              btnProgreso.innerText = "Guardar Cambios (Master)";
+          } else {
+              btnProgreso.style.display = 'none';
+          }
       } else {
           btnCerrar.style.display = 'block';
           btnReabrir.style.display = 'none';
@@ -766,37 +771,23 @@
           btnProgreso.innerText = "Guardar Progreso";
       }
 
+      verificarEstadoPiezas();
       setTimeout(() => { box.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
     }
 
     function buildPayload() {
-        const fechas = Array.from(document.querySelectorAll('.ses_fecha')).map(el => el.value).join('\n');
-        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join('\n');
-        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join('\n');
-
-        let piezasText = "";
-        const estadoRes = document.getElementById('res_estado_resolucion').value;
-        if (estadoRes === 'Pendiente') {
-            const nec = document.getElementById('res_necesita_pieza').value;
-            if (nec === 'SI') {
-                piezasText = document.getElementById('res_piezas').value;
-            } else if (nec === 'NO') {
-                piezasText = "Se necesitan piezas? NO";
-            }
-        }
-
         return {
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
             pirineos: document.getElementById('res_pirineos').value,
             opcion_venta: document.getElementById('res_opcion_venta').value,
             detalle_venta: document.getElementById('res_detalle_venta').value,
-            estado_piezas: '', // Deprecado, lo gestionará el master ahora
-            fecha_realizacion: fechas,
-            hora_entrada: ents,
-            hora_salida: sals,
-            resuelto_pendiente: estadoRes || '',
-            piezas: piezasText,
+            estado_piezas: document.getElementById('res_estado_piezas').value,
+            fecha_realizacion: document.getElementById('ses_fecha').value,
+            hora_entrada: document.getElementById('ses_hora_ent').value,
+            hora_salida: document.getElementById('ses_hora_sal').value,
+            resuelto_pendiente: document.getElementById('res_estado_resolucion').value,
+            piezas: document.getElementById('res_piezas').value,
             solucion: document.getElementById('res_solucion').value,
             cliente: document.getElementById('res_cliente').value,
             poblacion: document.getElementById('res_poblacion').value,
@@ -807,7 +798,8 @@
 
     async function guardarProgreso() {
       const box = document.getElementById('resolucion-box');
-      const endpoint = '/api/adjudicados/guardar-progreso';
+      const isCerrado = box.dataset.estado === 'Cerrado';
+      const endpoint = isCerrado ? '/api/adjudicados/editar-cerrado' : '/api/adjudicados/guardar-progreso';
 
       const btn = document.getElementById('btn-progreso');
       btn.innerText = "Guardando..."; btn.disabled = true;
@@ -824,7 +816,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert("Progreso guardado. El aviso ahora está en progreso.");
+        alert(isCerrado ? "Cambios guardados correctamente." : "Progreso guardado. El aviso ahora está en progreso.");
         box.style.display = 'none';
         cargarAvisos();
       } catch (err) {
@@ -832,7 +824,7 @@
         console.error(err);
       }
 
-      btn.innerText = "Guardar Progreso"; 
+      btn.innerText = isCerrado ? "Guardar Cambios (Master)" : "Guardar Progreso"; 
       btn.disabled = false;
     }
 
@@ -898,39 +890,27 @@
     }
 
     function cerrarAviso() {
-        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value);
-        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value);
+        const ep = document.getElementById('res_estado_piezas').value;
+        if (ep === 'Sí necesita Piezas') {
+            alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
+            return;
+        }
+
+        const ent = document.getElementById('ses_hora_ent').value;
+        const sal = document.getElementById('ses_hora_sal').value;
         
-        if(ents.length === 0 || ents.some(e => !e) || sals.some(s => !s) || !document.getElementById('res_solucion').value) {
-            alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada y salida de TODAS las sesiones, y redactar la solución.");
+        if(!ent || !sal || !document.getElementById('res_solucion').value) {
+            alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, la hora de salida y redactar la solución.");
             return;
-        }
-
-        const estResol = document.getElementById('res_estado_resolucion').value;
-        if (!estResol) {
-            alert("Debes seleccionar el estado de resolución para cerrar el aviso (Pendiente o Resuelto).");
-            return;
-        }
-
-        if (estResol === "Pendiente") {
-            const necPieza = document.getElementById('res_necesita_pieza').value;
-            if (!necPieza) {
-                alert("Has marcado Pendiente. Debes indicar obligatoriamente si se necesitan piezas o no.");
-                return;
-            }
         }
 
         mostrarPreviaPDF();
     }
 
     function mostrarPreviaPDF() {
-        const fechas = Array.from(document.querySelectorAll('.ses_fecha')).map(el => el.value).join('\n');
-        const ents = Array.from(document.querySelectorAll('.ses_hora_ent')).map(el => el.value).join('\n');
-        const sals = Array.from(document.querySelectorAll('.ses_hora_sal')).map(el => el.value).join('\n');
-
-        document.getElementById('prev_fechas').value = fechas;
-        document.getElementById('prev_horas_in').value = ents;
-        document.getElementById('prev_horas_out').value = sals;
+        document.getElementById('prev_fechas').value = document.getElementById('ses_fecha').value;
+        document.getElementById('prev_horas_in').value = document.getElementById('ses_hora_ent').value;
+        document.getElementById('prev_horas_out').value = document.getElementById('ses_hora_sal').value;
 
         document.getElementById('prev_tecnico').value = document.getElementById('res_tecnico_original').value;
         document.getElementById('prev_cliente').value = document.getElementById('res_cliente').value;
@@ -945,17 +925,9 @@
         document.getElementById('prev_n_serie').value = av ? (av['Nº SERIE'] || '') : '';
 
         document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
-        
-        const estResol = document.getElementById('res_estado_resolucion').value;
-        if(estResol === 'Pendiente') {
-            const nec = document.getElementById('res_necesita_pieza').value;
-            if(nec === 'NO') document.getElementById('prev_piezas').value = "Se necesitan piezas? NO";
-            else document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
-        } else {
-            document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
-        }
-
+        document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
         document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
+        
         document.getElementById('prev_observaciones').value = '';
         
         document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
@@ -1067,6 +1039,35 @@
         }
 
         btn.innerText = "Enviar y Cerrar Definitivamente"; btn.disabled = false;
+    }
+
+    async function reabrirAviso() {
+      if(!confirm("¿Estás seguro de que quieres REABRIR este aviso? Volverá a estar en progreso.")) return;
+
+      const btn = document.getElementById('btn-reabrir');
+      btn.innerText = "Procesando..."; btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/adjudicados/reabrir', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildPayload())
+        });
+
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
+        }
+
+        alert("Aviso reabierto con éxito.");
+        document.getElementById('resolucion-box').style.display = 'none';
+        cargarAvisos();
+      } catch (err) {
+        alert(`Error al reabrir el aviso: ${err.message}`);
+        console.error(err);
+      }
+
+      btn.innerText = "Reabrir Aviso"; btn.disabled = false;
     }
 
     cargarAvisos();
