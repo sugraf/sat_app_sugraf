@@ -186,7 +186,7 @@
           <option value="Ion Volog">Ion Volog</option>
           <option value="Francisco Ant&uacute;nez">Francisco Ant&uacute;nez</option>
           <option value="Daniel Gargallo">Daniel Gargallo</option>
-          <option value="Emilio Arrieta">Emilio Arrieta</option>
+          <option value="Técnico 4">Técnico 4</option>
           <option value="Master">Master</option>
         </select>
         <label>Contrase&ntilde;a</label>
@@ -204,7 +204,7 @@
         <p>Selecciona una opci&oacute;n para comenzar.</p>
       </div>
       <div class="grid">
-        <div class="card" onclick="irA('generador')">
+        <div class="card" id="card-generador" onclick="irA('generador')">
           <div class="card-icon">
             <svg class="note-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 4.25h7.5L18 8.75V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.25a1 1 0 0 1 1-1Z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
@@ -218,7 +218,7 @@
           <p>Registra un nuevo aviso en el sistema general.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" onclick="irA('gestor')">
+        <div class="card" id="card-gestor" onclick="irA('gestor')">
           <div class="card-icon">
             <svg class="nexus-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8.5V12M12 12 6.5 16.25M12 12l5.5 4.25" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -231,7 +231,7 @@
           <p>Asignaci&oacute;n de t&eacute;cnicos y gesti&oacute;n del panel central.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" onclick="irA('adjudicados')">
+        <div class="card" id="card-adjudicados" onclick="irA('adjudicados')">
           <div class="card-icon">
             <svg class="person-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle class="head" cx="12" cy="8" r="3.25" stroke="#a9bcd6" stroke-width="1.5"/>
@@ -262,22 +262,31 @@
       "Ion Volog": "sugraf_1",
       "Francisco Antúnez": "sugraf_2",
       "Daniel Gargallo": "sugraf_3",
-      "Emilio Arrieta": "sugraf_4",
+      "Técnico 4": "sugraf_4",
       "Master": "sugraf_5"
     };
 
     let currentUser = localStorage.getItem("sugraf_user") || null;
+
+    function applyUserPermissions() {
+        if (currentUser === "Master") {
+            const aiCard = document.getElementById("card-control-ia");
+            if (aiCard) aiCard.style.display = "block";
+        }
+        if (currentUser === "Técnico 4") {
+            const cGen = document.getElementById("card-generador");
+            const cGes = document.getElementById("card-gestor");
+            if (cGen) cGen.style.display = "none";
+            if (cGes) cGes.style.display = "none";
+        }
+    }
 
     if (currentUser) {
       document.getElementById("user-name-text").innerText = currentUser;
       document.getElementById("zona-usuario").style.display = "flex";
       document.getElementById("view-login").classList.remove("active");
       document.getElementById("view-dashboard").classList.add("active");
-      
-      if (currentUser === "Master") {
-          const aiCard = document.getElementById("card-control-ia");
-          if (aiCard) aiCard.style.display = "block";
-      }
+      applyUserPermissions();
     }
 
     function toggleUserMenu() {
@@ -308,10 +317,7 @@
         document.getElementById("view-login").classList.remove("active");
         document.getElementById("view-dashboard").classList.add("active");
 
-        if (currentUser === "Master") {
-            const aiCard = document.getElementById("card-control-ia");
-            if (aiCard) aiCard.style.display = "block";
-        }
+        applyUserPermissions();
       } else {
         alert("Contraseña incorrecta.");
       }
