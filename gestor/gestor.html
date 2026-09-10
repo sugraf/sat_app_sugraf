@@ -149,11 +149,25 @@
 
     .badge-container { display:inline-flex; gap:6px; flex-wrap:wrap; margin-left:10px; }
     .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid transparent; }
+    
+    .bg-nuevo{ background:rgba(34,197,94,0.18); color:#86efac; border-color:rgba(34,197,94,0.4); }
     .bg-urg{ background:rgba(239,68,68,0.18); color:#fca5a5; border-color:rgba(239,68,68,0.4); }
+    .bg-parado{ background:rgba(220,38,38,0.18); color:#f87171; border-color:rgba(220,38,38,0.4); }
+    .bg-reclama{ background:rgba(249,115,22,0.18); color:#fdba74; border-color:rgba(249,115,22,0.4); }
+    .bg-presupuesto{ background:rgba(59,130,246,0.18); color:#93c5fd; border-color:rgba(59,130,246,0.4); }
+    .bg-piezas{ background:rgba(245,158,11,0.18); color:#fcd34d; border-color:rgba(245,158,11,0.4); }
+    .bg-piezas-listo{ background:rgba(16,185,129,0.18); color:#6ee7b7; border-color:rgba(16,185,129,0.4); }
     .bg-gar{ background:var(--green-soft); color:#7fd9c7; border-color:rgba(0,104,88,0.4); }
     .bg-man{ background:rgba(234,179,8,0.18); color:#fde68a; border-color:rgba(234,179,8,0.4); }
     .bg-ins{ background:rgba(59,130,246,0.18); color:#93c5fd; border-color:rgba(59,130,246,0.4); }
     .bg-rev{ background:rgba(168,85,247,0.18); color:#d8b4fe; border-color:rgba(168,85,247,0.4); }
+    
+    .btn-archive {
+      background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5);
+      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
+      text-transform:uppercase; letter-spacing:0.03em; transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
 
     .btn-delete {
         background:rgba(239,68,68,0.14);
@@ -311,7 +325,7 @@
         <option value="Ion Volog">Ion Volog</option>
         <option value="Francisco Antúnez">Francisco Antúnez</option>
         <option value="Daniel Gargallo">Daniel Gargallo</option>
-        <option value="Emilio Arrieta">Emilio Arrieta</option>
+        <option value="Técnico 4">Técnico 4</option>
       </select>
       <select id="filtro-pirineos" class="filter-sel" onchange="renderGestionAvisos()">
         <option value="Todos">Pirineos: Todos</option>
@@ -321,7 +335,13 @@
       <select id="filtro-etiqueta" class="filter-sel" onchange="renderGestionAvisos()">
         <option value="Todos">Etiqueta: Todas</option>
         <option value="Ninguna">Sin Etiqueta</option>
+        <option value="NUEVO">Nuevo</option>
         <option value="URGENTE">Urgente</option>
+        <option value="PARADO">Parado</option>
+        <option value="RECLAMA">Reclama</option>
+        <option value="PRESUPUESTO">Presupuesto</option>
+        <option value="PIEZAS PENDIENTE">Piezas Pendiente</option>
+        <option value="PIEZAS LISTO">Piezas Listo</option>
         <option value="GARANTÍA">Garantía</option>
         <option value="MANTENIMIENTO">Mantenimiento</option>
         <option value="INSTALACIÓN">Instalación</option>
@@ -345,7 +365,7 @@
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
-    const TECNICOS_PERMITIDOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Emilio Arrieta"];
+    const TECNICOS_PERMITIDOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Técnico 4"];
 
     document.getElementById("user-name-text").innerText = currentUser;
     document.getElementById("zona-usuario").style.display = "flex";
@@ -359,7 +379,7 @@
       window.location.href = "/";
     }
 
-    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES'];
+    const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES'];
 
     let avisosGlobales = [];
 
@@ -386,7 +406,11 @@
         
         let matchEtiqueta = true;
         if (filtroEtiqueta === "Ninguna") {
-            matchEtiqueta = av['URGENTE'] !== 'SI' && av['GARANTÍA'] !== 'SI' && av['MANTENIMIENTO'] !== 'SI' && av['INSTALACIÓN'] !== 'SI' && av['REVISAR'] !== 'SI';
+            matchEtiqueta = av['NUEVO'] !== 'SI' && av['URGENTE'] !== 'SI' && av['PARADO'] !== 'SI' && av['RECLAMA'] !== 'SI' && av['PRESUPUESTO'] !== 'SI' && av['PIEZAS'] !== 'Pendiente' && av['PIEZAS'] !== 'Listo' && av['GARANTÍA'] !== 'SI' && av['MANTENIMIENTO'] !== 'SI' && av['INSTALACIÓN'] !== 'SI' && av['REVISAR'] !== 'SI';
+        } else if (filtroEtiqueta === "PIEZAS PENDIENTE") {
+            matchEtiqueta = av['PIEZAS'] === 'Pendiente';
+        } else if (filtroEtiqueta === "PIEZAS LISTO") {
+            matchEtiqueta = av['PIEZAS'] === 'Listo';
         } else if (filtroEtiqueta !== "Todos") {
             matchEtiqueta = av[filtroEtiqueta] === 'SI';
         }
@@ -440,7 +464,13 @@
         if(estadoAviso === 'Abierto') badgesHtml += `<span class="badge" style="background:#dbeafe; color:#2563eb; border-color:#bfdbfe;">Abierto</span>`;
         if(estadoAviso === 'Cerrado') badgesHtml += `<span class="badge" style="background:#f3f4f6; color:#4b5563; border-color:#d1d5db;">Cerrado</span>`;
         
+        if(av['NUEVO'] === 'SI') badgesHtml += `<span class="badge bg-nuevo">Nuevo</span>`;
         if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
+        if(av['PARADO'] === 'SI') badgesHtml += `<span class="badge bg-parado">Parado</span>`;
+        if(av['RECLAMA'] === 'SI') badgesHtml += `<span class="badge bg-reclama">Reclama</span>`;
+        if(av['PRESUPUESTO'] === 'SI') badgesHtml += `<span class="badge bg-presupuesto">Presupuesto</span>`;
+        if(av['PIEZAS'] === 'Pendiente') badgesHtml += `<span class="badge bg-piezas">Piezas Pendiente</span>`;
+        if(av['PIEZAS'] === 'Listo') badgesHtml += `<span class="badge bg-piezas-listo">Piezas Listo</span>`;
         if(av['GARANTÍA'] === 'SI') badgesHtml += `<span class="badge bg-gar">Garantía</span>`;
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
@@ -496,11 +526,19 @@
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
             
             if (canEdit && key !== 'ASIGNADO A' && key !== 'ESTADO') {
-                if (['URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'].includes(key)) {
+                if (['NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'].includes(key)) {
                     html += `<tr><th>${key}</th><td>
                         <select id="edit_${key}" class="edit-input">
                             <option value="NO" ${val !== 'SI' ? 'selected' : ''}>NO</option>
                             <option value="SI" ${val === 'SI' ? 'selected' : ''}>SI</option>
+                        </select>
+                    </td></tr>`;
+                } else if (key === 'PIEZAS') {
+                    html += `<tr><th>${key}</th><td>
+                        <select id="edit_${key}" class="edit-input">
+                            <option value="NO" ${val !== 'Pendiente' && val !== 'Listo' ? 'selected' : ''}>NO</option>
+                            <option value="Pendiente" ${val === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                            <option value="Listo" ${val === 'Listo' ? 'selected' : ''}>Listo</option>
                         </select>
                     </td></tr>`;
                 } else if (key === 'DESCRIPCIÓN') {
