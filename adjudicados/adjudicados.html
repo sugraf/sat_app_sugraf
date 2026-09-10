@@ -202,6 +202,13 @@
     button.btn-secondary{ background:var(--navy); border:1px solid rgba(16,38,59,0.15); }
     button.btn-secondary:hover{ background:var(--navy-light); }
     
+    .btn-archive {
+      background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5);
+      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
+      text-transform:uppercase; letter-spacing:0.03em; transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
+
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
       margin-top:20px; text-align:center; display:none;
@@ -543,13 +550,9 @@
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
         if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
         
-        let extraBtnMaster = "";
-        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas') {
+        if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas' || av['PIEZAS'] === 'Pendiente') {
             badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pendientes</span>`;
-            if (currentUser === 'Master') {
-                extraBtnMaster = `<button onclick="event.stopPropagation(); marcarPiezasRecibidas(${av.aviso_index})" class="btn-archive" style="color:#22c55e; border-color:#86efac; margin-left:8px;">✓ Marcar Piezas Recibidas</button>`;
-            }
-        } else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas') {
+        } else if (av['ESTADO PIEZAS'] === 'Piezas Recibidas' || av['PIEZAS'] === 'Listo') {
             badgesHtml += `<span class="badge" style="background:#dcfce7; color:#22c55e; border-color:#86efac;">Piezas Recibidas</span>`;
         }
 
@@ -567,7 +570,6 @@
             <div class="inc-title">
                 <span style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
                     ${av['CLIENTE']}
-                    ${extraBtnMaster}
                 </span>
                 ${actionBtn}
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
@@ -647,22 +649,6 @@
             console.error(err);
         }
     }
-    
-    async function marcarPiezasRecibidas(index) {
-        if(!confirm("¿Confirmas que las piezas para este aviso ya han llegado?")) return;
-        try {
-            const res = await fetch('/api/adjudicados/piezas-recibidas', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ aviso_index: index })
-            });
-            if (!res.ok) throw new Error(await res.text());
-            alert("Estado actualizado a Piezas Recibidas.");
-            cargarAvisos();
-        } catch(err) {
-            alert(`Error: ${err.message}`);
-        }
-    }
 
     function abrirResolucion(index) {
       const box = document.getElementById('resolucion-box');
@@ -707,9 +693,10 @@
       document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || '';
       
       const valPiezas = av['ESTADO PIEZAS'] || '';
+      const tagPiezas = av['PIEZAS'] || '';
       const selPiezas = document.getElementById('res_necesita_piezas');
       
-      if(valPiezas === 'Piezas Recibidas') {
+      if(valPiezas === 'Piezas Recibidas' || tagPiezas === 'Listo') {
           selPiezas.innerHTML = `
               <option value="" disabled>-- Seleccionar --</option>
               <option value="NO">NO</option>
@@ -723,7 +710,7 @@
               <option value="NO">NO</option>
               <option value="SI">SÍ</option>
           `;
-          if (valPiezas === 'Sí necesita Piezas') selPiezas.value = 'SI';
+          if (valPiezas === 'Sí necesita Piezas' || tagPiezas === 'Pendiente') selPiezas.value = 'SI';
           else if (valPiezas === 'No necesita piezas') selPiezas.value = 'NO';
           else selPiezas.value = '';
       }
