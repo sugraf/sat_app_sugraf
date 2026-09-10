@@ -230,7 +230,12 @@
 
         <label>Etiquetas</label>
         <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" id="ni_nuevo" checked> Nuevo</label>
           <label class="checkbox-item"><input type="checkbox" id="ni_urg"> Urgente</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_parado"> Parado</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_reclama"> Reclama</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_pre"> Presupuesto</label>
+          <label class="checkbox-item"><input type="checkbox" id="ni_piezas"> Piezas</label>
           <label class="checkbox-item"><input type="checkbox" id="ni_gar"> Garantía</label>
           <label class="checkbox-item"><input type="checkbox" id="ni_man"> Mantenimiento</label>
           <label class="checkbox-item"><input type="checkbox" id="ni_ins"> Instalación</label>
@@ -540,7 +545,12 @@
         garantia: document.getElementById('ni_gar').checked,
         mantenimiento: document.getElementById('ni_man').checked,
         instalacion: document.getElementById('ni_ins').checked,
-        revisar: document.getElementById('ni_rev').checked
+        revisar: document.getElementById('ni_rev').checked,
+        nuevo: document.getElementById('ni_nuevo').checked,
+        parado: document.getElementById('ni_parado').checked,
+        reclama: document.getElementById('ni_reclama').checked,
+        presupuesto: document.getElementById('ni_pre').checked,
+        piezas: document.getElementById('ni_piezas').checked
       };
 
       try {
