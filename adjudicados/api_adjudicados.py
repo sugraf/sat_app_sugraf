@@ -20,6 +20,7 @@ from reportlab.lib.colors import HexColor
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
+# Añadidas las nuevas etiquetas en la estructura de columnas para que no se pierdan al regenerar
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES']
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
 
@@ -156,20 +157,13 @@ def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '':
         return ""
     try:
-        ins = str(h_in).strip().split('\n')
-        outs = str(h_out).strip().split('\n')
-        total_seconds = 0
-        for i in range(min(len(ins), len(outs))):
-            i_str = ins[i].strip()
-            o_str = outs[i].strip()
-            if not i_str or not o_str:
-                continue
-            t1 = datetime.strptime(i_str[:5], "%H:%M")
-            t2 = datetime.strptime(o_str[:5], "%H:%M")
-            if t2 >= t1:
-                total_seconds += (t2 - t1).total_seconds()
-            else:
-                total_seconds += (t2 - t1).total_seconds() + 86400
+        t1 = datetime.strptime(str(h_in).strip()[:5], "%H:%M")
+        t2 = datetime.strptime(str(h_out).strip()[:5], "%H:%M")
+        
+        if t2 >= t1:
+            total_seconds = (t2 - t1).total_seconds()
+        else:
+            total_seconds = (t2 - t1).total_seconds() + 86400
 
         hours = int(total_seconds // 3600)
         minutes = int((total_seconds % 3600) // 60)
@@ -225,32 +219,13 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
     y_cursor = height - 100
 
-    fechas = [f.strip() for f in datos.pdf_fechas.split('\n')]
-    horas_in = [h.strip() for h in datos.pdf_horas_in.split('\n')]
-    horas_out = [h.strip() for h in datos.pdf_horas_out.split('\n')]
-
-    num_lineas = max(len(fechas), len(horas_in), len(horas_out))
-    if num_lineas == 0:
-        num_lineas = 1
-
-    extra_height = max(0, (num_lineas - 1) * 15)
-    box1_h = 35 + extra_height
-
+    box1_h = 35
     c.rect(40, y_cursor - box1_h, width - 80, box1_h)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 15, "Fechas y Horas:")
+    c.drawString(45, y_cursor - 15, "Fecha y Horas:")
     c.setFont("Helvetica", 9)
-
-    y_text = y_cursor - 28
-    for i in range(num_lineas):
-        f = fechas[i] if i < len(fechas) else ""
-        hin = horas_in[i] if i < len(horas_in) else ""
-        hout = horas_out[i] if i < len(horas_out) else ""
-
-        line_str = f"Fecha: {f}    |    Hora inicio: {hin}    |    Hora fin: {hout}"
-        c.drawString(45, y_text, line_str)
-        y_text -= 15
-
+    line_str = f"Fecha: {datos.pdf_fechas}    |    Hora inicio: {datos.pdf_horas_in}    |    Hora fin: {datos.pdf_horas_out}"
+    c.drawString(45, y_cursor - 28, line_str)
     y_cursor -= (box1_h + 10)
 
     box2_h = 95
@@ -284,7 +259,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: {datos.pdf_n_serie}")
     y_cursor -= (box2_h + 10)
 
-    box3_h = max(40, 130 - extra_height)
+    box3_h = 130
     c.rect(40, y_cursor - box3_h, width - 80, box3_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Trabajo realizado:")
@@ -326,21 +301,25 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.drawString(45, y_cursor - 15, f"Estado del Aviso: {datos.pdf_estado.upper()}")
     y_cursor -= 30
 
-    y_firmas = y_cursor - 90
-    c.setStrokeColorRGB(0.8, 0.8, 0.8)
-    c.rect(50, y_firmas, 180, 70)
-    c.rect(width/2 + 20, y_firmas, 180, 70)
-
     c.setFont("Helvetica-Bold", 10)
-    c.drawCentredString(140, y_firmas + 75, f"Fdo: {datos.pdf_tecnico} (Técnico)")
-    c.drawCentredString(width/2 + 110, y_firmas + 75, f"Fdo: {datos.pdf_nombre_cliente} (Cliente)")
+    c.drawCentredString(140, y_cursor - 10, "Firma del Técnico")
+    c.drawCentredString(width/2 + 110, y_cursor - 10, "Firma del Cliente")
+
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(140, y_cursor - 25, f"Fdo: {datos.pdf_tecnico}")
+    c.drawCentredString(width/2 + 110, y_cursor - 25, f"Fdo: {datos.pdf_nombre_cliente}")
+
+    y_firmas = y_cursor - 95
+    c.setStrokeColorRGB(0.8, 0.8, 0.8)
+    c.rect(50, y_firmas, 180, 60)
+    c.rect(width/2 + 20, y_firmas, 180, 60)
 
     if datos.firma_tecnico_b64 and "," in datos.firma_tecnico_b64:
         b64_data = datos.firma_tecnico_b64.split(",")[1]
         try:
             img_bytes = base64.b64decode(b64_data)
             img = ImageReader(io.BytesIO(img_bytes))
-            c.drawImage(img, 50, y_firmas, width=180, height=70, mask='auto')
+            c.drawImage(img, 50, y_firmas, width=180, height=60, mask='auto')
         except Exception as e:
             pass
 
@@ -349,7 +328,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         try:
             img_bytes = base64.b64decode(b64_data)
             img = ImageReader(io.BytesIO(img_bytes))
-            c.drawImage(img, width/2 + 20, y_firmas, width=180, height=70, mask='auto')
+            c.drawImage(img, width/2 + 20, y_firmas, width=180, height=60, mask='auto')
         except Exception as e:
             pass
 
@@ -562,24 +541,26 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
         attempted, sent, err = enviar_email_cierre(payload, pdf_bytes, num_parte)
         horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
 
-        if payload.base_parte.resuelto_pendiente == "Pendiente":
+        if payload.base_parte.resuelto_pendiente == "Pendiente" or payload.base_parte.estado_piezas == 'Sí necesita Piezas':
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
             idx = int(payload.base_parte.aviso_index)
             row_orig = df_tra.iloc[idx].to_dict()
 
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
 
-            motivo_nuevo = f'Motivo 1: "{payload.pdf_motivo}"\nSolución 1: "{payload.pdf_trabajo}"'
+            motivo_original = str(row_orig.get('DESCRIPCIÓN', '')).strip()
+            
+            motivo_nuevo = f'Motivo 1: "{motivo_original}"\nSolución 1: "{payload.pdf_trabajo}"'
             if payload.base_parte.estado_piezas == 'Sí necesita Piezas' and payload.pdf_piezas.strip():
                 motivo_nuevo += f'\nPiezas 1: "{payload.pdf_piezas}"'
 
-            fechas_list = payload.base_parte.fecha_realizacion.split('\n')
-            fecha_creacion = fechas_list[-1] if fechas_list and fechas_list[-1].strip() else datetime.now().strftime("%Y-%m-%d")
+            fecha_cierre = payload.base_parte.fecha_realizacion if payload.base_parte.fecha_realizacion else datetime.now().strftime("%Y-%m-%d")
 
+            # Arrastrar todas las etiquetas previas copiando toda la fila original
             nueva_fila = {k: row_orig.get(k, '') for k in COLS_SIN}
             
-            nueva_fila['F. ENTR.'] = fecha_creacion
             nueva_fila['DESCRIPCIÓN'] = motivo_nuevo
+            nueva_fila['F. ENTR.'] = fecha_cierre
             nueva_fila['ASIGNADO A'] = 'Pendiente'
             nueva_fila['NUEVO'] = 'SI'
 
@@ -596,15 +577,6 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
             "email_sent": sent,
             "email_error": err
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/reabrir")
-def reabrir_aviso(parte: UpdateParte):
-    try:
-        drive = get_drive_service()
-        procesar_actualizacion_tratados(drive, parte, "Abierto")
-        return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
