@@ -502,14 +502,13 @@
         const est = document.getElementById('res_estado_resolucion').value;
         const divPiezasPendiente = document.getElementById('div_piezas_pendiente');
         const divTextoPiezas = document.getElementById('div_texto_piezas');
-        const necPiezas = document.getElementById('res_necesita_piezas').value;
 
         if (est === 'Pendiente') {
             divPiezasPendiente.style.display = 'block';
             verificarPiezas();
         } else if (est === 'Resuelto') {
             divPiezasPendiente.style.display = 'none';
-            divTextoPiezas.style.display = 'block'; // Siempre deja escribir piezas si lo ha resuelto usando piezas
+            divTextoPiezas.style.display = 'block'; 
         } else {
             divPiezasPendiente.style.display = 'none';
             divTextoPiezas.style.display = 'none';
@@ -921,8 +920,11 @@
                 return;
             }
             if (nec === 'SI') {
-                alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
-                return;
+                const pText = document.getElementById('res_piezas').value;
+                if (!pText.trim()) {
+                    alert("Has indicado que se necesitan piezas. Por favor, descríbelas en el recuadro correspondiente.");
+                    return;
+                }
             }
         }
 
