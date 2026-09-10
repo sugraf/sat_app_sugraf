@@ -284,7 +284,7 @@
     </div>
 
     <div class="form-box" id="resolucion-box">
-      <h3>Parte de Trabajo</h3>
+      <h3 id="titulo-estado-parte">Parte de Trabajo</h3>
       <form id="form-resolver">
         <input type="hidden" id="res_index">
         <input type="hidden" id="res_tecnico_original">
@@ -338,7 +338,7 @@
         </div>
 
         <label style="margin-bottom:8px;">Fecha y Horas de Trabajo</label>
-        <div class="sesion-row" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+        <div class="sesion-row" style="display:flex; gap:8px; margin-bottom:18px; align-items:center;">
             <input type="date" id="ses_fecha" style="flex:2; padding:10px;" title="Fecha">
             <input type="time" id="ses_hora_ent" style="flex:1; padding:10px;" title="Hora Entrada">
             <input type="time" id="ses_hora_sal" style="flex:1; padding:10px;" title="Hora Salida">
@@ -356,7 +356,6 @@
         <div id="botones-resolucion" style="display: flex; gap: 10px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary" id="btn-progreso" onclick="guardarProgreso()" style="flex:1;">Guardar Progreso</button>
           <button type="button" class="btn" id="btn-cerrar" onclick="cerrarAviso()" style="flex:1;">Cerrar Aviso Definitivo</button>
-          <button type="button" class="btn" id="btn-reabrir" style="background:#f59e0b; flex:1; display:none;" onclick="reabrirAviso()">Reabrir Aviso</button>
         </div>
       </form>
     </div>
@@ -498,9 +497,8 @@
         const btnCerrar = document.getElementById('btn-cerrar');
         const valActual = estRes.value; 
         
-        const isMaster = currentUser === 'Master';
+        // Bloqueo total si está cerrado
         const isCerrado = document.getElementById('resolucion-box').dataset.estado === 'Cerrado';
-        const canEdit = !isCerrado || isMaster;
         
         if (ep === 'Sí necesita Piezas') {
             estRes.innerHTML = `<option value="Pendiente">Pendiente por piezas</option>`;
@@ -513,16 +511,16 @@
                 <option value="Resuelto">Resuelto</option>
             `;
             estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
-            estRes.disabled = !canEdit;
-            if(btnCerrar) btnCerrar.disabled = !canEdit;
+            estRes.disabled = isCerrado;
+            if(btnCerrar) btnCerrar.disabled = isCerrado;
         } else {
             estRes.innerHTML = `
                 <option value="Pendiente">Pendiente en general</option>
                 <option value="Resuelto">Resuelto</option>
             `;
             estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
-            estRes.disabled = !canEdit;
-            if(btnCerrar) btnCerrar.disabled = !canEdit;
+            estRes.disabled = isCerrado;
+            if(btnCerrar) btnCerrar.disabled = isCerrado;
         }
     }
 
@@ -683,13 +681,18 @@
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
 
       const isCerrado = av['ESTADO'] === 'Cerrado';
-      const isMaster = currentUser === 'Master';
+      
+      // Actualizamos título para avisar visualmente del bloqueo
+      if (isCerrado) {
+          document.getElementById('titulo-estado-parte').innerHTML = 'Parte de Trabajo <span style="color:#ef4444; font-size:0.8rem; margin-left:10px;">(CERRADO - NO MODIFICABLE)</span>';
+      } else {
+          document.getElementById('titulo-estado-parte').innerText = 'Parte de Trabajo';
+      }
 
       if (currentUser !== 'Master') {
           document.getElementById('div_pirineos').style.display = 'none';
       } else {
           document.getElementById('div_pirineos').style.display = 'block';
-          document.getElementById('res_pirineos').disabled = !isCerrado;
       }
 
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
@@ -734,10 +737,10 @@
       document.getElementById('ses_hora_ent').value = (he_arr[0] || '').substring(0, 5);
       document.getElementById('ses_hora_sal').value = (hs_arr[0] || '').substring(0, 5);
 
-      const dis = isCerrado && !isMaster;
-      document.getElementById('ses_fecha').disabled = dis;
-      document.getElementById('ses_hora_ent').disabled = dis;
-      document.getElementById('ses_hora_sal').disabled = dis;
+      // Si el estado es Cerrado bloqueamos todo
+      document.getElementById('ses_fecha').disabled = isCerrado;
+      document.getElementById('ses_hora_ent').disabled = isCerrado;
+      document.getElementById('ses_hora_sal').disabled = isCerrado;
 
       document.getElementById('res_estado_resolucion').innerHTML = `
           <option value="Pendiente">Pendiente en general</option>
@@ -745,28 +748,21 @@
       `;
       document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion', 'res_pirineos'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
-          if(el) el.disabled = isCerrado && !isMaster;
+          if(el) el.disabled = isCerrado;
       });
 
       const btnProgreso = document.getElementById('btn-progreso');
       const btnCerrar = document.getElementById('btn-cerrar');
-      const btnReabrir = document.getElementById('btn-reabrir');
 
+      // Si está cerrado no se pueden usar botones de edición
       if (isCerrado) {
           btnCerrar.style.display = 'none';
-          btnReabrir.style.display = 'block';
-          if (isMaster) {
-              btnProgreso.style.display = 'block';
-              btnProgreso.innerText = "Guardar Cambios (Master)";
-          } else {
-              btnProgreso.style.display = 'none';
-          }
+          btnProgreso.style.display = 'none';
       } else {
           btnCerrar.style.display = 'block';
-          btnReabrir.style.display = 'none';
           btnProgreso.style.display = 'block';
           btnProgreso.innerText = "Guardar Progreso";
       }
@@ -798,8 +794,8 @@
 
     async function guardarProgreso() {
       const box = document.getElementById('resolucion-box');
-      const isCerrado = box.dataset.estado === 'Cerrado';
-      const endpoint = isCerrado ? '/api/adjudicados/editar-cerrado' : '/api/adjudicados/guardar-progreso';
+      if (box.dataset.estado === 'Cerrado') return; // Seguridad extra
+      const endpoint = '/api/adjudicados/guardar-progreso';
 
       const btn = document.getElementById('btn-progreso');
       btn.innerText = "Guardando..."; btn.disabled = true;
@@ -816,7 +812,7 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert(isCerrado ? "Cambios guardados correctamente." : "Progreso guardado. El aviso ahora está en progreso.");
+        alert("Progreso guardado. El aviso ahora está en progreso.");
         box.style.display = 'none';
         cargarAvisos();
       } catch (err) {
@@ -824,7 +820,7 @@
         console.error(err);
       }
 
-      btn.innerText = isCerrado ? "Guardar Cambios (Master)" : "Guardar Progreso"; 
+      btn.innerText = "Guardar Progreso"; 
       btn.disabled = false;
     }
 
@@ -1039,35 +1035,6 @@
         }
 
         btn.innerText = "Enviar y Cerrar Definitivamente"; btn.disabled = false;
-    }
-
-    async function reabrirAviso() {
-      if(!confirm("¿Estás seguro de que quieres REABRIR este aviso? Volverá a estar en progreso.")) return;
-
-      const btn = document.getElementById('btn-reabrir');
-      btn.innerText = "Procesando..."; btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/adjudicados/reabrir', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(buildPayload())
-        });
-
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || `Error HTTP: ${res.status}`);
-        }
-
-        alert("Aviso reabierto con éxito.");
-        document.getElementById('resolucion-box').style.display = 'none';
-        cargarAvisos();
-      } catch (err) {
-        alert(`Error al reabrir el aviso: ${err.message}`);
-        console.error(err);
-      }
-
-      btn.innerText = "Reabrir Aviso"; btn.disabled = false;
     }
 
     cargarAvisos();
