@@ -310,17 +310,6 @@
         </div>
 
         <div class="box-group">
-            <label>Estado de Piezas</label>
-            <select id="res_estado_piezas" onchange="verificarEstadoPiezas()">
-              <option value="No necesita piezas">No necesita piezas</option>
-              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
-              <option value="Piezas Recibidas" disabled style="display:none;">Piezas Recibidas</option>
-            </select>
-            <label style="margin-top: 10px;">Piezas Necesarias / Cambiadas</label>
-            <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
-        </div>
-
-        <div class="box-group">
             <label>Opción a Venta</label>
             <select id="res_opcion_venta" onchange="verificarVenta()">
               <option value="NO">No</option>
@@ -344,11 +333,29 @@
             <input type="time" id="ses_hora_sal" style="flex:1; padding:10px;" title="Hora Salida">
         </div>
 
-        <label>Estado de Resolución</label>
-        <select id="res_estado_resolucion">
-          <option value="Pendiente">Pendiente en general</option>
-          <option value="Resuelto">Resuelto</option>
-        </select>
+        <div class="box-group">
+            <label>Estado de Resolución <span style="color:red">*</span></label>
+            <select id="res_estado_resolucion" onchange="verificarResolucion()">
+              <option value="" disabled selected>-- Selecciona --</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Resuelto">Resuelto</option>
+            </select>
+
+            <div id="div_piezas_pendiente" style="display:none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #cbd5e1;">
+                <label>¿Se necesita pedir piezas? <span style="color:red">*</span></label>
+                <select id="res_necesita_piezas" onchange="verificarPiezas()">
+                  <option value="" disabled selected>-- Selecciona --</option>
+                  <option value="NO">NO</option>
+                  <option value="SI">SÍ</option>
+                  <option value="Piezas Recibidas" style="display:none;">Piezas Recibidas</option>
+                </select>
+            </div>
+
+            <div id="div_texto_piezas" style="display:none; margin-top: 15px;">
+                <label>Piezas Necesarias / Cambiadas</label>
+                <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
+            </div>
+        </div>
 
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
@@ -491,36 +498,34 @@
         document.getElementById('botones-tecnicos').innerHTML = html;
     }
 
-    function verificarEstadoPiezas() {
-        const ep = document.getElementById('res_estado_piezas').value;
-        const estRes = document.getElementById('res_estado_resolucion');
-        const btnCerrar = document.getElementById('btn-cerrar');
-        const valActual = estRes.value; 
-        
-        // Bloqueo total si está cerrado
-        const isCerrado = document.getElementById('resolucion-box').dataset.estado === 'Cerrado';
-        
-        if (ep === 'Sí necesita Piezas') {
-            estRes.innerHTML = `<option value="Pendiente">Pendiente por piezas</option>`;
-            estRes.value = 'Pendiente';
-            estRes.disabled = true;
-            if(btnCerrar) btnCerrar.disabled = true;
-        } else if (ep === 'Piezas Recibidas') {
-            estRes.innerHTML = `
-                <option value="Pendiente">Pendiente (Piezas recibidas)</option>
-                <option value="Resuelto">Resuelto</option>
-            `;
-            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
-            estRes.disabled = isCerrado;
-            if(btnCerrar) btnCerrar.disabled = isCerrado;
+    function verificarResolucion() {
+        const est = document.getElementById('res_estado_resolucion').value;
+        const divPiezasPendiente = document.getElementById('div_piezas_pendiente');
+        const divTextoPiezas = document.getElementById('div_texto_piezas');
+        const necPiezas = document.getElementById('res_necesita_piezas').value;
+
+        if (est === 'Pendiente') {
+            divPiezasPendiente.style.display = 'block';
+            verificarPiezas();
+        } else if (est === 'Resuelto') {
+            divPiezasPendiente.style.display = 'none';
+            divTextoPiezas.style.display = 'block'; // Siempre deja escribir piezas si lo ha resuelto usando piezas
         } else {
-            estRes.innerHTML = `
-                <option value="Pendiente">Pendiente en general</option>
-                <option value="Resuelto">Resuelto</option>
-            `;
-            estRes.value = valActual === 'Resuelto' ? 'Resuelto' : 'Pendiente';
-            estRes.disabled = isCerrado;
-            if(btnCerrar) btnCerrar.disabled = isCerrado;
+            divPiezasPendiente.style.display = 'none';
+            divTextoPiezas.style.display = 'none';
+        }
+    }
+
+    function verificarPiezas() {
+        const est = document.getElementById('res_estado_resolucion').value;
+        if (est !== 'Pendiente') return;
+
+        const nec = document.getElementById('res_necesita_piezas').value;
+        const divTexto = document.getElementById('div_texto_piezas');
+        if (nec === 'SI' || nec === 'Piezas Recibidas') {
+            divTexto.style.display = 'block';
+        } else {
+            divTexto.style.display = 'none';
         }
     }
 
@@ -682,7 +687,6 @@
 
       const isCerrado = av['ESTADO'] === 'Cerrado';
       
-      // Actualizamos título para avisar visualmente del bloqueo
       if (isCerrado) {
           document.getElementById('titulo-estado-parte').innerHTML = 'Parte de Trabajo <span style="color:#ef4444; font-size:0.8rem; margin-left:10px;">(CERRADO - NO MODIFICABLE)</span>';
       } else {
@@ -701,23 +705,35 @@
       document.getElementById('res_detalle_venta').value = av['DETALLE VENTA'] || '';
       verificarVenta();
       
-      const selPiezas = document.getElementById('res_estado_piezas');
+      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || '';
+      
       const valPiezas = av['ESTADO PIEZAS'] || '';
+      const selPiezas = document.getElementById('res_necesita_piezas');
       
       if(valPiezas === 'Piezas Recibidas') {
           selPiezas.innerHTML = `
-              <option value="No necesita piezas">No necesita piezas</option>
-              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="" disabled>-- Seleccionar --</option>
+              <option value="NO">NO</option>
+              <option value="SI">SÍ</option>
               <option value="Piezas Recibidas">Piezas Recibidas</option>
           `;
           selPiezas.value = 'Piezas Recibidas';
       } else {
           selPiezas.innerHTML = `
-              <option value="No necesita piezas">No necesita piezas</option>
-              <option value="Sí necesita Piezas">Sí necesita Piezas (Forzará estado Pendiente)</option>
+              <option value="" disabled>-- Seleccionar --</option>
+              <option value="NO">NO</option>
+              <option value="SI">SÍ</option>
           `;
-          selPiezas.value = valPiezas === 'Sí necesita Piezas' ? 'Sí necesita Piezas' : 'No necesita piezas';
+          if (valPiezas === 'Sí necesita Piezas') selPiezas.value = 'SI';
+          else if (valPiezas === 'No necesita piezas') selPiezas.value = 'NO';
+          else selPiezas.value = '';
       }
+
+      let pText = av['PIEZAS NECESARIAS'] || '';
+      if (pText === "Se necesitan piezas? NO") pText = '';
+      document.getElementById('res_piezas').value = pText;
+
+      verificarResolucion();
       
       if (isCerrado) {
           document.getElementById('div_horas_summary').style.display = 'block';
@@ -737,18 +753,11 @@
       document.getElementById('ses_hora_ent').value = (he_arr[0] || '').substring(0, 5);
       document.getElementById('ses_hora_sal').value = (hs_arr[0] || '').substring(0, 5);
 
-      // Si el estado es Cerrado bloqueamos todo
       document.getElementById('ses_fecha').disabled = isCerrado;
       document.getElementById('ses_hora_ent').disabled = isCerrado;
       document.getElementById('ses_hora_sal').disabled = isCerrado;
 
-      document.getElementById('res_estado_resolucion').innerHTML = `
-          <option value="Pendiente">Pendiente en general</option>
-          <option value="Resuelto">Resuelto</option>
-      `;
-      document.getElementById('res_estado_resolucion').value = av['RESUELTO O PENDIENTE'] || 'Pendiente';
-
-      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_piezas', 'res_estado_resolucion', 'res_piezas', 'res_solucion', 'res_pirineos'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_piezas', 'res_piezas', 'res_solucion', 'res_pirineos'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado;
@@ -757,7 +766,6 @@
       const btnProgreso = document.getElementById('btn-progreso');
       const btnCerrar = document.getElementById('btn-cerrar');
 
-      // Si está cerrado no se pueden usar botones de edición
       if (isCerrado) {
           btnCerrar.style.display = 'none';
           btnProgreso.style.display = 'none';
@@ -767,23 +775,37 @@
           btnProgreso.innerText = "Guardar Progreso";
       }
 
-      verificarEstadoPiezas();
       setTimeout(() => { box.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
     }
 
     function buildPayload() {
+        const est = document.getElementById('res_estado_resolucion').value;
+        const nec = document.getElementById('res_necesita_piezas').value;
+        
+        let estadoPiezas = 'No necesita piezas';
+        let textoPiezas = document.getElementById('res_piezas').value;
+
+        if (est === 'Pendiente') {
+            if (nec === 'SI') estadoPiezas = 'Sí necesita Piezas';
+            else if (nec === 'Piezas Recibidas') estadoPiezas = 'Piezas Recibidas';
+            
+            if (nec === 'NO' || !nec) {
+                textoPiezas = "Se necesitan piezas? NO";
+            }
+        }
+
         return {
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
             pirineos: document.getElementById('res_pirineos').value,
             opcion_venta: document.getElementById('res_opcion_venta').value,
             detalle_venta: document.getElementById('res_detalle_venta').value,
-            estado_piezas: document.getElementById('res_estado_piezas').value,
+            estado_piezas: estadoPiezas,
             fecha_realizacion: document.getElementById('ses_fecha').value,
             hora_entrada: document.getElementById('ses_hora_ent').value,
             hora_salida: document.getElementById('ses_hora_sal').value,
-            resuelto_pendiente: document.getElementById('res_estado_resolucion').value,
-            piezas: document.getElementById('res_piezas').value,
+            resuelto_pendiente: est,
+            piezas: textoPiezas,
             solucion: document.getElementById('res_solucion').value,
             cliente: document.getElementById('res_cliente').value,
             poblacion: document.getElementById('res_poblacion').value,
@@ -794,7 +816,7 @@
 
     async function guardarProgreso() {
       const box = document.getElementById('resolucion-box');
-      if (box.dataset.estado === 'Cerrado') return; // Seguridad extra
+      if (box.dataset.estado === 'Cerrado') return;
       const endpoint = '/api/adjudicados/guardar-progreso';
 
       const btn = document.getElementById('btn-progreso');
@@ -886,10 +908,22 @@
     }
 
     function cerrarAviso() {
-        const ep = document.getElementById('res_estado_piezas').value;
-        if (ep === 'Sí necesita Piezas') {
-            alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
+        const est = document.getElementById('res_estado_resolucion').value;
+        if (!est) {
+            alert("Debes seleccionar si el aviso está Resuelto o Pendiente.");
             return;
+        }
+
+        if (est === 'Pendiente') {
+            const nec = document.getElementById('res_necesita_piezas').value;
+            if (!nec) {
+                alert("Has marcado Pendiente. Debes indicar si se necesitan piezas.");
+                return;
+            }
+            if (nec === 'SI') {
+                alert("No puedes cerrar un aviso si has marcado que se necesitan pedir piezas. Guarda el progreso para mantenerlo pendiente.");
+                return;
+            }
         }
 
         const ent = document.getElementById('ses_hora_ent').value;
@@ -921,9 +955,17 @@
         document.getElementById('prev_n_serie').value = av ? (av['Nº SERIE'] || '') : '';
 
         document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
-        document.getElementById('prev_piezas').value = document.getElementById('res_piezas').value;
-        document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
         
+        let pText = document.getElementById('res_piezas').value;
+        const est = document.getElementById('res_estado_resolucion').value;
+        const nec = document.getElementById('res_necesita_piezas').value;
+        
+        if (est === 'Pendiente' && (nec === 'NO' || !nec)) {
+            pText = "Se necesitan piezas? NO";
+        }
+        document.getElementById('prev_piezas').value = pText;
+        
+        document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
         document.getElementById('prev_observaciones').value = '';
         
         document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
