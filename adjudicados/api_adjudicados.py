@@ -20,7 +20,8 @@ from reportlab.lib.colors import HexColor
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
+COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -148,9 +149,6 @@ class CerrarYEnviarParte(BaseModel):
 class ArchivarParte(BaseModel):
     aviso_index: int
 
-class MarcarPiezas(BaseModel):
-    aviso_index: int
-
 def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '':
         return ""
@@ -197,7 +195,8 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'ESTADO'] = estado
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
     df.loc[idx, 'DETALLE VENTA'] = parte.detalle_venta
-    df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
+    if estado != "Cerrado":  # If it is saving progress we keep the original state of the pieces unless updated
+        df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
 
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
     return horas_totales
@@ -252,7 +251,11 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
     y_cursor -= (box1_h + 10)
 
-    box2_h = 95
+    # Calculamos lineas del Motivo para expandir el bloque si es necesario
+    lines_motivo = simpleSplit(datos.pdf_motivo, "Helvetica", 9, width - 150)
+    extra_mot = max(0, (len(lines_motivo) - 1) * 12)
+    box2_h = 95 + extra_mot
+
     c.rect(40, y_cursor - box2_h, width - 80, box2_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Técnico:")
@@ -272,18 +275,22 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 55, "Motivo aviso:")
     c.setFont("Helvetica", 9)
-    c.drawString(115, y_cursor - 55, datos.pdf_motivo[:80])
+    y_m = y_cursor - 55
+    for l in lines_motivo:
+        c.drawString(115, y_m, l)
+        y_m -= 12
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 75, "Máquina / Equipo:")
+    c.drawString(45, y_cursor - 75 - extra_mot, "Máquina / Equipo:")
     c.setFont("Helvetica", 9)
-    c.drawString(135, y_cursor - 75, datos.pdf_maquina[:45])
+    c.drawString(135, y_cursor - 75 - extra_mot, datos.pdf_maquina[:45])
 
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: {datos.pdf_n_serie}")
+    c.drawString(45, y_cursor - 90 - extra_mot, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: {datos.pdf_n_serie}")
     y_cursor -= (box2_h + 10)
 
-    box3_h = max(40, 130 - extra_height)
+    # Reducimos el espacio de trabajo realizado proporcionalmente al motivo
+    box3_h = max(40, 130 - extra_height - extra_mot)
     c.rect(40, y_cursor - box3_h, width - 80, box3_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Trabajo realizado:")
@@ -325,15 +332,16 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.drawString(45, y_cursor - 15, f"Estado del Aviso: {datos.pdf_estado.upper()}")
     y_cursor -= 30
 
+    # Firmas Centradas
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(60, y_cursor - 10, f"Fdo: {datos.pdf_tecnico} (Técnico)")
-    c.drawString(width/2 + 30, y_cursor - 10, f"Fdo: {datos.pdf_nombre_cliente} (Cliente)")
+    c.drawCentredString(140, y_cursor - 10, f"Fdo: {datos.pdf_tecnico} (Técnico)")
+    c.drawCentredString(width - 140, y_cursor - 10, f"Fdo: {datos.pdf_nombre_cliente} (Cliente)")
 
     y_firmas = y_cursor - 90
 
     c.setStrokeColorRGB(0.8, 0.8, 0.8)
     c.rect(50, y_firmas, 180, 70)
-    c.rect(width/2 + 20, y_firmas, 180, 70)
+    c.rect(width - 230, y_firmas, 180, 70)
 
     if datos.firma_tecnico_b64 and "," in datos.firma_tecnico_b64:
         b64_data = datos.firma_tecnico_b64.split(",")[1]
@@ -349,7 +357,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         try:
             img_bytes = base64.b64decode(b64_data)
             img = ImageReader(io.BytesIO(img_bytes))
-            c.drawImage(img, width/2 + 20, y_firmas, width=180, height=70, mask='auto')
+            c.drawImage(img, width - 230, y_firmas, width=180, height=70, mask='auto')
         except Exception as e:
             pass
 
@@ -484,6 +492,19 @@ def get_mis_avisos(tecnico: str):
             row_dict['ESTADO PIEZAS'] = row.get('ESTADO PIEZAS', '').strip()
             row_dict['HORAS TOTALES'] = row.get('HORAS TOTALES', '').strip()
             row_dict['Nº SERIE'] = row.get('Nº SERIE', '').strip()
+            
+            # Incorporar nuevas etiquetas
+            row_dict['URGENTE'] = row.get('URGENTE', '').strip()
+            row_dict['GARANTÍA'] = row.get('GARANTÍA', '').strip()
+            row_dict['MANTENIMIENTO'] = row.get('MANTENIMIENTO', '').strip()
+            row_dict['INSTALACIÓN'] = row.get('INSTALACIÓN', '').strip()
+            row_dict['REVISAR'] = row.get('REVISAR', '').strip()
+            row_dict['NUEVO'] = row.get('NUEVO', '').strip()
+            row_dict['PARADO'] = row.get('PARADO', '').strip()
+            row_dict['RECLAMA'] = row.get('RECLAMA', '').strip()
+            row_dict['PRESUPUESTO'] = row.get('PRESUPUESTO', '').strip()
+            row_dict['PIEZAS'] = row.get('PIEZAS', '').strip()
+            
             row_dict['aviso_index'] = index
 
             if tecnico == 'Master':
@@ -497,22 +518,6 @@ def get_mis_avisos(tecnico: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/piezas-recibidas")
-def marcar_piezas(data: MarcarPiezas):
-    try:
-        drive = get_drive_service()
-        fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-        idx = int(data.aviso_index)
-
-        if 0 <= idx < len(df):
-            df.loc[idx, 'ESTADO PIEZAS'] = 'Piezas Recibidas'
-            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df)
-            return {"status": "ok"}
-        else:
-            raise Exception("Index out of bounds")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/guardar-progreso")
 def guardar_progreso(parte: UpdateParte):
     try:
@@ -522,33 +527,61 @@ def guardar_progreso(parte: UpdateParte):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/editar-cerrado")
-def editar_cerrado(parte: UpdateParte):
-    try:
-        drive = get_drive_service()
-        procesar_actualizacion_tratados(drive, parte, "Cerrado")
-        return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/resolver")
-def resolver_aviso(parte: UpdateParte):
-    try:
-        drive = get_drive_service()
-        procesar_actualizacion_tratados(drive, parte, "Cerrado")
-        return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/cerrar-parte-y-enviar")
 def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
     try:
         drive = get_drive_service()
+        
+        # Procesamos el pdf y guardamos el original
         num_parte = get_and_increment_part_number(drive)
         pdf_bytes = generar_pdf_parte(payload, num_parte)
 
         attempted, sent, err = enviar_email_cierre(payload, pdf_bytes, num_parte)
         horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
+
+        # LOGICA DE REGENERADO DE AVISOS EN CASO DE QUEDAR PENDIENTE
+        if payload.base_parte.resuelto_pendiente == "Pendiente":
+            fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+            fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+            orig_row = df_tra.iloc[int(payload.base_parte.aviso_index)].to_dict()
+            
+            fecha_ahora = datetime.now().strftime("%Y-%m-%d")
+
+            new_row = {c: '' for c in COLS_SIN}
+            new_row['F. ENTR.'] = fecha_ahora
+            new_row['CLIENTE'] = payload.base_parte.cliente
+            new_row['POBLACIÓN'] = payload.base_parte.poblacion
+            new_row['MÁQUINA'] = payload.base_parte.maquina
+            new_row['EQUIPO'] = orig_row.get('EQUIPO', '')
+            new_row['MARCA'] = payload.pdf_marca
+            new_row['MODELO'] = payload.pdf_modelo
+            new_row['Nº SERIE'] = payload.pdf_n_serie
+            new_row['F. GARANTÍA'] = orig_row.get('F. GARANTÍA', '')
+            new_row['F. INSTALACIÓN'] = orig_row.get('F. INSTALACIÓN', '')
+            
+            # El motivo es la solución dada
+            new_row['DESCRIPCIÓN'] = payload.base_parte.solucion
+            
+            new_row['ASIGNADO A'] = 'Pendiente' # Queda para que asigne Master
+            new_row['PIRINEOS'] = 'NO'
+            
+            # Propagar las etiquetas preexistentes
+            for label in ['URGENTE', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'PARADO', 'RECLAMA', 'PRESUPUESTO']:
+                new_row[label] = orig_row.get(label, 'NO')
+            
+            new_row['NUEVO'] = 'SI'
+            
+            if payload.base_parte.piezas and payload.base_parte.piezas.strip() != "Se necesitan piezas? NO":
+                new_row['PIEZAS'] = 'SI'
+                new_row['ESTADO PIEZAS'] = 'Pendiente'
+            else:
+                new_row['PIEZAS'] = 'NO'
+                new_row['ESTADO PIEZAS'] = ''
+                
+            new_row['OBSERVACIONES'] = orig_row.get('OBSERVACIONES', '')
+
+            df_sin = pd.concat([df_sin, pd.DataFrame([new_row])], ignore_index=True)
+            save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
 
         return {
             "status": "ok",
