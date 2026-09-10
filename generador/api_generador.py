@@ -39,6 +39,11 @@ class NuevoAviso(BaseModel):
     mantenimiento: bool
     instalacion: bool
     revisar: bool
+    nuevo: bool
+    parado: bool
+    reclama: bool
+    presupuesto: bool
+    piezas: bool
 
 @router.get("/clientes-maquinas")
 def listar_clientes_maquinas():
@@ -155,7 +160,6 @@ def listar_clientes_maquinas():
     except Exception as e:
         return {"error": str(e)}
 
-
 @router.post("/avisos")
 def crear_aviso(aviso: NuevoAviso):
     try:
@@ -164,7 +168,7 @@ def crear_aviso(aviso: NuevoAviso):
         res = drive.files().list(q=query, fields="files(id)").execute()
         archivos = res.get("files", [])
         
-        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
+        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES']
         if archivos:
             file_id = archivos[0]['id']
             request = drive.files().get_media(fileId=file_id)
@@ -178,23 +182,26 @@ def crear_aviso(aviso: NuevoAviso):
             file_id = None
             df = pd.DataFrame(columns=cols)
 
-        if 'PIRINEOS' not in df.columns: df['PIRINEOS'] = 'NO'
-        if 'REALIZADO POR' not in df.columns: df['REALIZADO POR'] = 'Pendiente'
-        if 'GARANTÍA' not in df.columns: df['GARANTÍA'] = 'NO'
-        if 'MANTENIMIENTO' not in df.columns: df['MANTENIMIENTO'] = 'NO'
-        if 'INSTALACIÓN' not in df.columns: df['INSTALACIÓN'] = 'NO'
-        if 'REVISAR' not in df.columns: df['REVISAR'] = 'NO'
+        for col in cols:
+            if col not in df.columns:
+                df[col] = ''
         
         fila_excel = {
             'F. ENTR.': aviso.fecha_entrada, 'CLIENTE': aviso.cliente, 'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina, 'EQUIPO': aviso.equipo, 'MARCA': aviso.marca, 'MODELO': aviso.modelo,
             'Nº SERIE': aviso.n_serie, 'F. GARANTÍA': aviso.f_garan, 'F. INSTALACIÓN': aviso.f_instal, 'DESCRIPCIÓN': aviso.descripcion,
-            'REALIZADO POR': 'Pendiente', 'PIRINEOS': 'NO',
+            'ASIGNADO A': 'Pendiente', 'PIRINEOS': 'NO',
             'URGENTE': 'SI' if aviso.urgente else 'NO', 
             'GARANTÍA': 'SI' if aviso.garantia else 'NO',
             'MANTENIMIENTO': 'SI' if aviso.mantenimiento else 'NO',
             'INSTALACIÓN': 'SI' if aviso.instalacion else 'NO',
-            'REVISAR': 'SI' if aviso.revisar else 'NO'
+            'REVISAR': 'SI' if aviso.revisar else 'NO',
+            'NUEVO': 'SI' if aviso.nuevo else 'NO',
+            'PARADO': 'SI' if aviso.parado else 'NO',
+            'RECLAMA': 'SI' if aviso.reclama else 'NO',
+            'PRESUPUESTO': 'SI' if aviso.presupuesto else 'NO',
+            'PIEZAS': 'SI' if aviso.piezas else 'NO',
+            'ESTADO PIEZAS': 'Pendiente' if aviso.piezas else ''
         }
         
         df = pd.concat([df, pd.DataFrame([fila_excel])], ignore_index=True)
