@@ -1,7 +1,9 @@
-# api_gestor.py
+# api_generador.py
 import io
 import json
 import os
+import re
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -10,237 +12,237 @@ from pydantic import BaseModel
 import pandas as pd
 
 router = APIRouter()
-FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES']
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
+FOLDER_ID_DEFAULT = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 def get_drive_service():
-    creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
-    return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
+    creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    creds_dict = json.loads(creds_raw)
+    creds = service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
-    ))
+    )
+    return build("drive", "v3", credentials=creds)
 
-def get_excel(drive, name, cols):
-    query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
-    res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
-    if res.get("files"):
-        file_info = res.get("files")[0]
-        file_id = file_info['id']
-        mime_type = file_info.get('mimeType', '')
+def log_movimiento(bloque, datos):
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "registro_movimientos.json")
+    try:
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"creacion": [], "borrado": [], "cierre": []}
+    except Exception:
+        data = {"creacion": [], "borrado": [], "cierre": []}
+
+    if bloque not in data:
+        data[bloque] = []
+
+    datos["_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data[bloque].insert(0, datos)
+    data[bloque] = data[bloque][:50]
+
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Error saving log: {e}")
+
+class NuevoAviso(BaseModel):
+    fecha_entrada: str
+    cliente: str
+    poblacion: str
+    maquina: str
+    equipo: str
+    marca: str
+    modelo: str
+    n_serie: str
+    f_garan: str
+    f_instal: str
+    descripcion: str
+    urgente: bool
+    garantia: bool
+    mantenimiento: bool
+    instalacion: bool
+    revisar: bool
+    nuevo: bool
+    parado: bool
+    reclama: bool
+    presupuesto: bool
+    piezas: bool
+
+@router.get("/clientes-maquinas")
+def listar_clientes_maquinas():
+    try:
+        drive = get_drive_service()
         
-        try:
-            if mime_type == 'application/vnd.google-apps.spreadsheet':
-                req = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            else:
-                req = drive.files().get_media(fileId=file_id)
+        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Clientes_maquinas.xlsx' and trashed = false"
+        res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
+        archivos = res.get("files", [])
+        
+        if not archivos:
+            return {"error": "No se encontró el archivo Clientes_maquinas.xlsx en Google Drive"}
             
+        file_id = archivos[0]['id']
+        mime_type = archivos[0].get("mimeType")
+
+        if mime_type == "application/vnd.google-apps.spreadsheet":
+            request = drive.files().export_media(
+                fileId=file_id,
+                mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        else:
+            request = drive.files().get_media(fileId=file_id)
+
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        fh.seek(0)
+
+        df = pd.read_excel(fh, header=4)
+        df.columns = [str(col).replace("\u00a0", " ").strip() for col in df.columns]
+
+        if "CLIENTE" not in df.columns:
+            return {"error": "El Excel no contiene la columna CLIENTE"}
+
+        idx_cliente = list(df.columns).index("CLIENTE")
+        idx_poblacion = idx_cliente + 3
+        
+        col_serie = None
+        if "MODELO" in df.columns:
+            idx_modelo = list(df.columns).index("MODELO")
+            idx_serie = idx_modelo + 2
+            if idx_serie < len(df.columns):
+                col_serie = df.columns[idx_serie]
+
+        def clean(value):
+            if pd.isna(value):
+                return ""
+            return str(value).replace("\u00a0", " ").strip()
+
+        clientes_map = {}
+
+        def normalize_key(value):
+            text = clean(value)
+            text = text.replace("\u200b", "").replace("\ufeff", "")
+            text = " ".join(text.split())
+            import unicodedata
+            text = unicodedata.normalize("NFKD", text)
+            text = "".join(ch for ch in text if not unicodedata.combining(ch))
+            text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+            return text.casefold()
+
+        for _, row in df.iterrows():
+            if idx_cliente >= len(row): continue
+            
+            c = clean(row.iloc[idx_cliente])
+            if not c:
+                continue
+
+            key = normalize_key(c)
+            
+            poblacion = ""
+            if idx_poblacion < len(row):
+                poblacion = clean(row.iloc[idx_poblacion])
+            
+            if not poblacion and "POBLACIÓN" in df.columns:
+                poblacion = clean(row.get("POBLACIÓN", ""))
+
+            n = clean(row.get("NOMBRE", ""))
+            equipo = clean(row.get("EQUIPO", ""))
+            marca = clean(row.get("MARCA", ""))
+            modelo = clean(row.get("MODELO", ""))
+            n_serie = clean(row.get(col_serie, "")) if col_serie else ""
+            f_garan = clean(row.get("F.GARAN.", ""))
+            f_instal = clean(row.get("F. INSTALACION", ""))
+
+            if not n:
+                n = f"{equipo} {marca} {modelo}".strip()
+
+            if key not in clientes_map:
+                clientes_map[key] = {
+                    "nombre": c,
+                    "poblacion": poblacion,
+                    "maquinas": []
+                }
+            elif poblacion and not clientes_map[key]["poblacion"]:
+                clientes_map[key]["poblacion"] = poblacion
+
+            if n and not any(m["nombre"] == n for m in clientes_map[key]["maquinas"]):
+                clientes_map[key]["maquinas"].append({
+                    "nombre": n,
+                    "equipo": equipo,
+                    "marca": marca,
+                    "modelo": modelo,
+                    "n_serie": n_serie,
+                    "f_garan": f_garan[:10] if f_garan else "",
+                    "f_instal": f_instal[:10] if f_instal else ""
+                })
+
+        return clientes_map
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@router.post("/avisos")
+def crear_aviso(aviso: NuevoAviso):
+    try:
+        drive = get_drive_service()
+        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Avisos Sin Tratar.xlsx' and trashed = false"
+        res = drive.files().list(q=query, fields="files(id)").execute()
+        archivos = res.get("files", [])
+        
+        cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES']
+        if archivos:
+            file_id = archivos[0]['id']
+            request = drive.files().get_media(fileId=file_id)
             fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, req)
+            downloader = MediaIoBaseDownload(fh, request)
             done = False
             while not done: _, done = downloader.next_chunk()
             fh.seek(0)
-            df = pd.read_excel(fh, dtype=object)
-        except Exception:
-            df = pd.DataFrame(columns=cols, dtype=object)
-            
-        for c in cols:
-            if c not in df.columns: df[c] = ''
-        return file_id, df
-    else:
-        return None, pd.DataFrame(columns=cols, dtype=object)
+            df = pd.read_excel(fh)
+        else:
+            file_id = None
+            df = pd.DataFrame(columns=cols)
 
-def save_excel(drive, file_id, name, df):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
-    media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    if file_id:
-        drive.files().update(fileId=file_id, media_body=media).execute()
-    else:
-        drive.files().create(body={'name': name, 'parents': [FOLDER_ID]}, media_body=media).execute()
-
-class UpdateIndex(BaseModel):
-    aviso_index: int
-    fuente: str
-    valor: str
-
-class EditarAviso(BaseModel):
-    aviso_index: int
-    fuente: str
-    datos: dict
-
-@router.get("/avisos")
-def listar():
-    try:
-        drive = get_drive_service()
-        fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
-        fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+        for col in cols:
+            if col not in df.columns:
+                df[col] = ''
         
-        avisos_sin = df_sin.fillna("").to_dict(orient="records")
-        for i, a in enumerate(avisos_sin):
-            a['fuente'] = 'sin_tratar'
-            a['original_index'] = i
-            
-        avisos_tra = df_tra.fillna("").to_dict(orient="records")
-        for i, a in enumerate(avisos_tra):
-            a['fuente'] = 'tratados'
-            a['original_index'] = i
-
-        return {"avisos": avisos_sin + avisos_tra}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/actualizar-pirineos")
-def update_pirineos(data: UpdateIndex):
-    try:
-        drive = get_drive_service()
-        filename = 'Avisos Sin Tratar.xlsx' if data.fuente == 'sin_tratar' else 'Avisos Tratados.xlsx'
-        cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
+        fila_excel = {
+            'F. ENTR.': aviso.fecha_entrada, 'CLIENTE': aviso.cliente, 'POBLACIÓN': aviso.poblacion,
+            'MÁQUINA': aviso.maquina, 'EQUIPO': aviso.equipo, 'MARCA': aviso.marca, 'MODELO': aviso.modelo,
+            'Nº SERIE': aviso.n_serie, 'F. GARANTÍA': aviso.f_garan, 'F. INSTALACIÓN': aviso.f_instal, 'DESCRIPCIÓN': aviso.descripcion,
+            'ASIGNADO A': 'Pendiente', 'PIRINEOS': 'NO',
+            'URGENTE': 'SI' if aviso.urgente else 'NO', 
+            'GARANTÍA': 'SI' if aviso.garantia else 'NO',
+            'MANTENIMIENTO': 'SI' if aviso.mantenimiento else 'NO',
+            'INSTALACIÓN': 'SI' if aviso.instalacion else 'NO',
+            'REVISAR': 'SI' if aviso.revisar else 'NO',
+            'NUEVO': 'SI' if aviso.nuevo else 'NO',
+            'PARADO': 'SI' if aviso.parado else 'NO',
+            'RECLAMA': 'SI' if aviso.reclama else 'NO',
+            'PRESUPUESTO': 'SI' if aviso.presupuesto else 'NO',
+            'PIEZAS': 'SI' if aviso.piezas else 'NO',
+            'ESTADO PIEZAS': 'Pendiente' if aviso.piezas else ''
+        }
         
-        fid, df = get_excel(drive, filename, cols)
-        if 0 <= data.aviso_index < len(df):
-            df.loc[data.aviso_index, 'PIRINEOS'] = data.valor
-            save_excel(drive, fid, filename, df)
-        return {"status": "ok"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/actualizar-tecnico")
-def update_tecnico(data: UpdateIndex):
-    try:
-        drive = get_drive_service()
-        if data.fuente == 'sin_tratar':
-            fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+        df = pd.concat([df, pd.DataFrame([fila_excel])], ignore_index=True)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
             
-            if data.aviso_index >= len(df_sin) or data.aviso_index < 0:
-                raise HTTPException(status_code=400, detail="El aviso ya se ha movido o no existe. Refresca la vista.")
-                
-            if data.valor != 'Pendiente':
-                row = df_sin.iloc[data.aviso_index].copy()
-                fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-                
-                is_dup = False
-                c = str(row.get('CLIENTE', ''))
-                m = str(row.get('MÁQUINA', ''))
-                f = str(row.get('F. ENTR.', ''))
-                for _, t_row in df_tra.iterrows():
-                    if str(t_row.get('CLIENTE', '')) == c and str(t_row.get('MÁQUINA', '')) == m and str(t_row.get('F. ENTR.', '')) == f:
-                        is_dup = True
-                        break
-                        
-                if not is_dup:
-                    row_dict = row.to_dict()
-                    for col in COLS_TRA:
-                        if col not in row_dict: row_dict[col] = ''
-                    row_dict['ASIGNADO A'] = data.valor
-                    row_dict['ESTADO'] = 'Vacío'
-                    df_tra = pd.concat([df_tra, pd.DataFrame([row_dict])], ignore_index=True)
-                    save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
-                
-                df_sin = df_sin.drop(index=data.aviso_index).reset_index(drop=True)
-                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
-            else:
-                df_sin.loc[data.aviso_index, 'ASIGNADO A'] = data.valor
-                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
-                
-        else: 
-            fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-            
-            if data.aviso_index >= len(df_tra) or data.aviso_index < 0:
-                raise HTTPException(status_code=400, detail="El aviso ya se ha movido o no existe. Refresca la vista.")
-                
-            row = df_tra.iloc[data.aviso_index].copy()
-            
-            estado = str(row.get('ESTADO', '')).strip()
-            if estado in ['Abierto', 'Cerrado'] and data.valor != row.get('ASIGNADO A', ''):
-                raise HTTPException(status_code=400, detail="No se puede quitar ni reasignar un aviso que ya ha sido empezado o finalizado por un técnico.")
-
-            if data.valor == 'Pendiente':
-                fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
-                row_sin = {k: row.get(k, '') for k in COLS_SIN}
-                row_sin['ASIGNADO A'] = 'Pendiente'
-                
-                is_dup = False
-                c = str(row_sin.get('CLIENTE', ''))
-                m = str(row_sin.get('MÁQUINA', ''))
-                f = str(row_sin.get('F. ENTR.', ''))
-                for _, s_row in df_sin.iterrows():
-                    if str(s_row.get('CLIENTE', '')) == c and str(s_row.get('MÁQUINA', '')) == m and str(s_row.get('F. ENTR.', '')) == f:
-                        is_dup = True
-                        break
-                        
-                if not is_dup:
-                    df_sin = pd.concat([df_sin, pd.DataFrame([row_sin])], ignore_index=True)
-                    save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
-
-                df_tra = df_tra.drop(index=data.aviso_index).reset_index(drop=True)
-                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
-            else:
-                df_tra.loc[data.aviso_index, 'ASIGNADO A'] = data.valor
-                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
-
-        return {"status": "ok"}
-    except HTTPException as he:
-        raise he
-    except Exception as e: 
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/actualizar-estado-piezas")
-def update_estado_piezas(data: UpdateIndex):
-    try:
-        drive = get_drive_service()
-        filename = 'Avisos Sin Tratar.xlsx' if data.fuente == 'sin_tratar' else 'Avisos Tratados.xlsx'
-        cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
+        media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         
-        fid, df = get_excel(drive, filename, cols)
-        if 0 <= data.aviso_index < len(df):
-            df.loc[data.aviso_index, 'ESTADO PIEZAS'] = data.valor
-            save_excel(drive, fid, filename, df)
-        return {"status": "ok"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/editar-aviso")
-def editar_aviso(data: EditarAviso):
-    try:
-        drive = get_drive_service()
-        filename = 'Avisos Sin Tratar.xlsx' if data.fuente == 'sin_tratar' else 'Avisos Tratados.xlsx'
-        cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
+        if file_id:
+            drive.files().update(fileId=file_id, media_body=media).execute()
+        else:
+            drive.files().create(body={'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}, media_body=media).execute()
         
-        fid, df = get_excel(drive, filename, cols)
-        if 0 <= data.aviso_index < len(df):
-            if data.fuente == 'tratados':
-                estado = str(df.loc[data.aviso_index].get('ESTADO', '')).strip()
-                if estado in ['Abierto', 'Cerrado']:
-                    raise HTTPException(status_code=400, detail="No se puede modificar un aviso que ya ha sido empezado o cerrado por un técnico.")
+        datos_log = fila_excel.copy()
+        log_movimiento("creacion", datos_log)
             
-            for k, v in data.datos.items():
-                if k in df.columns:
-                    df.loc[data.aviso_index, k] = v
-                    
-            save_excel(drive, fid, filename, df)
         return {"status": "ok"}
-    except HTTPException as he:
-        raise he
-    except Exception as e: 
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/eliminar-aviso")
-def eliminar_aviso(data: UpdateIndex):
-    try:
-        drive = get_drive_service()
-        filename = 'Avisos Sin Tratar.xlsx' if data.fuente == 'sin_tratar' else 'Avisos Tratados.xlsx'
-        cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
-        
-        fid, df = get_excel(drive, filename, cols)
-        if 0 <= data.aviso_index < len(df):
-            if data.fuente == 'tratados':
-                row = df.iloc[data.aviso_index]
-                estado = str(row.get('ESTADO', '')).strip()
-                if estado in ['Abierto', 'Cerrado']:
-                    raise HTTPException(status_code=400, detail="No se puede eliminar un aviso que ya ha sido empezado o cerrado. Ciérralo y archívalo.")
-
-            df = df.drop(index=data.aviso_index).reset_index(drop=True)
-            save_excel(drive, fid, filename, df)
-        return {"status": "ok"}
-    except HTTPException as he:
-        raise he
-    except Exception as e: 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
