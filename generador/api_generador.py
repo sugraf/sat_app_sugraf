@@ -26,7 +26,7 @@ def get_drive_service():
     creds = service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     )
-    return build("drive", "v3", credentials=creds)
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 class NuevoAviso(BaseModel):
     fecha_entrada: str
