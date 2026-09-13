@@ -196,8 +196,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'SOLUCIÓN'] = parte.solucion
     df.loc[idx, 'ESTADO'] = estado
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
-    df.loc[idx, 'DETALLE VENTA'] = parte.detalle_venta
-    df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
+    df.loc[idx, 'DETALLE VENTA'] = parte.estado_piezas
 
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
     return horas_totales
