@@ -18,13 +18,9 @@ def get_drive_service():
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 def registrar_movimiento(tipo: str, datos: dict):
-    """
-    tipo: 'creacion', 'borrado' o 'cierre'
-    """
     try:
         drive = get_drive_service()
         
-        # Check if movimientos.json exists
         query = f"'{FOLDER_ID}' in parents and name = 'movimientos.json' and trashed = false"
         res = drive.files().list(q=query, fields="files(id)").execute()
         archivos = res.get("files", [])
@@ -51,7 +47,6 @@ def registrar_movimiento(tipo: str, datos: dict):
                 except json.JSONDecodeError:
                     pass
         
-        # Add new movement
         nuevo_movimiento = {
             "fecha_accion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "datos": datos
@@ -60,11 +55,9 @@ def registrar_movimiento(tipo: str, datos: dict):
         if tipo in registro:
             registro[tipo].append(nuevo_movimiento)
             
-            # Keep only the last 50
             if len(registro[tipo]) > 50:
                 registro[tipo] = registro[tipo][-50:]
         
-        # Save back to Drive
         json_str = json.dumps(registro, indent=4, ensure_ascii=False)
         media = MediaIoBaseUpload(io.BytesIO(json_str.encode('utf-8')), mimetype='application/json')
 
