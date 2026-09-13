@@ -33,7 +33,7 @@ def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
     return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
-    ))
+    ), cache_discovery=False)
 
 def get_excel(drive, name, cols):
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
