@@ -20,7 +20,6 @@ from reportlab.lib.colors import HexColor
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-# Añadidas las nuevas etiquetas en la estructura de columnas para que no se pierdan al regenerar
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES']
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
 
@@ -29,6 +28,30 @@ def get_drive_service():
     return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     ))
+
+def log_movimiento(bloque, datos):
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "registro_movimientos.json")
+    try:
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"creacion": [], "borrado": [], "cierre": []}
+    except Exception:
+        data = {"creacion": [], "borrado": [], "cierre": []}
+
+    if bloque not in data:
+        data[bloque] = []
+
+    datos["_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data[bloque].insert(0, datos)
+    data[bloque] = data[bloque][:50]
+
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Error saving log: {e}")
 
 def get_excel(drive, name, cols):
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
@@ -540,6 +563,11 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
 
         attempted, sent, err = enviar_email_cierre(payload, pdf_bytes, num_parte)
         horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
+        
+        datos_log = payload.dict()
+        datos_log.pop("firma_tecnico_b64", None)
+        datos_log.pop("firma_cliente_b64", None)
+        log_movimiento("cierre", datos_log)
 
         if payload.base_parte.resuelto_pendiente == "Pendiente" or payload.base_parte.estado_piezas == 'Sí necesita Piezas':
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
