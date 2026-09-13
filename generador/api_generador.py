@@ -3,6 +3,7 @@ import io
 import json
 import os
 import re
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -21,6 +22,30 @@ def get_drive_service():
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build("drive", "v3", credentials=creds)
+
+def log_movimiento(bloque, datos):
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "registro_movimientos.json")
+    try:
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"creacion": [], "borrado": [], "cierre": []}
+    except Exception:
+        data = {"creacion": [], "borrado": [], "cierre": []}
+
+    if bloque not in data:
+        data[bloque] = []
+
+    datos["_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data[bloque].insert(0, datos)
+    data[bloque] = data[bloque][:50]
+
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Error saving log: {e}")
 
 class NuevoAviso(BaseModel):
     fecha_entrada: str
@@ -214,6 +239,9 @@ def crear_aviso(aviso: NuevoAviso):
             drive.files().update(fileId=file_id, media_body=media).execute()
         else:
             drive.files().create(body={'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}, media_body=media).execute()
+        
+        datos_log = fila_excel.copy()
+        log_movimiento("creacion", datos_log)
             
         return {"status": "ok"}
     except Exception as e:
