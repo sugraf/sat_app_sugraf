@@ -1,15 +1,20 @@
-# api_generador.py
+# generador/api_generador.py
 import io
 import json
 import os
 import re
-from datetime import datetime
+import sys
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from pydantic import BaseModel
 import pandas as pd
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+from logger_movimientos import registrar_movimiento
 
 router = APIRouter()
 
@@ -22,30 +27,6 @@ def get_drive_service():
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build("drive", "v3", credentials=creds)
-
-def log_movimiento(bloque, datos):
-    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "registro_movimientos.json")
-    try:
-        if os.path.exists(log_path):
-            with open(log_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        else:
-            data = {"creacion": [], "borrado": [], "cierre": []}
-    except Exception:
-        data = {"creacion": [], "borrado": [], "cierre": []}
-
-    if bloque not in data:
-        data[bloque] = []
-
-    datos["_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    data[bloque].insert(0, datos)
-    data[bloque] = data[bloque][:50]
-
-    try:
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-    except Exception as e:
-        print(f"Error saving log: {e}")
 
 class NuevoAviso(BaseModel):
     fecha_entrada: str
@@ -239,10 +220,8 @@ def crear_aviso(aviso: NuevoAviso):
             drive.files().update(fileId=file_id, media_body=media).execute()
         else:
             drive.files().create(body={'name': 'Avisos Sin Tratar.xlsx', 'parents': [FOLDER_ID_DEFAULT]}, media_body=media).execute()
-        
-        datos_log = fila_excel.copy()
-        log_movimiento("creacion", datos_log)
             
+        registrar_movimiento("creacion", fila_excel)
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
