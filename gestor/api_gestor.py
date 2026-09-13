@@ -1,14 +1,19 @@
-# api_gestor.py
+# gestor/api_gestor.py
 import io
 import json
 import os
-from datetime import datetime
+import sys
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from pydantic import BaseModel
 import pandas as pd
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+from logger_movimientos import registrar_movimiento
 
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
@@ -21,30 +26,6 @@ def get_drive_service():
     return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
         creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
     ))
-
-def log_movimiento(bloque, datos):
-    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "registro_movimientos.json")
-    try:
-        if os.path.exists(log_path):
-            with open(log_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        else:
-            data = {"creacion": [], "borrado": [], "cierre": []}
-    except Exception:
-        data = {"creacion": [], "borrado": [], "cierre": []}
-
-    if bloque not in data:
-        data[bloque] = []
-
-    datos["_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    data[bloque].insert(0, datos)
-    data[bloque] = data[bloque][:50]
-
-    try:
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-    except Exception as e:
-        print(f"Error saving log: {e}")
 
 def get_excel(drive, name, cols):
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
@@ -262,12 +243,14 @@ def eliminar_aviso(data: UpdateIndex):
                 if estado in ['Abierto', 'Cerrado']:
                     raise HTTPException(status_code=400, detail="No se puede eliminar un aviso que ya ha sido empezado o cerrado. Ciérralo y archívalo.")
 
-            row_dict = df.iloc[data.aviso_index].to_dict()
-            row_clean = {k: (str(v) if pd.notnull(v) else "") for k, v in row_dict.items()}
-            log_movimiento("borrado", row_clean)
+            row_borrada = {str(k): str(v) for k, v in df.iloc[data.aviso_index].to_dict().items()}
+            row_borrada['fuente_borrado'] = data.fuente
 
             df = df.drop(index=data.aviso_index).reset_index(drop=True)
             save_excel(drive, fid, filename, df)
+            
+            registrar_movimiento("borrado", row_borrada)
+
         return {"status": "ok"}
     except HTTPException as he:
         raise he
