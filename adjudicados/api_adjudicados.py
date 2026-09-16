@@ -7,6 +7,7 @@ import base64
 import sys
 from email.message import EmailMessage
 from datetime import datetime
+import unicodedata
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -26,7 +27,7 @@ from logger_movimientos import registrar_movimiento
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
-COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES']
+COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'ESTADO PIEZAS', 'OBSERVACIONES']
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
 
 def get_drive_service():
@@ -157,6 +158,47 @@ class ArchivarParte(BaseModel):
 
 class MarcarPiezas(BaseModel):
     aviso_index: int
+
+
+def _normalizar_texto(valor):
+    """Devuelve un texto comparable aunque llegue con acentos o espacios distintos."""
+    texto = str(valor or '').strip()
+    return ''.join(
+        caracter for caracter in unicodedata.normalize('NFKD', texto)
+        if not unicodedata.combining(caracter)
+    ).casefold()
+
+
+def _necesita_piezas(estado_piezas):
+    return _normalizar_texto(estado_piezas) in {
+        'si necesita piezas',
+        'pendiente',
+    }
+
+
+def _construir_aviso_regenerado(row_orig, df_sin, parte, pdf_trabajo, pdf_piezas):
+    """Crea una fila de Avisos Sin Tratar manteniendo el esquema completo."""
+    necesita_piezas = _necesita_piezas(parte.estado_piezas)
+    motivo_original = str(row_orig.get('DESCRIPCIÓN', '') or '').strip()
+    solucion = str(pdf_trabajo or parte.solucion or '').strip()
+
+    motivo_nuevo = f'Motivo 1: "{motivo_original}"\nSolución 1: "{solucion}"'
+    if necesita_piezas and str(pdf_piezas or '').strip():
+        motivo_nuevo += f'\nPiezas 1: "{str(pdf_piezas).strip()}"'
+
+    # Usamos las columnas reales del fichero destino para no perder columnas
+    # adicionales (por ejemplo ESTADO PIEZAS) ni cambiar su organización.
+    nueva_fila = {columna: row_orig.get(columna, '') for columna in df_sin.columns}
+    nueva_fila.update({
+        'DESCRIPCIÓN': motivo_nuevo,
+        'F. ENTR.': parte.fecha_realizacion or datetime.now().strftime('%Y-%m-%d'),
+        'ASIGNADO A': 'Pendiente',
+        'NUEVO': 'SI',
+        'PIRINEOS': 'NO',
+        'PIEZAS': 'Pendiente' if necesita_piezas else 'NO',
+        'ESTADO PIEZAS': 'Sí necesita Piezas' if necesita_piezas else 'No necesita piezas',
+    })
+    return nueva_fila
 
 def calcular_horas(h_in, h_out):
     if not h_in or not h_out or str(h_in).strip() == '' or str(h_out).strip() == '':
@@ -546,33 +588,26 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
         attempted, sent, err = enviar_email_cierre(payload, pdf_bytes, num_parte)
         horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
 
-        if payload.base_parte.resuelto_pendiente == "Pendiente" or payload.base_parte.estado_piezas == 'Sí necesita Piezas':
+        necesita_regenerar = (
+            _normalizar_texto(payload.base_parte.resuelto_pendiente) == 'pendiente'
+            or _necesita_piezas(payload.base_parte.estado_piezas)
+        )
+        if necesita_regenerar:
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
             idx = int(payload.base_parte.aviso_index)
+            if idx < 0 or idx >= len(df_tra):
+                raise HTTPException(status_code=400, detail="El aviso ya no existe o ha cambiado. Refresca la vista.")
             row_orig = df_tra.iloc[idx].to_dict()
 
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
 
-            motivo_original = str(row_orig.get('DESCRIPCIÓN', '')).strip()
-            
-            motivo_nuevo = f'Motivo 1: "{motivo_original}"\nSolución 1: "{payload.pdf_trabajo}"'
-            if payload.base_parte.estado_piezas == 'Sí necesita Piezas' and payload.pdf_piezas.strip():
-                motivo_nuevo += f'\nPiezas 1: "{payload.pdf_piezas}"'
-
-            fecha_cierre = payload.base_parte.fecha_realizacion if payload.base_parte.fecha_realizacion else datetime.now().strftime("%Y-%m-%d")
-
-            nueva_fila = {k: row_orig.get(k, '') for k in COLS_SIN}
-            
-            nueva_fila['DESCRIPCIÓN'] = motivo_nuevo
-            nueva_fila['F. ENTR.'] = fecha_cierre
-            nueva_fila['ASIGNADO A'] = 'Pendiente'
-            nueva_fila['NUEVO'] = 'SI'
-            nueva_fila['PIRINEOS'] = 'NO'
-
-            if payload.base_parte.estado_piezas == 'Sí necesita Piezas':
-                nueva_fila['PIEZAS'] = 'Pendiente'
-            else:
-                nueva_fila['PIEZAS'] = row_orig.get('PIEZAS', '')
+            nueva_fila = _construir_aviso_regenerado(
+                row_orig,
+                df_sin,
+                payload.base_parte,
+                payload.pdf_trabajo,
+                payload.pdf_piezas,
+            )
 
             df_sin = pd.concat([df_sin, pd.DataFrame([nueva_fila])], ignore_index=True)
             save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
