@@ -119,6 +119,7 @@ class UpdateParte(BaseModel):
     resuelto_pendiente: str
     piezas: str
     solucion: str
+    observaciones: str = ''
     cliente: str
     poblacion: str
     maquina: str
@@ -240,6 +241,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
     df.loc[idx, 'DETALLE VENTA'] = parte.detalle_venta
     df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
+    df.loc[idx, 'OBSERVACIONES'] = parte.observaciones
 
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
     return horas_totales
@@ -332,17 +334,19 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         y_text -= 15
     y_cursor -= (box4_h + 10)
 
-    box5_h = 70
-    c.rect(40, y_cursor - box5_h, width - 80, box5_h)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 15, "Observaciones:")
-    c.setFont("Helvetica", 9)
-    lines = simpleSplit(datos.pdf_observaciones, "Helvetica", 9, width - 90)
-    y_text = y_cursor - 30
-    for l in lines[:2]:
-        c.drawString(45, y_text, l)
-        y_text -= 15
-    y_cursor -= (box5_h + 10)
+    observaciones = str(datos.pdf_observaciones or '').strip()
+    if observaciones:
+        box_obs_h = 55
+        c.rect(40, y_cursor - box_obs_h, width - 80, box_obs_h)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(45, y_cursor - 15, "Observaciones internas:")
+        c.setFont("Helvetica", 9)
+        lines = simpleSplit(observaciones, "Helvetica", 9, width - 90)
+        y_text = y_cursor - 30
+        for l in lines[:2]:
+            c.drawString(45, y_text, l)
+            y_text -= 15
+        y_cursor -= (box_obs_h + 10)
 
     c.setFont("Helvetica-Bold", 11)
     c.drawString(45, y_cursor - 15, f"Estado del Aviso: {datos.pdf_estado.upper()}")
@@ -432,6 +436,57 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
         return True, True, None
     except Exception as e:
         return True, False, str(e)
+
+def enviar_email_cierre_por_destinatario(datos: CerrarYEnviarParte, pdf_interno, pdf_cliente, num_parte):
+    """Envía el PDF interno a Laura/técnico y el PDF sin observaciones al cliente."""
+    user = "sugraf.digitalhub@gmail.com"
+    pwd = "dbsn dinz jakv vkay"
+    internos = []
+    if datos.email_laura.strip():
+        internos.append(datos.email_laura.strip())
+    if datos.email_tecnico.strip() and datos.email_tecnico.strip() not in internos:
+        internos.append(datos.email_tecnico.strip())
+    cliente = datos.email_cliente.strip()
+
+    if not internos and not cliente:
+        return True, True, None
+
+    asunto = f"Parte de Trabajo Sugraf numero {num_parte} - {datos.pdf_cliente} - {datos.pdf_maquina}"
+    cuerpo = (
+        f"Buenos dias,\n\n"
+        f"Desde Sugraf escribimos para confirmar que se ha cerrado el parte del aviso:\n"
+        f"{datos.pdf_cliente} - {datos.pdf_maquina}\n\n"
+        f"Se adjunta en este mensaje el parte firmado por el tecnico y el cliente.\n\n"
+        f"Un saludo."
+    )
+    safe_cliente = str(datos.pdf_cliente).replace('/', '-').replace('\\', '-')
+    safe_maquina = str(datos.pdf_maquina).replace('/', '-').replace('\\', '-')
+    nombre_archivo = f'Parte numero {num_parte} - {safe_cliente} - {safe_maquina}.pdf'
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(user, pwd)
+            if internos:
+                msg_interno = EmailMessage()
+                msg_interno['Subject'] = asunto
+                msg_interno['From'] = user
+                msg_interno['To'] = ", ".join(internos)
+                msg_interno.set_content(cuerpo)
+                msg_interno.add_attachment(pdf_interno, maintype='application', subtype='pdf', filename=nombre_archivo)
+                smtp.send_message(msg_interno)
+
+            if cliente and cliente not in internos:
+                msg_cliente = EmailMessage()
+                msg_cliente['Subject'] = asunto
+                msg_cliente['From'] = user
+                msg_cliente['To'] = cliente
+                msg_cliente.set_content(cuerpo)
+                msg_cliente.add_attachment(pdf_cliente, maintype='application', subtype='pdf', filename=nombre_archivo)
+                smtp.send_message(msg_cliente)
+        return True, True, None
+    except Exception as e:
+        return True, False, str(e)
+
 
 def enviar_email_venta(row_data):
     opcion_venta = str(row_data.get('OPCIÓN A VENTA', '')).strip().upper()
@@ -582,10 +637,8 @@ def resolver_aviso(parte: UpdateParte):
 def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
     try:
         drive = get_drive_service()
-        num_parte = get_and_increment_part_number(drive)
-        pdf_bytes = generar_pdf_parte(payload, num_parte)
-
-        attempted, sent, err = enviar_email_cierre(payload, pdf_bytes, num_parte)
+        # Primero se guarda el cierre y, si corresponde, se regenera el aviso.
+        # El PDF y los correos solo se procesan cuando esta fase termina bien.
         horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
 
         necesita_regenerar = (
@@ -611,6 +664,19 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
 
             df_sin = pd.concat([df_sin, pd.DataFrame([nueva_fila])], ignore_index=True)
             save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+
+        num_parte = get_and_increment_part_number(drive)
+        observaciones_internas = str(payload.base_parte.observaciones or '').strip()
+        payload_interno = payload.copy(update={'pdf_observaciones': observaciones_internas})
+        payload_cliente = payload.copy(update={'pdf_observaciones': ''})
+        pdf_interno = generar_pdf_parte(payload_interno, num_parte)
+        pdf_cliente = generar_pdf_parte(payload_cliente, num_parte)
+        attempted, sent, err = enviar_email_cierre_por_destinatario(
+            payload,
+            pdf_interno,
+            pdf_cliente,
+            num_parte,
+        )
 
         datos_cierre = payload.dict()
         datos_cierre.pop('firma_tecnico_b64', None)
