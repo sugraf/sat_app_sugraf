@@ -1,4 +1,4 @@
-# main.py_prueba_
+# main.py_prueba_publico
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
