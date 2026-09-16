@@ -719,6 +719,9 @@
       if (pText === "Se necesitan piezas? NO") pText = '';
       document.getElementById('res_piezas').value = pText;
 
+      // Recuperar la solución guardada y evitar que se arrastre la del aviso anterior.
+      document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
+
       verificarResolucion();
       
       if (isCerrado) {
