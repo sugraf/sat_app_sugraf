@@ -566,6 +566,7 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
             nueva_fila['F. ENTR.'] = fecha_cierre
             nueva_fila['ASIGNADO A'] = 'Pendiente'
             nueva_fila['NUEVO'] = 'SI'
+            nueva_fila['PIRINEOS'] = 'NO'
 
             if payload.base_parte.estado_piezas == 'Sí necesita Piezas':
                 nueva_fila['PIEZAS'] = 'Pendiente'
