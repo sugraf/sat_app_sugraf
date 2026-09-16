@@ -182,9 +182,9 @@ def _construir_aviso_regenerado(row_orig, df_sin, parte, pdf_trabajo, pdf_piezas
     motivo_original = str(row_orig.get('DESCRIPCIÓN', '') or '').strip()
     solucion = str(pdf_trabajo or parte.solucion or '').strip()
 
-    motivo_nuevo = f'Motivo 1: "{motivo_original}"\nSolución 1: "{solucion}"'
+    motivo_nuevo = f'Seguimiento: {motivo_original}. Solución: {solucion}.'
     if necesita_piezas and str(pdf_piezas or '').strip():
-        motivo_nuevo += f'\nPiezas 1: "{str(pdf_piezas).strip()}"'
+        motivo_nuevo += f' Piezas: {str(pdf_piezas).strip()}.'
 
     # Usamos las columnas reales del fichero destino para no perder columnas
     # adicionales (por ejemplo ESTADO PIEZAS) ni cambiar su organización.
