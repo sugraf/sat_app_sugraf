@@ -359,13 +359,16 @@
             </div>
 
             <div id="div_texto_piezas" style="display:none; margin-top: 15px;">
-                <label>Piezas Necesarias / Cambiadas</label>
+                <label>Piezas Necesarias (para el nuevo aviso)</label>
                 <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
             </div>
         </div>
 
         <label>Trabajos Realizados / Solución</label>
         <textarea id="res_solucion" rows="4" placeholder="Describe los ajustes realizados..."></textarea>
+
+        <label>Piezas Utilizadas</label>
+        <textarea id="res_piezas_utilizadas" rows="3" placeholder="Piezas cambiadas/utilizadas en este aviso (opcional)..."></textarea>
 
         <label>Observación interna</label>
         <textarea id="res_observaciones" rows="2" placeholder="Solo para gestión interna..."></textarea>
@@ -514,9 +517,6 @@
         if (est === 'Pendiente') {
             divPiezasPendiente.style.display = 'block';
             verificarPiezas();
-        } else if (est === 'Resuelto') {
-            divPiezasPendiente.style.display = 'none';
-            divTextoPiezas.style.display = 'block'; 
         } else {
             divPiezasPendiente.style.display = 'none';
             divTextoPiezas.style.display = 'none';
@@ -722,6 +722,7 @@
 
       // Recuperar la solución guardada y evitar que se arrastre la del aviso anterior.
       document.getElementById('res_solucion').value = av['SOLUCIÓN'] || '';
+      document.getElementById('res_piezas_utilizadas').value = av['PIEZAS UTILIZADAS'] || '';
 
       document.getElementById('res_observaciones').value = av['OBSERVACIONES'] || '';
       verificarResolucion();
@@ -748,7 +749,7 @@
       document.getElementById('ses_hora_ent').disabled = isCerrado;
       document.getElementById('ses_hora_sal').disabled = isCerrado;
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_piezas', 'res_piezas', 'res_solucion', 'res_observaciones', 'res_pirineos'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_piezas', 'res_piezas', 'res_piezas_utilizadas', 'res_solucion', 'res_observaciones', 'res_pirineos'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado;
@@ -797,6 +798,7 @@
             hora_salida: document.getElementById('ses_hora_sal').value,
             resuelto_pendiente: est,
             piezas: textoPiezas,
+            piezas_utilizadas: document.getElementById('res_piezas_utilizadas').value,
             solucion: document.getElementById('res_solucion').value,
             observaciones: document.getElementById('res_observaciones').value,
             cliente: document.getElementById('res_cliente').value,
@@ -950,16 +952,9 @@
         document.getElementById('prev_n_serie').value = av ? (av['Nº SERIE'] || '') : '';
 
         document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
-        
-        let pText = document.getElementById('res_piezas').value;
-        const est = document.getElementById('res_estado_resolucion').value;
-        const nec = document.getElementById('res_necesita_piezas').value;
-        
-        if (est === 'Pendiente' && (nec === 'NO' || !nec)) {
-            pText = "Se necesitan piezas? NO";
-        }
-        document.getElementById('prev_piezas').value = pText;
-        
+
+        document.getElementById('prev_piezas').value = document.getElementById('res_piezas_utilizadas').value;
+
         document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
         document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
 

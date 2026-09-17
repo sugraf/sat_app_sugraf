@@ -28,7 +28,7 @@ router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'ESTADO PIEZAS', 'OBSERVACIONES']
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'PIEZAS UTILIZADAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -118,6 +118,7 @@ class UpdateParte(BaseModel):
     hora_salida: str
     resuelto_pendiente: str
     piezas: str
+    piezas_utilizadas: str = ''
     solucion: str
     observaciones: str = ''
     cliente: str
@@ -236,6 +237,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'HORAS TOTALES'] = horas_totales
     df.loc[idx, 'RESUELTO O PENDIENTE'] = parte.resuelto_pendiente
     df.loc[idx, 'PIEZAS NECESARIAS'] = parte.piezas
+    df.loc[idx, 'PIEZAS UTILIZADAS'] = parte.piezas_utilizadas
     df.loc[idx, 'SOLUCIÓN'] = parte.solucion
     df.loc[idx, 'ESTADO'] = estado
     df.loc[idx, 'OPCIÓN A VENTA'] = parte.opcion_venta
@@ -308,42 +310,42 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: {datos.pdf_n_serie}")
     y_cursor -= (box2_h + 10)
 
-    box3_h = 130
+    trabajo_txt = str(datos.pdf_trabajo or '').strip()
+    lines_trabajo = simpleSplit(trabajo_txt, "Helvetica", 9, width - 90)[:8] if trabajo_txt else []
+    box3_h = 30 + len(lines_trabajo) * 15 if lines_trabajo else 30
     c.rect(40, y_cursor - box3_h, width - 80, box3_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Trabajo realizado:")
     c.setFont("Helvetica", 9)
-    lines = simpleSplit(datos.pdf_trabajo, "Helvetica", 9, width - 90)
     y_text = y_cursor - 30
-
-    max_lines_trabajo = int((box3_h - 20) / 15)
-    for l in lines[:max_lines_trabajo]:
+    for l in lines_trabajo:
         c.drawString(45, y_text, l)
         y_text -= 15
     y_cursor -= (box3_h + 10)
 
-    box4_h = 80
+    piezas_utilizadas_txt = str(datos.pdf_piezas or '').strip()
+    lines_piezas = simpleSplit(piezas_utilizadas_txt, "Helvetica", 9, width - 90)[:3] if piezas_utilizadas_txt else []
+    box4_h = 30 + len(lines_piezas) * 15 if lines_piezas else 30
     c.rect(40, y_cursor - box4_h, width - 80, box4_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Piezas / Repuestos:")
     c.setFont("Helvetica", 9)
-    lines = simpleSplit(datos.pdf_piezas, "Helvetica", 9, width - 90)
     y_text = y_cursor - 30
-    for l in lines[:3]:
+    for l in lines_piezas:
         c.drawString(45, y_text, l)
         y_text -= 15
     y_cursor -= (box4_h + 10)
 
     observaciones = str(datos.pdf_observaciones or '').strip()
     if observaciones:
-        box_obs_h = 55
+        lines_obs = simpleSplit(observaciones, "Helvetica", 9, width - 90)[:4]
+        box_obs_h = 30 + len(lines_obs) * 15
         c.rect(40, y_cursor - box_obs_h, width - 80, box_obs_h)
         c.setFont("Helvetica-Bold", 9)
         c.drawString(45, y_cursor - 15, "Observaciones internas:")
         c.setFont("Helvetica", 9)
-        lines = simpleSplit(observaciones, "Helvetica", 9, width - 90)
         y_text = y_cursor - 30
-        for l in lines[:2]:
+        for l in lines_obs:
             c.drawString(45, y_text, l)
             y_text -= 15
         y_cursor -= (box_obs_h + 10)
@@ -659,7 +661,7 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
                 df_sin,
                 payload.base_parte,
                 payload.pdf_trabajo,
-                payload.pdf_piezas,
+                payload.base_parte.piezas,
             )
 
             df_sin = pd.concat([df_sin, pd.DataFrame([nueva_fila])], ignore_index=True)
