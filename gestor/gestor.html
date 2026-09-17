@@ -316,7 +316,6 @@
 
   <div class="container">
     <div class="header-title">
-      <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
       <h2>Organizador de Avisos</h2>
     </div>
 
@@ -581,7 +580,7 @@
         const btn = document.querySelector('.btn-save-modal');
         if(btn) { btn.innerText = "Guardando..."; btn.disabled = true; }
 
-        const payload = { aviso_index: index, fuente: fuente, datos: {} };
+        const payload = { aviso_index: index, fuente: fuente, datos: {}, ...identificarAviso(index, fuente) };
         COLUMNAS_MOSTRAR.forEach(key => {
             if (key !== 'ASIGNADO A' && key !== 'ESTADO') {
                 const el = document.getElementById('edit_' + key);
@@ -615,6 +614,16 @@
         if(btn) { btn.innerText = "Guardar Cambios"; btn.disabled = false; }
     }
 
+    function identificarAviso(index, fuente) {
+        const av = avisosGlobales.find(a => a.original_index === index && a.fuente === fuente);
+        return {
+            cliente: av ? (av['CLIENTE'] || '') : '',
+            maquina: av ? (av['MÁQUINA'] || '') : '',
+            descripcion: av ? (av['DESCRIPCIÓN'] || '') : '',
+            fecha_entr: av ? (av['F. ENTR.'] || '') : ''
+        };
+    }
+
     function cerrarModal() { document.getElementById('aviso-modal').style.display = 'none'; }
     window.onclick = function(event) {
         if (event.target === document.getElementById('aviso-modal')) cerrarModal();
@@ -633,7 +642,7 @@
       selectElement.disabled = true;
       showLoading();
       try {
-        await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) });
+        await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor, ...identificarAviso(index, fuente) }) });
         cargarGestionAvisos();
       } catch (err) {
         hideLoading();
@@ -653,7 +662,7 @@
         const res = await fetch('/api/gestor/actualizar-tecnico', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor })
+            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor, ...identificarAviso(index, fuente) })
         });
         if (!res.ok) {
             const err = await res.json();
@@ -680,7 +689,7 @@
                 const res = await fetch('/api/gestor/eliminar-aviso', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "" })
+                    body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "", ...identificarAviso(index, fuente) })
                 });
                 if (!res.ok) {
                     const err = await res.json();

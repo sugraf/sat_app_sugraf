@@ -278,7 +278,6 @@
 
   <div class="container">
     <div class="header-title">
-      <div class="eyebrow"><span class="dot-sm"></span> Servicio T&eacute;cnico</div>
       <h2>Mis Avisos Asignados</h2>
       <p>Consulta y gestiona los partes de trabajo de tus avisos asignados.</p>
     </div>
@@ -300,6 +299,8 @@
         <input type="hidden" id="res_cliente">
         <input type="hidden" id="res_poblacion">
         <input type="hidden" id="res_maquina">
+        <input type="hidden" id="res_descripcion">
+        <input type="hidden" id="res_fecha_entr">
 
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;">
           <div style="flex: 1; min-width: 140px;">
@@ -628,12 +629,20 @@
         const ok = await appConfirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.");
         if (!ok) return;
 
+        const av = misAvisos.find(a => a.aviso_index === index);
+
         showLoading();
         try {
             const res = await fetch('/api/adjudicados/archivar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ aviso_index: index })
+                body: JSON.stringify({
+                    aviso_index: index,
+                    cliente: av ? (av['CLIENTE'] || '') : '',
+                    maquina: av ? (av['MÁQUINA'] || '') : '',
+                    descripcion: av ? (av['DESCRIPCIÓN'] || '') : '',
+                    fecha_entr: av ? (av['F. ENTR.'] || '') : ''
+                })
             });
 
             const data = await res.json();
@@ -683,6 +692,8 @@
       document.getElementById('res_cliente').value = av['CLIENTE'];
       document.getElementById('res_maquina').value = av['MÁQUINA'];
       document.getElementById('res_poblacion').value = av['POBLACIÓN'];
+      document.getElementById('res_descripcion').value = av['DESCRIPCIÓN'] || '';
+      document.getElementById('res_fecha_entr').value = av['F. ENTR.'] || '';
 
       const isCerrado = av['ESTADO'] === 'Cerrado';
       
@@ -817,7 +828,9 @@
             cliente: document.getElementById('res_cliente').value,
             poblacion: document.getElementById('res_poblacion').value,
             maquina: document.getElementById('res_maquina').value,
-            tecnico: document.getElementById('res_tecnico_original').value
+            tecnico: document.getElementById('res_tecnico_original').value,
+            descripcion: document.getElementById('res_descripcion').value,
+            fecha_entr: document.getElementById('res_fecha_entr').value
         };
     }
 

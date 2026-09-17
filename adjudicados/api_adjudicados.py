@@ -23,6 +23,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 from logger_movimientos import registrar_movimiento
+from aviso_matcher import resolver_indice_aviso
 
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
@@ -130,6 +131,8 @@ class UpdateParte(BaseModel):
     opcion_venta: str
     detalle_venta: str
     estado_piezas: str
+    descripcion: str = ''
+    fecha_entr: str = ''
 
 class CerrarYEnviarParte(BaseModel):
     base_parte: UpdateParte
@@ -157,9 +160,17 @@ class CerrarYEnviarParte(BaseModel):
 
 class ArchivarParte(BaseModel):
     aviso_index: int
+    cliente: str = ''
+    maquina: str = ''
+    descripcion: str = ''
+    fecha_entr: str = ''
 
 class MarcarPiezas(BaseModel):
     aviso_index: int
+    cliente: str = ''
+    maquina: str = ''
+    descripcion: str = ''
+    fecha_entr: str = ''
 
 
 def _normalizar_texto(valor):
@@ -226,7 +237,10 @@ def calcular_horas(h_in, h_out):
 def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
 
-    idx = int(parte.aviso_index)
+    idx = resolver_indice_aviso(df, parte.aviso_index, parte.cliente, parte.maquina, parte.descripcion, parte.fecha_entr)
+    if idx is None:
+        raise HTTPException(status_code=400, detail="El aviso ya no existe o ha cambiado. Refresca la vista e inténtalo de nuevo.")
+
     horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
 
     df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
@@ -246,7 +260,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'OBSERVACIONES'] = parte.observaciones
 
     save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
-    return horas_totales
+    return horas_totales, idx
 
 def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     buffer = io.BytesIO()
@@ -597,14 +611,14 @@ def marcar_piezas(data: MarcarPiezas):
     try:
         drive = get_drive_service()
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-        idx = int(data.aviso_index)
+        idx = resolver_indice_aviso(df, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
 
-        if 0 <= idx < len(df):
+        if idx is not None:
             df.loc[idx, 'ESTADO PIEZAS'] = 'Piezas Recibidas'
             save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df)
             return {"status": "ok"}
         else:
-            raise Exception("Index out of bounds")
+            raise Exception("El aviso ya no existe o ha cambiado. Refresca la vista.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -641,7 +655,7 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
         drive = get_drive_service()
         # Primero se guarda el cierre y, si corresponde, se regenera el aviso.
         # El PDF y los correos solo se procesan cuando esta fase termina bien.
-        horas = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
+        horas, idx_tratado = procesar_actualizacion_tratados(drive, payload.base_parte, "Cerrado")
 
         necesita_regenerar = (
             _normalizar_texto(payload.base_parte.resuelto_pendiente) == 'pendiente'
@@ -649,10 +663,9 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
         )
         if necesita_regenerar:
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-            idx = int(payload.base_parte.aviso_index)
-            if idx < 0 or idx >= len(df_tra):
+            if idx_tratado < 0 or idx_tratado >= len(df_tra):
                 raise HTTPException(status_code=400, detail="El aviso ya no existe o ha cambiado. Refresca la vista.")
-            row_orig = df_tra.iloc[idx].to_dict()
+            row_orig = df_tra.iloc[idx_tratado].to_dict()
 
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
 
@@ -700,9 +713,9 @@ def archivar_aviso(parte: ArchivarParte):
     try:
         drive = get_drive_service()
         fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-        idx = int(parte.aviso_index)
+        idx = resolver_indice_aviso(df_tra, parte.aviso_index, parte.cliente, parte.maquina, parte.descripcion, parte.fecha_entr)
 
-        if 0 <= idx < len(df_tra):
+        if idx is not None:
             row_to_archive = df_tra.iloc[idx].copy()
             attempted, sent, err = enviar_email_venta(row_to_archive)
 
@@ -721,6 +734,6 @@ def archivar_aviso(parte: ArchivarParte):
                 "email_error": err
             }
         else:
-            raise Exception("Index out of bounds")
+            raise Exception("El aviso ya no existe o ha cambiado. Refresca la vista.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
