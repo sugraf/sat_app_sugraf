@@ -328,7 +328,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
     box4_h = 30 + len(lines_piezas) * 15 if lines_piezas else 30
     c.rect(40, y_cursor - box4_h, width - 80, box4_h)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 15, "Piezas / Repuestos:")
+    c.drawString(45, y_cursor - 15, "Piezas Utilizadas:")
     c.setFont("Helvetica", 9)
     y_text = y_cursor - 30
     for l in lines_piezas:

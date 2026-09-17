@@ -405,7 +405,7 @@
               
               <div style="grid-column: 1 / -1;"><label>Motivo llamada/aviso</label><input type="text" id="prev_motivo"></div>
               <div style="grid-column: 1 / -1;"><label>Trabajo Realizado</label><textarea id="prev_trabajo" rows="4"></textarea></div>
-              <div style="grid-column: 1 / -1;"><label>Piezas / Repuestos</label><textarea id="prev_piezas" rows="2"></textarea></div>
+              <div style="grid-column: 1 / -1;"><label>Piezas Utilizadas</label><textarea id="prev_piezas" rows="2"></textarea></div>
               <div><label>Estado</label><input type="text" id="prev_estado"></div>
           </div>
 
@@ -939,7 +939,16 @@
         document.getElementById('prev_horas_in').value = document.getElementById('ses_hora_ent').value;
         document.getElementById('prev_horas_out').value = document.getElementById('ses_hora_sal').value;
 
-        document.getElementById('prev_tecnico').value = document.getElementById('res_tecnico_original').value;
+        const prevTecnicoInput = document.getElementById('prev_tecnico');
+        prevTecnicoInput.value = document.getElementById('res_tecnico_original').value;
+        if (currentUser === 'Técnico 4') {
+            prevTecnicoInput.readOnly = false;
+            prevTecnicoInput.style.background = '#ffffff';
+            prevTecnicoInput.placeholder = 'Escribe tu nombre real para el parte';
+        } else {
+            prevTecnicoInput.readOnly = true;
+            prevTecnicoInput.style.background = '#f1f5f8';
+        }
         document.getElementById('prev_cliente').value = document.getElementById('res_cliente').value;
         document.getElementById('prev_poblacion').value = document.getElementById('res_poblacion').value;
         document.getElementById('prev_maquina').value = document.getElementById('res_maquina').value;
@@ -990,6 +999,11 @@
         
         if(!document.getElementById('prev_marca').value.trim() || !document.getElementById('prev_modelo').value.trim() || !document.getElementById('prev_n_serie').value.trim()) {
             alert("Los campos Marca, Modelo y Nº Serie son obligatorios para cerrar el parte.");
+            return;
+        }
+
+        if(!document.getElementById('prev_tecnico').value.trim()) {
+            alert("El campo Técnico es obligatorio para cerrar el parte.");
             return;
         }
 
