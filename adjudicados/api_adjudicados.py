@@ -438,17 +438,17 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
         return True, False, str(e)
 
 def enviar_email_cierre_por_destinatario(datos: CerrarYEnviarParte, pdf_interno, pdf_cliente, num_parte):
-    """Envía el PDF interno a Laura/técnico y el PDF sin observaciones al cliente."""
+    """Envía el PDF con observaciones solo a Laura; técnico y cliente reciben el PDF sin observaciones."""
     user = "sugraf.digitalhub@gmail.com"
     pwd = "dbsn dinz jakv vkay"
-    internos = []
-    if datos.email_laura.strip():
-        internos.append(datos.email_laura.strip())
-    if datos.email_tecnico.strip() and datos.email_tecnico.strip() not in internos:
-        internos.append(datos.email_tecnico.strip())
-    cliente = datos.email_cliente.strip()
+    laura = datos.email_laura.strip()
+    sin_observaciones = []
+    if datos.email_tecnico.strip():
+        sin_observaciones.append(datos.email_tecnico.strip())
+    if datos.email_cliente.strip() and datos.email_cliente.strip() not in sin_observaciones:
+        sin_observaciones.append(datos.email_cliente.strip())
 
-    if not internos and not cliente:
+    if not laura and not sin_observaciones:
         return True, True, None
 
     asunto = f"Parte de Trabajo Sugraf numero {num_parte} - {datos.pdf_cliente} - {datos.pdf_maquina}"
@@ -466,23 +466,23 @@ def enviar_email_cierre_por_destinatario(datos: CerrarYEnviarParte, pdf_interno,
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(user, pwd)
-            if internos:
-                msg_interno = EmailMessage()
-                msg_interno['Subject'] = asunto
-                msg_interno['From'] = user
-                msg_interno['To'] = ", ".join(internos)
-                msg_interno.set_content(cuerpo)
-                msg_interno.add_attachment(pdf_interno, maintype='application', subtype='pdf', filename=nombre_archivo)
-                smtp.send_message(msg_interno)
+            if laura and laura not in sin_observaciones:
+                msg_laura = EmailMessage()
+                msg_laura['Subject'] = asunto
+                msg_laura['From'] = user
+                msg_laura['To'] = laura
+                msg_laura.set_content(cuerpo)
+                msg_laura.add_attachment(pdf_interno, maintype='application', subtype='pdf', filename=nombre_archivo)
+                smtp.send_message(msg_laura)
 
-            if cliente and cliente not in internos:
-                msg_cliente = EmailMessage()
-                msg_cliente['Subject'] = asunto
-                msg_cliente['From'] = user
-                msg_cliente['To'] = cliente
-                msg_cliente.set_content(cuerpo)
-                msg_cliente.add_attachment(pdf_cliente, maintype='application', subtype='pdf', filename=nombre_archivo)
-                smtp.send_message(msg_cliente)
+            if sin_observaciones:
+                msg_resto = EmailMessage()
+                msg_resto['Subject'] = asunto
+                msg_resto['From'] = user
+                msg_resto['To'] = ", ".join(sin_observaciones)
+                msg_resto.set_content(cuerpo)
+                msg_resto.add_attachment(pdf_cliente, maintype='application', subtype='pdf', filename=nombre_archivo)
+                smtp.send_message(msg_resto)
         return True, True, None
     except Exception as e:
         return True, False, str(e)
