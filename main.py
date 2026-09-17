@@ -55,6 +55,22 @@ def get_png(filename: str):
     if os.path.exists(ruta): return FileResponse(ruta, media_type="image/png")
     raise HTTPException(status_code=404, detail="Not found")
 
+@app.get("/{filename}.js")
+def get_js(filename: str):
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=404, detail="Not found")
+    ruta = os.path.join(os.path.dirname(__file__), f"{filename}.js")
+    if os.path.exists(ruta): return FileResponse(ruta, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="Not found")
+
+@app.get("/{filename}.css")
+def get_css(filename: str):
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=404, detail="Not found")
+    ruta = os.path.join(os.path.dirname(__file__), f"{filename}.css")
+    if os.path.exists(ruta): return FileResponse(ruta, media_type="text/css")
+    raise HTTPException(status_code=404, detail="Not found")
+
 @app.get("/manifest.json")
 def get_manifest():
     return JSONResponse(content={

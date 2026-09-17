@@ -9,6 +9,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui-common.css">
 
   <style>
     :root{
@@ -256,6 +257,7 @@
   </style>
 </head>
 <body>
+  <script src="/ui-common.js"></script>
 
   <div class="topbar">
     <div class="topbar-left">
@@ -474,6 +476,7 @@
 
     async function cargarAvisos() {
       const box = document.getElementById('contenedor-avisos');
+      showLoading();
       try {
         const res = await fetch(`/api/adjudicados/mis-avisos?tecnico=${encodeURIComponent(currentUser)}`);
         if (!res.ok) {
@@ -493,6 +496,8 @@
       } catch (e) {
         console.error(e);
         box.innerHTML = `<p class="empty-msg" style='color:#fca5a5;'>Error: ${e.message}</p>`;
+      } finally {
+        hideLoading();
       }
     }
 
@@ -620,8 +625,10 @@
     }
 
     async function archivarPirineos(index) {
-        if(!confirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.")) return;
+        const ok = await appConfirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.");
+        if (!ok) return;
 
+        showLoading();
         try {
             const res = await fetch('/api/adjudicados/archivar', {
                 method: 'POST',
@@ -635,19 +642,25 @@
             }
 
             let msg = "Aviso archivado correctamente en Partes Finalizados.";
+            let tipo = "success";
             if (data.email_attempted) {
                 if (data.email_sent) {
                     msg += "\n\nSe ha enviado correctamente el correo de oportunidad de venta.";
                 } else {
                     msg += "\n\nATENCIÓN: no se pudo enviar el correo de oportunidad de venta.\n\nError:\n" + data.email_error;
+                    tipo = "error";
                 }
             }
 
-            alert(msg);
+            hideLoading();
+            await appAlert(msg, {type: tipo});
             cargarAvisos();
         } catch (err) {
-            alert(`Error al archivar el aviso: ${err.message}`);
+            hideLoading();
+            await appAlert(`Error al archivar el aviso: ${err.message}`, {type: 'error'});
             console.error(err);
+        } finally {
+            hideLoading();
         }
     }
 
@@ -815,6 +828,7 @@
 
       const btn = document.getElementById('btn-progreso');
       btn.innerText = "Guardando..."; btn.disabled = true;
+      showLoading();
 
       try {
         const res = await fetch(endpoint, {
@@ -828,15 +842,19 @@
             throw new Error(errData.detail || `Error HTTP: ${res.status}`);
         }
 
-        alert("Progreso guardado. El aviso ahora está en progreso.");
+        hideLoading();
+        await appAlert("Progreso guardado. El aviso ahora está en progreso.", {type: 'success'});
         box.style.display = 'none';
         cargarAvisos();
       } catch (err) {
-        alert(`Error al guardar: ${err.message}`);
+        hideLoading();
+        await appAlert(`Error al guardar: ${err.message}`, {type: 'error'});
         console.error(err);
+      } finally {
+        hideLoading();
       }
 
-      btn.innerText = "Guardar Progreso"; 
+      btn.innerText = "Guardar Progreso";
       btn.disabled = false;
     }
 
@@ -901,23 +919,23 @@
         if(padCliente) padCliente.ctx.clearRect(0, 0, padCliente.canvas.width, padCliente.canvas.height);
     }
 
-    function cerrarAviso() {
+    async function cerrarAviso() {
         const est = document.getElementById('res_estado_resolucion').value;
         if (!est) {
-            alert("Debes seleccionar si el aviso está Resuelto o Pendiente.");
+            await appAlert("Debes seleccionar si el aviso está Resuelto o Pendiente.", {type: 'error'});
             return;
         }
 
         if (est === 'Pendiente') {
             const nec = document.getElementById('res_necesita_piezas').value;
             if (!nec) {
-                alert("Has marcado Pendiente. Debes indicar si se necesitan piezas.");
+                await appAlert("Has marcado Pendiente. Debes indicar si se necesitan piezas.", {type: 'error'});
                 return;
             }
             if (nec === 'SI') {
                 const pText = document.getElementById('res_piezas').value;
                 if (!pText.trim()) {
-                    alert("Has indicado que se necesitan piezas. Por favor, descríbelas en el recuadro correspondiente.");
+                    await appAlert("Has indicado que se necesitan piezas. Por favor, descríbelas en el recuadro correspondiente.", {type: 'error'});
                     return;
                 }
             }
@@ -925,9 +943,9 @@
 
         const ent = document.getElementById('ses_hora_ent').value;
         const sal = document.getElementById('ses_hora_sal').value;
-        
+
         if(!ent || !sal || !document.getElementById('res_solucion').value) {
-            alert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, la hora de salida y redactar la solución.");
+            await appAlert("Para cerrar un aviso debes rellenar obligatoriamente la hora de entrada, la hora de salida y redactar la solución.", {type: 'error'});
             return;
         }
 
@@ -998,32 +1016,34 @@
         blank.height = 200;
         
         if(!document.getElementById('prev_marca').value.trim() || !document.getElementById('prev_modelo').value.trim() || !document.getElementById('prev_n_serie').value.trim()) {
-            alert("Los campos Marca, Modelo y Nº Serie son obligatorios para cerrar el parte.");
+            await appAlert("Los campos Marca, Modelo y Nº Serie son obligatorios para cerrar el parte.", {type: 'error'});
             return;
         }
 
         if(!document.getElementById('prev_tecnico').value.trim()) {
-            alert("El campo Técnico es obligatorio para cerrar el parte.");
+            await appAlert("El campo Técnico es obligatorio para cerrar el parte.", {type: 'error'});
             return;
         }
 
         if(padTecnico.canvas.toDataURL() === blank.toDataURL()) {
-            alert("El técnico debe firmar el parte en su recuadro.");
+            await appAlert("El técnico debe firmar el parte en su recuadro.", {type: 'error'});
             return;
         }
         if(padCliente.canvas.toDataURL() === blank.toDataURL()) {
-            alert("El cliente debe firmar el parte en su recuadro.");
+            await appAlert("El cliente debe firmar el parte en su recuadro.", {type: 'error'});
             return;
         }
         if(!document.getElementById('prev_nombre_cliente').value.trim()) {
-            alert("Debes indicar el nombre de la persona que firma por el cliente.");
+            await appAlert("Debes indicar el nombre de la persona que firma por el cliente.", {type: 'error'});
             return;
         }
 
-        if(!confirm("¿Confirmas que deseas enviar los correos y CERRAR definitivamente este aviso?")) return;
+        const confirmado = await appConfirm("¿Confirmas que deseas enviar los correos y CERRAR definitivamente este aviso?");
+        if (!confirmado) return;
 
         const btn = document.getElementById('btn-cerrar-final');
         btn.innerText = "Procesando..."; btn.disabled = true;
+        showLoading();
 
         const payloadFinal = {
             base_parte: buildPayload(),
@@ -1063,19 +1083,25 @@
             }
 
             let msg = "Aviso cerrado con éxito.";
+            let tipo = "success";
             if (data.email_error) {
                 msg += `\nATENCIÓN: Hubo un error enviando los correos:\n${data.email_error}`;
+                tipo = "error";
             } else {
                 msg += `\nLos correos se han enviado correctamente con el PDF adjunto.`;
             }
 
-            alert(msg);
+            hideLoading();
+            await appAlert(msg, {type: tipo});
             cerrarPreviaPDF();
             document.getElementById('resolucion-box').style.display = 'none';
             cargarAvisos();
         } catch (err) {
-            alert(`Error al cerrar el aviso: ${err.message}`);
+            hideLoading();
+            await appAlert(`Error al cerrar el aviso: ${err.message}`, {type: 'error'});
             console.error(err);
+        } finally {
+            hideLoading();
         }
 
         btn.innerText = "Enviar y Cerrar Definitivamente"; btn.disabled = false;

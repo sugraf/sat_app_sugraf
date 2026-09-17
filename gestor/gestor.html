@@ -9,6 +9,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui-common.css">
 
   <style>
     :root{
@@ -294,6 +295,7 @@
   </style>
 </head>
 <body>
+  <script src="/ui-common.js"></script>
 
   <div class="topbar">
     <div class="topbar-left">
@@ -384,12 +386,14 @@
     let avisosGlobales = [];
 
     async function cargarGestionAvisos() {
+      showLoading();
       try {
         const res = await fetch('/api/gestor/avisos');
         const data = await res.json();
         avisosGlobales = data.avisos || [];
         renderGestionAvisos();
       } catch (e) { document.getElementById('contenedor-gestionar').innerHTML = "<p class='empty-msg' style='color:#fca5a5;'>Error al cargar los avisos.</p>"; }
+      finally { hideLoading(); }
     }
 
     function renderGestionAvisos() {
@@ -587,6 +591,7 @@
             }
         });
 
+        showLoading();
         try {
             const res = await fetch('/api/gestor/editar-aviso', {
                 method: 'POST',
@@ -595,13 +600,17 @@
             });
             if (!res.ok) {
                 const err = await res.json();
-                alert(err.detail || "Error al guardar el aviso.");
+                hideLoading();
+                await appAlert(err.detail || "Error al guardar el aviso.", {type: 'error'});
             } else {
                 cerrarModal();
                 cargarGestionAvisos();
             }
         } catch (e) {
-            alert("Error de red.");
+            hideLoading();
+            await appAlert("Error de red.", {type: 'error'});
+        } finally {
+            hideLoading();
         }
         if(btn) { btn.innerText = "Guardar Cambios"; btn.disabled = false; }
     }
@@ -622,50 +631,70 @@
     async function actualizarPirineos(index, fuente, selectElement) {
       const valor = selectElement.value;
       selectElement.disabled = true;
+      showLoading();
       try {
         await fetch('/api/gestor/actualizar-pirineos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) });
         cargarGestionAvisos();
-      } catch (err) { alert("Error al actualizar la celda Pirineos."); cargarGestionAvisos(); }
+      } catch (err) {
+        hideLoading();
+        await appAlert("Error al actualizar la celda Pirineos.", {type: 'error'});
+        cargarGestionAvisos();
+      } finally {
+        hideLoading();
+      }
     }
 
     async function actualizarTecnico(index, fuente, selectElement) {
       const valor = selectElement.value;
       selectElement.disabled = true;
       
+      showLoading();
       try {
-        const res = await fetch('/api/gestor/actualizar-tecnico', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor }) 
+        const res = await fetch('/api/gestor/actualizar-tecnico', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: valor })
         });
         if (!res.ok) {
             const err = await res.json();
-            alert(err.detail || "Error al asignar técnico.");
-            cargarGestionAvisos(); 
+            hideLoading();
+            await appAlert(err.detail || "Error al asignar técnico.", {type: 'error'});
+            cargarGestionAvisos();
             return;
         }
         cargarGestionAvisos();
-      } catch (err) { 
-        alert("Error al asignar técnico."); 
+      } catch (err) {
+        hideLoading();
+        await appAlert("Error al asignar técnico.", {type: 'error'});
         cargarGestionAvisos();
+      } finally {
+        hideLoading();
       }
     }
 
     async function eliminarAviso(index, fuente) {
-        if (confirm("¿Estás seguro de que quieres ELIMINAR este aviso permanentemente?")) {
+        const confirmado = await appConfirm("¿Estás seguro de que quieres ELIMINAR este aviso permanentemente?");
+        if (confirmado) {
+            showLoading();
             try {
-                const res = await fetch('/api/gestor/eliminar-aviso', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "" }) 
+                const res = await fetch('/api/gestor/eliminar-aviso', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ aviso_index: index, fuente: fuente, valor: "" })
                 });
                 if (!res.ok) {
                     const err = await res.json();
-                    alert(err.detail || "Error al eliminar el aviso.");
+                    hideLoading();
+                    await appAlert(err.detail || "Error al eliminar el aviso.", {type: 'error'});
                     return;
                 }
                 cargarGestionAvisos();
-            } catch (err) { alert("Error al eliminar el aviso."); }
+            } catch (err) {
+                hideLoading();
+                await appAlert("Error al eliminar el aviso.", {type: 'error'});
+            } finally {
+                hideLoading();
+            }
         }
     }
 

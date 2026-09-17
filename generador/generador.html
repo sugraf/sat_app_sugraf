@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Generador de Avisos</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui-common.css">
   <style>
     :root{
       --navy:#10263B;
@@ -179,6 +180,7 @@
   </style>
 </head>
 <body>
+  <script src="/ui-common.js"></script>
 
   <div class="topbar">
     <div class="topbar-left">
@@ -250,7 +252,9 @@
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
     if (!currentUser) window.location.href = "/";
-    if (currentUser === "Solo Visualizar") { alert("Tu perfil no puede crear avisos."); window.location.href = "/"; }
+    if (currentUser === "Solo Visualizar") {
+        appAlert("Tu perfil no puede crear avisos.", {type: 'error'}).then(() => { window.location.href = "/"; });
+    }
 
     document.getElementById("user-name-text").innerText = currentUser;
     document.getElementById("zona-usuario").style.display = "flex";
@@ -306,6 +310,7 @@
     async function cargarData() {
       const btn = document.getElementById('btn-save-inc');
       btn.innerText = "Cargando clientes..."; btn.disabled = true;
+      showLoading();
 
       try {
         const res = await fetch('/api/generador/clientes-maquinas');
@@ -346,7 +351,10 @@
 
       } catch (err) {
         console.error(err);
-        alert("No se han podido cargar los clientes.");
+        hideLoading();
+        await appAlert("No se han podido cargar los clientes.", {type: 'error'});
+      } finally {
+        hideLoading();
       }
 
       btn.innerText = "Crear Aviso"; btn.disabled = false;
@@ -489,7 +497,7 @@
       if(v && !maquinasSel.includes(v)) addMaquina(v);
 
       if (maquinasSel.length === 0) {
-        alert("Debes seleccionar al menos una máquina.");
+        await appAlert("Debes seleccionar al menos una máquina.", {type: 'error'});
         return;
       }
 
@@ -497,7 +505,7 @@
       const cliente = buscarCliente(clienteEscrito);
 
       if (!cliente) {
-        alert("Debes seleccionar un cliente de la lista.");
+        await appAlert("Debes seleccionar un cliente de la lista.", {type: 'error'});
         return;
       }
 
@@ -507,12 +515,13 @@
       }
 
       if (!poblacion) {
-        alert("Este cliente no tiene población registrada en el Excel. Por favor, escríbela manualmente.");
+        await appAlert("Este cliente no tiene población registrada en el Excel. Por favor, escríbela manualmente.", {type: 'error'});
         return;
       }
 
       const btn = document.getElementById('btn-save-inc');
       btn.innerText = "Guardando en Excel..."; btn.disabled = true;
+      showLoading();
 
       let maquinaData = {
         equipo: "",
@@ -562,13 +571,17 @@
 
         if (!response.ok) throw new Error("Error guardando aviso");
 
-        alert("Aviso guardado correctamente.");
+        hideLoading();
+        await appAlert("Aviso guardado correctamente.", {type: 'success'});
         window.location.href = "/";
       } catch (err) {
         console.error(err);
-        alert("Error de red al guardar.");
+        hideLoading();
+        await appAlert("Error de red al guardar.", {type: 'error'});
         btn.innerText = "Crear Aviso";
         btn.disabled = false;
+      } finally {
+        hideLoading();
       }
     });
   </script>

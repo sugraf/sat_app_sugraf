@@ -10,6 +10,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui-common.css">
 
   <style>
     :root{
@@ -159,6 +160,7 @@
   </style>
 </head>
 <body>
+  <script src="/ui-common.js"></script>
 
   <div class="topbar">
     <div class="topbar-left">
@@ -304,7 +306,7 @@
         }
     }
 
-    function iniciarSesion() {
+    async function iniciarSesion() {
       const u = document.getElementById("login-user").value;
       const p = document.getElementById("login-pass").value;
       if (USUARIOS[u] === p) {
@@ -319,7 +321,7 @@
 
         applyUserPermissions();
       } else {
-        alert("Contraseña incorrecta.");
+        await appAlert("Contraseña incorrecta.", {type: 'error'});
       }
     }
 
