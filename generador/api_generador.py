@@ -15,6 +15,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 from logger_movimientos import registrar_movimiento
+from aviso_matcher import existe_aviso_duplicado
 
 router = APIRouter()
 
@@ -166,32 +167,42 @@ def listar_clientes_maquinas():
     except Exception as e:
         return {"error": str(e)}
 
+def _descargar_excel_por_nombre(drive, nombre):
+    query = f"'{FOLDER_ID_DEFAULT}' in parents and name = '{nombre}' and trashed = false"
+    res = drive.files().list(q=query, fields="files(id)").execute()
+    archivos = res.get("files", [])
+
+    if not archivos:
+        return None, pd.DataFrame()
+
+    file_id = archivos[0]['id']
+    request = drive.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done: _, done = downloader.next_chunk()
+    fh.seek(0)
+    return file_id, pd.read_excel(fh)
+
 @router.post("/avisos")
 def crear_aviso(aviso: NuevoAviso):
     try:
         drive = get_drive_service()
-        query = f"'{FOLDER_ID_DEFAULT}' in parents and name = 'Avisos Sin Tratar.xlsx' and trashed = false"
-        res = drive.files().list(q=query, fields="files(id)").execute()
-        archivos = res.get("files", [])
-        
+
         cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES']
-        if archivos:
-            file_id = archivos[0]['id']
-            request = drive.files().get_media(fileId=file_id)
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while not done: _, done = downloader.next_chunk()
-            fh.seek(0)
-            df = pd.read_excel(fh)
-        else:
-            file_id = None
-            df = pd.DataFrame(columns=cols)
+        file_id, df = _descargar_excel_por_nombre(drive, 'Avisos Sin Tratar.xlsx')
 
         for col in cols:
             if col not in df.columns:
                 df[col] = ''
-        
+
+        _, df_tratados = _descargar_excel_por_nombre(drive, 'Avisos Tratados.xlsx')
+        if existe_aviso_duplicado([df, df_tratados], aviso.cliente, aviso.maquina, aviso.descripcion, aviso.fecha_entrada):
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe un aviso con esa misma descripción para este cliente, máquina y fecha. Por favor, modifica algo en la descripción para poder diferenciarlos."
+            )
+
         fila_excel = {
             'F. ENTR.': aviso.fecha_entrada, 'CLIENTE': aviso.cliente, 'POBLACIÓN': aviso.poblacion,
             'MÁQUINA': aviso.maquina, 'EQUIPO': aviso.equipo, 'MARCA': aviso.marca, 'MODELO': aviso.modelo,
@@ -223,5 +234,7 @@ def crear_aviso(aviso: NuevoAviso):
             
         registrar_movimiento("creacion", fila_excel)
         return {"status": "ok"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

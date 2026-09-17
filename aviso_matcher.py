@@ -46,3 +46,27 @@ def resolver_indice_aviso(df, aviso_index, cliente='', maquina='', descripcion='
             return idx
 
     return None
+
+
+def existe_aviso_duplicado(dfs, cliente, maquina, descripcion, fecha_entr, excluir=None):
+    """Comprueba si ya existe otra fila con el mismo CLIENTE + MÁQUINA +
+    DESCRIPCIÓN + F. ENTR. en alguno de los DataFrames dados.
+
+    Se usa para avisar antes de crear o renombrar un aviso a una descripción
+    que ya identifica a otro (lo que impediría distinguirlos por contenido).
+
+    dfs: lista de DataFrames donde buscar (p. ej. Avisos Sin Tratar y Avisos Tratados).
+    excluir: tupla opcional (df, idx) de la propia fila que se está editando,
+    para no compararla consigo misma.
+    """
+    if not all(_norm(v) for v in (cliente, maquina, descripcion, fecha_entr)):
+        return False
+
+    for df in dfs:
+        for idx in df.index:
+            if excluir is not None and excluir[0] is df and excluir[1] == idx:
+                continue
+            if _coincide(df.loc[idx], cliente, maquina, descripcion, fecha_entr):
+                return True
+
+    return False

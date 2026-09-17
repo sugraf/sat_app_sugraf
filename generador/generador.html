@@ -569,7 +569,10 @@
           body: JSON.stringify(payload)
         });
 
-        if (!response.ok) throw new Error("Error guardando aviso");
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.detail || "Error guardando aviso");
+        }
 
         hideLoading();
         await appAlert("Aviso guardado correctamente.", {type: 'success'});
@@ -577,7 +580,7 @@
       } catch (err) {
         console.error(err);
         hideLoading();
-        await appAlert("Error de red al guardar.", {type: 'error'});
+        await appAlert(err.message || "Error de red al guardar.", {type: 'error'});
         btn.innerText = "Crear Aviso";
         btn.disabled = false;
       } finally {

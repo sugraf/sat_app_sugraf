@@ -14,10 +14,15 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 from logger_movimientos import registrar_movimiento
-from aviso_matcher import resolver_indice_aviso
+from aviso_matcher import resolver_indice_aviso, existe_aviso_duplicado
 
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
+
+# Campos que se usan para identificar un aviso por contenido (ver aviso_matcher.py).
+# No se pueden modificar mientras un técnico tiene el aviso en curso o cerrado,
+# porque perdería la referencia al aviso que tiene abierto.
+CAMPOS_MATCH = ['CLIENTE', 'MÁQUINA', 'DESCRIPCIÓN', 'F. ENTR.']
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES']
 COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES']
@@ -229,7 +234,29 @@ def editar_aviso(data: EditarAviso):
             if data.fuente == 'tratados':
                 estado = str(df.loc[idx].get('ESTADO', '')).strip()
                 if estado in ['Abierto', 'Cerrado']:
-                    raise HTTPException(status_code=400, detail="No se puede modificar un aviso que ya ha sido empezado o cerrado por un técnico.")
+                    campos_bloqueados = [c for c in CAMPOS_MATCH if c in data.datos]
+                    if campos_bloqueados:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="No se pueden modificar Cliente, Máquina, Descripción ni Fecha de un aviso que el técnico ya tiene en curso o cerrado, porque se usan para identificarlo. El resto de campos sí se pueden editar."
+                        )
+
+            if any(c in data.datos for c in CAMPOS_MATCH):
+                fila_actual = df.loc[idx]
+                nuevo_cliente = data.datos.get('CLIENTE', fila_actual.get('CLIENTE', ''))
+                nuevo_maquina = data.datos.get('MÁQUINA', fila_actual.get('MÁQUINA', ''))
+                nueva_descripcion = data.datos.get('DESCRIPCIÓN', fila_actual.get('DESCRIPCIÓN', ''))
+                nueva_fecha = data.datos.get('F. ENTR.', fila_actual.get('F. ENTR.', ''))
+
+                otro_filename = 'Avisos Tratados.xlsx' if data.fuente == 'sin_tratar' else 'Avisos Sin Tratar.xlsx'
+                otro_cols = COLS_TRA if data.fuente == 'sin_tratar' else COLS_SIN
+                _, df_otro = get_excel(drive, otro_filename, otro_cols)
+
+                if existe_aviso_duplicado([df, df_otro], nuevo_cliente, nuevo_maquina, nueva_descripcion, nueva_fecha, excluir=(df, idx)):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Ya existe otro aviso con esa misma descripción para ese cliente, máquina y fecha. Por favor, modifica algo en la descripción para poder diferenciarlos."
+                    )
 
             for k, v in data.datos.items():
                 if k in df.columns:

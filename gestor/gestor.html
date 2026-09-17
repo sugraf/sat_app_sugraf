@@ -381,6 +381,9 @@
     }
 
     const COLUMNAS_MOSTRAR = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'OBSERVACIONES'];
+    // Campos con los que se identifica un aviso por contenido (ver aviso_matcher.py).
+    // No se pueden tocar mientras el técnico lo tiene en curso o cerrado.
+    const CAMPOS_MATCH = ['CLIENTE', 'MÁQUINA', 'DESCRIPCIÓN', 'F. ENTR.'];
 
     let avisosGlobales = [];
 
@@ -521,14 +524,23 @@
         let html = "";
         
         const estadoAviso = av['ESTADO'] || '';
-        const canEdit = (currentUser === "Master" && estadoAviso !== 'Abierto' && estadoAviso !== 'Cerrado');
-        
+        const esMaster = currentUser === "Master";
+        // Mientras el técnico tiene el aviso en curso o cerrado, no se pueden tocar
+        // los campos con los que se identifica el aviso (ver CAMPOS_MATCH). El resto
+        // (etiquetas, Pirineos, piezas, observaciones...) sigue siendo editable.
+        const bloqueadoPorTecnico = (fuente === 'tratados' && (estadoAviso === 'Abierto' || estadoAviso === 'Cerrado'));
+        let hayAlgoEditable = false;
+
         COLUMNAS_MOSTRAR.forEach(key => {
-            if (key === 'OBSERVACIONES' && currentUser !== "Master") return; 
+            if (key === 'OBSERVACIONES' && currentUser !== "Master") return;
 
             let val = (av[key] !== null && av[key] !== undefined && av[key] !== '') ? String(av[key]) : '';
-            
-            if (canEdit && key !== 'ASIGNADO A' && key !== 'ESTADO') {
+
+            const campoBloqueado = bloqueadoPorTecnico && CAMPOS_MATCH.includes(key);
+            const editable = esMaster && key !== 'ASIGNADO A' && key !== 'ESTADO' && !campoBloqueado;
+
+            if (editable) {
+                hayAlgoEditable = true;
                 if (['NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'].includes(key)) {
                     html += `<tr><th>${key}</th><td>
                         <select id="edit_${key}" class="edit-input">
@@ -552,9 +564,12 @@
                     html += `<tr><th>${key}</th><td><input type="text" id="edit_${key}" class="edit-input" value="${val.replace(/"/g, '&quot;')}"></td></tr>`;
                 }
             } else {
-                html += `<tr><th>${key}</th><td>${val || '-'}</td></tr>`;
+                const nota = campoBloqueado ? ' <small style="color:#94a3b8;">(en curso, no editable)</small>' : '';
+                html += `<tr><th>${key}</th><td>${val || '-'}${nota}</td></tr>`;
             }
         });
+
+        const canEdit = esMaster && hayAlgoEditable;
         
         document.getElementById('tabla-detalles').innerHTML = html;
         
