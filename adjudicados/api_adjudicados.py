@@ -662,23 +662,44 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
             or _necesita_piezas(payload.base_parte.estado_piezas)
         )
         if necesita_regenerar:
-            fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-            if idx_tratado < 0 or idx_tratado >= len(df_tra):
-                raise HTTPException(status_code=400, detail="El aviso ya no existe o ha cambiado. Refresca la vista.")
-            row_orig = df_tra.iloc[idx_tratado].to_dict()
+            try:
+                fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+                # Se relocaliza la fila por sus datos identificativos (no por la
+                # posición numérica de la lectura anterior), porque otro cierre o
+                # edición concurrente sobre el mismo Excel puede haber desplazado
+                # las filas entre ambas lecturas.
+                idx_regenerar = resolver_indice_aviso(
+                    df_tra,
+                    payload.base_parte.aviso_index,
+                    payload.base_parte.cliente,
+                    payload.base_parte.maquina,
+                    payload.base_parte.descripcion,
+                    payload.base_parte.fecha_entr,
+                )
+                if idx_regenerar is None:
+                    raise ValueError("No se pudo relocalizar el aviso cerrado para generar su seguimiento.")
+                row_orig = df_tra.loc[idx_regenerar].to_dict()
 
-            fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+                fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
 
-            nueva_fila = _construir_aviso_regenerado(
-                row_orig,
-                df_sin,
-                payload.base_parte,
-                payload.pdf_trabajo,
-                payload.base_parte.piezas,
-            )
+                nueva_fila = _construir_aviso_regenerado(
+                    row_orig,
+                    df_sin,
+                    payload.base_parte,
+                    payload.pdf_trabajo,
+                    payload.base_parte.piezas,
+                )
 
-            df_sin = pd.concat([df_sin, pd.DataFrame([nueva_fila])], ignore_index=True)
-            save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+                df_sin = pd.concat([df_sin, pd.DataFrame([nueva_fila])], ignore_index=True)
+                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+            except Exception:
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "El parte se cerró correctamente, pero no se ha podido generar el aviso "
+                        "de seguimiento (pendiente/piezas). Por favor, ábrelo tú mismo manualmente."
+                    ),
+                )
 
         num_parte = get_and_increment_part_number(drive)
         observaciones_internas = str(payload.base_parte.observaciones or '').strip()
