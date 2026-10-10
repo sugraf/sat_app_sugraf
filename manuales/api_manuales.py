@@ -412,7 +412,7 @@ def get_catalogo(refrescar: bool = False):
                     'carpetas': [c['id'] for c in carpetas],
                     'aproximado': any(c['aproximado'] for c in carpetas),
                 })
-            clientes.append({'nombre': cliente['nombre'], 'poblacion': cliente['poblacion'], 'maquinas': maquinas})
+            clientes.append({'nombre': cliente['nombre'], 'maquinas': maquinas})
         clientes.sort(key=lambda c: _orden_natural(c['nombre']))
     except Exception as e:
         error_clientes = f"No se pudo leer Maquinas.xlsx: {e}"

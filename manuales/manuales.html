@@ -254,7 +254,7 @@
 
     let marcas = [];     // [{nombre, modelos: [{id, marca, nombre, archivos}]}]
     let carpetas = {};   // id -> carpeta de modelo
-    let clientes = [];   // [{nombre, poblacion, maquinas: [{nombre, equipo, marca, modelo, n_serie, carpetas, aproximado}]}]
+    let clientes = [];   // [{nombre, maquinas: [{nombre, equipo, marca, modelo, n_serie, carpetas, aproximado}]}]
     let dropdowns = [];
 
     const ICONOS = {
@@ -311,7 +311,7 @@
 
     // ---- Opciones de cada desplegable ----
     function opcionesClientes() {
-        return clientes.map(c => ({valor: c.nombre, extra: c.poblacion}));
+        return clientes.map(c => ({valor: c.nombre}));
     }
 
     function opcionesMarcas() {
@@ -477,7 +477,7 @@
         document.getElementById('resumen-txt').innerHTML =
             `<strong>${maquinas.length}</strong> máquina(s) de ${escHtml(cliente.nombre)} · <strong>${totalManuales}</strong> manual(es)`;
         document.getElementById('lista').innerHTML = tarjetas.length
-            ? `<div class="section-divider"><span class="dot-status"></span> ${escHtml(cliente.nombre)} ${cliente.poblacion ? `<small>${escHtml(cliente.poblacion)}</small>` : ''}</div>
+            ? `<div class="section-divider"><span class="dot-status"></span> ${escHtml(cliente.nombre)}</div>
                <div class="modelos">${tarjetas.join('')}</div>`
             : `<p class="empty-msg">Este cliente no tiene máquinas que cumplan los filtros.</p>`;
     }
