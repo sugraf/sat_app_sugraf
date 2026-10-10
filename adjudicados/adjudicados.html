@@ -210,17 +210,42 @@
     }
     .btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
 
-    .btn-hist {
-      background:rgba(59,130,246,0.14); color:#93c5fd; border:1px solid rgba(59,130,246,0.45);
-      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
-      text-transform:uppercase; letter-spacing:0.03em; font-family:'Montserrat', sans-serif;
-      transition:background 0.15s, border-color 0.15s;
+    /* Herramientas del aviso (Histórico, Manuales): con icono y sin mayúsculas, para que
+       no se confundan con las etiquetas de estado. */
+    .tools{ display:inline-flex; gap:6px; flex-wrap:wrap; }
+    .btn-tool{
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(10,24,38,0.55); color:#e2e8f0; border:1px solid rgba(182,190,196,0.28);
+      padding:4px 10px 4px 7px; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.74rem;
+      font-family:'Montserrat', sans-serif; letter-spacing:0.01em; line-height:1.4;
+      transition:background 0.15s, border-color 0.15s, color 0.15s;
     }
-    .btn-hist:hover{ background:rgba(59,130,246,0.25); border-color:#3b82f6; }
-    .btn-hist-form{ width:100%; margin:18px 0 4px; padding:11px; font-size:0.8rem; color:#1d4ed8; background:#eff6ff; border-color:#bfdbfe; }
-    .btn-hist-form:hover{ background:#dbeafe; }
+    .btn-tool svg{ width:15px; height:15px; flex:none; }
+    .btn-tool .i1{ stroke:#a9bcd6; transition:stroke 0.15s; }
+    .btn-tool .i2{ stroke:#2fd9b8; }
+    .btn-tool:hover{ background:var(--green-soft); border-color:#2fd9b8; color:#fff; }
+    .btn-tool:hover .i1{ stroke:#e2e8f0; }
+    .btn-tool .cnt{ background:rgba(47,217,184,0.16); color:#7fd9c7; border-radius:6px; padding:0 6px; font-size:0.68rem; font-weight:700; }
+    .btn-tool.vacio{ color:#8aa0bd; }
+    .btn-tool.vacio .cnt{ background:rgba(182,190,196,0.12); color:#8aa0bd; }
 
-    #modal-historico{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9998; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px; }
+    .tools-parte{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:18px 0 4px; }
+    .btn-tool-form{
+      display:flex; align-items:center; gap:11px; text-align:left; min-width:0;
+      background:#f8fafc; color:var(--navy); border:1px solid #e2e8f0; border-radius:12px;
+      padding:11px 12px; cursor:pointer; font-family:'Montserrat', sans-serif;
+      transition:background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .btn-tool-form:hover{ background:#f3faf8; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    .tool-ico{ flex:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--green-soft); border:1px solid rgba(0,104,88,0.25); }
+    .tool-ico svg{ width:19px; height:19px; }
+    .btn-tool-form .i1{ stroke:var(--navy); }
+    .btn-tool-form .i2{ stroke:var(--green); }
+    .tool-txt{ display:flex; flex-direction:column; min-width:0; }
+    .tool-txt strong{ font-size:0.86rem; font-weight:700; }
+    .tool-txt small{ font-size:0.72rem; color:#5c6b7d; font-weight:500; margin-top:1px; }
+
+    #modal-historico, #modal-manuales{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9998; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px; }
     .hist-box{ background:#fff; color:var(--navy); width:100%; max-width:860px; border-radius:14px; padding:22px; margin:auto; position:relative; }
     .hist-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px; }
     .hist-head h3{ font-size:1.1rem; }
@@ -244,6 +269,28 @@
     .hist-txt{ font-size:0.85rem; line-height:1.4; white-space:pre-wrap; word-break:break-word; }
     .hist-txt b{ color:#5c6b7d; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; }
     .hist-vacio{ color:#64748b; font-size:0.9rem; padding:18px 4px; text-align:center; }
+
+    .man-carpeta{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.7rem; font-weight:700; color:#5c6b7d; text-transform:uppercase; letter-spacing:0.08em; margin:14px 0 6px; }
+    .man-carpeta:first-child{ margin-top:0; }
+    .man-carpeta .hist-tag{ background:#fef3c7; color:#b45309; }
+    .man-item{
+      display:flex; align-items:center; gap:12px; padding:10px 12px; margin-bottom:6px;
+      border:1px solid #e2e8f0; border-radius:10px; background:#fff; color:var(--navy); text-decoration:none;
+      transition:background 0.15s, border-color 0.15s;
+    }
+    .man-item:hover{ background:#f3faf8; border-color:var(--green); }
+    .man-ico{ flex:none; width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--green-soft); }
+    .man-ico svg{ width:18px; height:18px; }
+    .man-ico .i1{ stroke:var(--navy); }
+    .man-ico .i2{ stroke:var(--green); }
+    .man-txt{ flex:1; min-width:0; }
+    .man-nombre{ display:block; font-size:0.86rem; font-weight:600; line-height:1.3; word-break:break-word; }
+    .man-info{ display:block; font-size:0.68rem; color:#64748b; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; margin-top:2px; }
+    .man-abrir{ flex:none; width:16px; height:16px; stroke:var(--green); opacity:0.6; }
+    .man-item:hover .man-abrir{ opacity:1; }
+    .man-pie{ display:flex; justify-content:flex-end; margin-top:12px; }
+    .man-pie a{ color:var(--green); font-weight:700; font-size:0.8rem; text-decoration:none; }
+    .man-pie a:hover{ text-decoration:underline; }
     .fecha-parte{ position:relative; min-width:0; }
     /* Es readonly para que no salga el teclado, pero debe verse como un campo editable. */
     .fecha-parte #ses_fecha_txt:not(:disabled){
@@ -276,6 +323,7 @@
 
       .master-tab { min-width:100%; }
       .inc-title{ font-size:0.95rem; }
+      .tools-parte{ grid-template-columns:1fr; }
 
       .inc-item { padding: 14px 16px; border-radius: 14px; }
 
@@ -345,7 +393,16 @@
         <input type="hidden" id="res_descripcion">
         <input type="hidden" id="res_fecha_entr">
 
-        <button type="button" class="btn-hist btn-hist-form" id="btn-hist-parte" onclick="abrirHistorico(parseInt(document.getElementById('res_index').value))">Ver histórico de la máquina y del cliente</button>
+        <div class="tools-parte" id="tools-parte">
+          <button type="button" class="btn-tool-form" onclick="abrirHistorico(parseInt(document.getElementById('res_index').value))">
+            <span class="tool-ico" data-icono="historico"></span>
+            <span class="tool-txt"><strong>Histórico</strong><small>Partes de máquina y cliente</small></span>
+          </button>
+          <button type="button" class="btn-tool-form" onclick="abrirManuales(parseInt(document.getElementById('res_index').value))">
+            <span class="tool-ico" data-icono="manuales"></span>
+            <span class="tool-txt"><strong>Manuales</strong><small id="man-parte-txt">Manuales de esta máquina</small></span>
+          </button>
+        </div>
 
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;">
           <div style="flex: 1; min-width: 140px;">
@@ -445,6 +502,20 @@
           </div>
           <p class="hist-criterio" id="hist-criterio"></p>
           <div id="hist-lista"></div>      </div>
+  </div>
+
+  <div id="modal-manuales" onclick="if (event.target === this) cerrarManuales()">
+      <div class="hist-box">
+          <div class="hist-head">
+              <div>
+                  <h3>Manuales Técnicos</h3>
+                  <p id="man-subtitulo"></p>
+              </div>
+              <button type="button" class="hist-close" onclick="cerrarManuales()" aria-label="Cerrar">&times;</button>
+          </div>
+          <div id="man-lista"></div>
+          <div class="man-pie"><a id="man-ver-todos" href="/vista/manuales" target="_blank" rel="noopener">Buscar en todos los manuales &rarr;</a></div>
+      </div>
   </div>
 
   <div id="modal-previa-parte"style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px;">
@@ -557,6 +628,7 @@
             renderBotonesMaster();
         }
         renderAvisos();
+        cargarManuales(misAvisos.filter(a => a['ESTADO'] !== 'Cerrado'));
       } catch (e) {
         console.error(e);
         box.innerHTML = `<p class="empty-msg" style='color:#fca5a5;'>Error: ${e.message}</p>`;
@@ -666,9 +738,12 @@
         if (currentUser === 'Master' && av['ESTADO'] === 'Cerrado') {
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
-        // El histórico sirve mientras se trabaja el aviso; en los cerrados no se muestra.
+        // El histórico y los manuales sirven mientras se trabaja el aviso; en los cerrados no se muestran.
         if (av['ESTADO'] !== 'Cerrado') {
-            actionBtn += `<button onclick="event.stopPropagation(); abrirHistorico(${av.aviso_index})" class="btn-hist">Histórico</button>`;
+            actionBtn += `<span class="tools">
+                <button type="button" onclick="event.stopPropagation(); abrirHistorico(${av.aviso_index})" class="btn-tool" title="Histórico SAT de la máquina y del cliente">${ICONO_HISTORICO} Histórico</button>
+                <button type="button" onclick="event.stopPropagation(); abrirManuales(${av.aviso_index})" class="btn-tool" data-manuales="${av.aviso_index}" title="Manuales técnicos de la máquina">${ICONO_MANUALES} Manuales <span class="cnt" style="display:none;"></span></button>
+            </span>`;
         }
 
         let fechasArr = (av['FECHA REALIZACIÓN'] || '').toString().split('\n').filter(f => f.trim() !== '');
@@ -738,6 +813,7 @@
         }
 
         box.innerHTML = finalHtml;
+        actualizarContadoresManuales();
     }
 
     // ---------------- Histórico SAT (Pirineos) ----------------
@@ -877,7 +953,136 @@
         }).join('');
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarHistorico(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarHistorico(); cerrarManuales(); } });
+
+    // ---------------- Manuales técnicos (carpeta Manuales tecnicos de Drive) ----------------
+    const ICONO_HISTORICO = `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="i1" d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle class="i2" cx="12" cy="12" r="3"/></svg>`;
+    const ICONO_MANUALES = `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="i1" d="M12 6.5c-1.9-1.35-4.4-1.9-7.25-1.75v12.5c2.85-.15 5.35.4 7.25 1.75 1.9-1.35 4.4-1.9 7.25-1.75V4.75C16.4 4.6 13.9 5.15 12 6.5Z"/><path class="i2" d="M12 6.5V19M7.25 9.25c1 0 1.9.2 2.6.55M7.25 12.25c1 0 1.9.2 2.6.55M14.15 9.8c.7-.35 1.6-.55 2.6-.55M14.15 12.8c.7-.35 1.6-.55 2.6-.55"/></svg>`;
+    const ICONOS_MANUAL = {
+        pdf: `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="i1" d="M6.5 3.75h7l4 4V19.5a.75.75 0 0 1-.75.75H6.5a.75.75 0 0 1-.75-.75V4.5a.75.75 0 0 1 .75-.75Z"/><path class="i1" d="M13.5 3.75V7.5a.5.5 0 0 0 .5.5h3.5"/><path class="i2" d="M8.75 12.5h6.5M8.75 15.5h6.5M8.75 18h3.5"/></svg>`,
+        web: `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle class="i1" cx="12" cy="12" r="8.25"/><path class="i2" d="M3.75 12h16.5M12 3.75c2.3 2.4 3.4 5.15 3.4 8.25S14.3 17.85 12 20.25C9.7 17.85 8.6 15.1 8.6 12S9.7 6.15 12 3.75Z"/></svg>`,
+        otro: `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="i1" d="M6.5 3.75h7l4 4V19.5a.75.75 0 0 1-.75.75H6.5a.75.75 0 0 1-.75-.75V4.5a.75.75 0 0 1 .75-.75Z"/><path class="i2" d="M13.5 3.75V7.5a.5.5 0 0 0 .5.5h3.5"/></svg>`,
+    };
+    const NOMBRE_TIPO_MANUAL = {pdf: 'PDF', web: 'Manual online', zip: 'ZIP', doc: 'Documento', hoja: 'Hoja de cálculo', imagen: 'Imagen', video: 'Vídeo', otro: 'Archivo'};
+    document.querySelectorAll('[data-icono="historico"]').forEach(el => { el.innerHTML = ICONO_HISTORICO; });
+    document.querySelectorAll('[data-icono="manuales"]').forEach(el => { el.innerHTML = ICONO_MANUALES; });
+
+    const manualesPorMaquina = {}; // clave de la máquina -> carpetas de manuales encontradas
+    let peticionManuales = null;
+    let errorManuales = '';
+    let avisoEnManuales = null;
+
+    function claveMaquina(av) {
+        return JSON.stringify([av['MARCA'] || '', av['MODELO'] || '', av['MÁQUINA'] || ''].map(v => String(v).trim()));
+    }
+
+    function totalManuales(carpetas) {
+        return carpetas.reduce((n, c) => n + c.archivos.length, 0);
+    }
+
+    // Una sola petición para todas las máquinas de la lista; se lanza al cargar los avisos.
+    function cargarManuales(avisos) {
+        const claves = [...new Set(avisos.map(claveMaquina))].filter(k => !(k in manualesPorMaquina));
+        if (!claves.length) return peticionManuales || Promise.resolve();
+        const anterior = peticionManuales || Promise.resolve();
+        peticionManuales = anterior.then(async () => {
+            try {
+                const res = await fetch('/api/manuales/buscar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({maquinas: claves.map(k => { const [marca, modelo, maquina] = JSON.parse(k); return {marca, modelo, maquina}; })})
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
+                claves.forEach((k, i) => { manualesPorMaquina[k] = data.resultados[i] || []; });
+                errorManuales = '';
+            } catch (err) {
+                console.error(err);
+                errorManuales = err.message;
+            }
+            actualizarContadoresManuales();
+        });
+        return peticionManuales;
+    }
+
+    function actualizarContadoresManuales() {
+        document.querySelectorAll('[data-manuales]').forEach(btn => {
+            const av = misAvisos.find(a => a.aviso_index === parseInt(btn.dataset.manuales));
+            const carpetas = av && manualesPorMaquina[claveMaquina(av)];
+            if (!carpetas) return;
+            const n = totalManuales(carpetas);
+            const cnt = btn.querySelector('.cnt');
+            cnt.innerText = n;
+            cnt.style.display = '';
+            btn.classList.toggle('vacio', n === 0);
+        });
+        const av = misAvisos.find(a => a.aviso_index === parseInt(document.getElementById('res_index').value));
+        const carpetas = av && manualesPorMaquina[claveMaquina(av)];
+        document.getElementById('man-parte-txt').innerText = !carpetas ? 'Manuales de esta máquina'
+            : totalManuales(carpetas) ? `${totalManuales(carpetas)} manual(es) de esta máquina` : 'Sin manuales para esta máquina';
+    }
+
+    function tamanoManual(bytes) {
+        if (!bytes) return '';
+        return bytes >= 1048576 ? `${(bytes / 1048576).toLocaleString('es-ES', {maximumFractionDigits: 1})} MB`
+                                : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+
+    async function abrirManuales(index) {
+        const av = misAvisos.find(a => a.aviso_index === index);
+        if (!av) return;
+        const clave = claveMaquina(av);
+
+        if (!(clave in manualesPorMaquina)) {
+            showLoading();
+            try {
+                await cargarManuales([av]);
+            } finally {
+                hideLoading();
+            }
+        }
+        if (!(clave in manualesPorMaquina)) {
+            await appAlert(`Error al cargar los manuales: ${errorManuales || 'sin respuesta del servidor'}`, {type: 'error'});
+            return;
+        }
+
+        const carpetas = manualesPorMaquina[clave];
+        avisoEnManuales = av;
+        const datos = [av['MARCA'], av['MODELO']].filter(Boolean).join(' ');
+        document.getElementById('man-subtitulo').innerHTML =
+            `<strong>${escHtml(av['CLIENTE'])}</strong> — ${escHtml(av['MÁQUINA'])}` + (datos ? ` (${escHtml(datos)})` : '');
+
+        const lista = document.getElementById('man-lista');
+        if (!carpetas.length) {
+            lista.innerHTML = `<p class="hist-vacio">No se han encontrado manuales para esta máquina en la carpeta de Manuales técnicos.</p>`;
+        } else {
+            lista.innerHTML = carpetas.map(c => `
+                <div class="man-carpeta">${escHtml(c.marca)} · ${escHtml(c.nombre)}
+                    ${c.aproximado ? `<span class="hist-tag" title="El modelo del aviso no coincide exactamente con el de la carpeta">Coincidencia aproximada</span>` : ''}
+                </div>
+                ${c.archivos.length ? c.archivos.map(a => `
+                <a class="man-item" href="${escHtml(a.url)}" target="_blank" rel="noopener">
+                    <span class="man-ico">${ICONOS_MANUAL[a.tipo] || ICONOS_MANUAL.otro}</span>
+                    <span class="man-txt">
+                        <span class="man-nombre">${escHtml(a.titulo)}</span>
+                        <span class="man-info">${escHtml([NOMBRE_TIPO_MANUAL[a.tipo] || 'Archivo', tamanoManual(a.tamano)].filter(Boolean).join(' · '))}</span>
+                    </span>
+                    <svg class="man-abrir" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4.5h5.5V10M19.5 4.5 11 13M17 14v4.5a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1H10"/></svg>
+                </a>`).join('') : `<p class="hist-vacio">La carpeta está vacía.</p>`}`).join('');
+        }
+
+        // Enlace al módulo de Manuales con la marca ya filtrada (se abre aparte para no perder el parte).
+        const marca = carpetas.length ? carpetas[0].marca : '';
+        const enlace = document.getElementById('man-ver-todos');
+        enlace.href = `/vista/manuales${marca ? `?${new URLSearchParams({marca})}` : ''}`;
+        enlace.innerHTML = marca ? `Ver todos los manuales de ${escHtml(marca)} &rarr;` : 'Buscar en todos los manuales &rarr;';
+
+        document.getElementById('modal-manuales').style.display = 'flex';
+    }
+
+    function cerrarManuales() {
+        document.getElementById('modal-manuales').style.display = 'none';
+    }
 
     async function archivarPirineos(index) {
         const ok = await appConfirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.");
@@ -950,7 +1155,8 @@
       document.getElementById('res_fecha_entr').value = av['F. ENTR.'] || '';
 
       const isCerrado = av['ESTADO'] === 'Cerrado';
-      document.getElementById('btn-hist-parte').style.display = isCerrado ? 'none' : '';
+      document.getElementById('tools-parte').style.display = isCerrado ? 'none' : '';
+      actualizarContadoresManuales();
       
       if (isCerrado) {
           document.getElementById('titulo-estado-parte').innerHTML = 'Parte de Trabajo <span style="color:#ef4444; font-size:0.8rem; margin-left:10px;">(CERRADO - NO MODIFICABLE)</span>';
@@ -1374,9 +1580,11 @@
     // Lo que ve el técnico, para el asistente IA (chatbot.js).
     window.sugrafBotContexto = function () {
         const historicoVisible = document.getElementById('modal-historico').style.display === 'flex';
+        const manualesVisible = document.getElementById('modal-manuales').style.display === 'flex';
         const parteVisible = document.getElementById('resolucion-box').style.display === 'block';
         let av = null;
         if (historicoVisible) av = avisoEnHistorico;
+        else if (manualesVisible) av = avisoEnManuales;
         else if (parteVisible) av = misAvisos.find(a => a.aviso_index === parseInt(document.getElementById('res_index').value));
 
         const vistaGeneral = currentUser === 'Master' && !filtroTecnicoMaster;
@@ -1386,7 +1594,7 @@
             || (vistaGeneral ? a['ESTADO'] === 'Cerrado' : a['ASIGNADO A'] === filtroTecnicoMaster));
         const ctx = {
             tecnico,
-            vista: historicoVisible ? 'histórico del aviso' : parteVisible ? 'parte de trabajo del aviso' : 'lista de avisos',
+            vista: historicoVisible ? 'histórico del aviso' : manualesVisible ? 'manuales técnicos de la máquina del aviso' : parteVisible ? 'parte de trabajo del aviso' : 'lista de avisos',
             avisos: visibles.map(a => {
                 const etiquetas = ['URGENTE', 'PARADO', 'RECLAMA', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
                     .filter(e => a[e] === 'SI').map(e => e.charAt(0) + e.slice(1).toLowerCase());

@@ -14,7 +14,7 @@
 
   const MODULOS = {
     inicio: 'Inicio', generador: 'Introducir Aviso', gestor: 'Organizador de Avisos',
-    adjudicados: 'Avisos Asignados', historicos: 'Históricos SAT',
+    adjudicados: 'Avisos Asignados', historicos: 'Históricos SAT', manuales: 'Manuales Técnicos',
   };
   const SUGERENCIAS = {
     inicio: ['¿Qué puedo hacer en cada módulo?', 'Busca averías parecidas a "error 116" en Xerox'],
@@ -22,6 +22,7 @@
     gestor: ['¿Qué avisos urgentes están sin asignar?', '¿Cuántos avisos tiene cada técnico?'],
     adjudicados: ['¿Ha pasado algo parecido antes en esta máquina?', 'Resume el historial de este cliente'],
     historicos: ['¿Cuáles son las averías más repetidas?', '¿Qué se cambió la última vez?'],
+    manuales: ['¿Qué averías se repiten en este modelo?', 'Resume el historial de este cliente'],
   };
 
   const ruta = window.location.pathname;

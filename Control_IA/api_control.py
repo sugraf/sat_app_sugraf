@@ -58,6 +58,7 @@ NOMBRES_MODULO = {
     'gestor': 'Organizador de Avisos',
     'adjudicados': 'Avisos Asignados',
     'historicos': 'Históricos SAT',
+    'manuales': 'Manuales Técnicos',
 }
 
 # Prompt fijo: no cambia entre peticiones para que OpenAI lo cachee.
@@ -66,8 +67,9 @@ PROMPT_SISTEMA = """Eres el asistente técnico de Sugraf, empresa de servicio t�
 La aplicación tiene estos módulos:
 - Introducir Aviso (generador): se registra un aviso nuevo con fecha, hora, cliente, población, una o varias máquinas del cliente, descripción del problema y etiquetas (Nuevo, Urgente, Parado, Reclama, Presupuesto, Piezas, Garantía, Mantenimiento, Instalación, Revisar). Se guarda en "Avisos Sin Tratar".
 - Organizador de Avisos (gestor): panel central con todos los avisos abiertos, sin tratar y tratados. Desde aquí se asigna técnico (al asignarlo pasa a "Avisos Tratados"), se marca si está metido en Pirineos (el ERP), el estado de las piezas, y se editan o eliminan avisos. Se filtra por técnico, Pirineos o etiqueta.
-- Avisos Asignados (adjudicados): cada técnico ve sus avisos (pendientes de empezar, en progreso y cerrados pendientes de pasar a Pirineos) y rellena el parte: fecha, horas, resuelto o pendiente, piezas necesarias y utilizadas, solución y observaciones internas; al cerrar firman técnico y cliente y se envía el PDF por correo. Si queda pendiente o faltan piezas se genera un aviso de seguimiento. El botón "Histórico" de cada aviso muestra los partes anteriores de esa máquina (misma unidad y mismo modelo en otros clientes) y de ese cliente.
+- Avisos Asignados (adjudicados): cada técnico ve sus avisos (pendientes de empezar, en progreso y cerrados pendientes de pasar a Pirineos) y rellena el parte: fecha, horas, resuelto o pendiente, piezas necesarias y utilizadas, solución y observaciones internas; al cerrar firman técnico y cliente y se envía el PDF por correo. Si queda pendiente o faltan piezas se genera un aviso de seguimiento. El botón "Histórico" de cada aviso muestra los partes anteriores de esa máquina (misma unidad y mismo modelo en otros clientes) y de ese cliente; el botón "Manuales" muestra los manuales técnicos de esa máquina para abrirlos.
 - Históricos SAT (historicos): consulta de los partes realizados exportados de Pirineos desde 2008, filtrando por cliente, máquina (modelo), nº de serie y fechas, con descarga a Excel.
+- Manuales Técnicos (manuales): manuales de las máquinas (PDF y manuales online) de la carpeta "Manuales tecnicos" de Drive, organizados por marca y modelo, filtrando por cliente (sus máquinas de Maquinas.xlsx), marca, máquina/modelo o nombre del manual. Tú no puedes leer el contenido de los manuales.
 
 Reglas:
 - Responde en español, breve y práctico. Usa listas cortas con "- " y **negrita** solo para lo importante.
@@ -189,6 +191,14 @@ def contexto_pantalla(req):
             + f". Resultados en pantalla: {_t(p.get('total'))}."
         )
         ambito.update({k: f.get(k, '') for k in ambito})
+
+    elif req.modulo == 'manuales':
+        f = p.get('filtros') or {}
+        lineas.append(
+            "Filtros aplicados en Manuales Técnicos: "
+            + (', '.join(f"{k}={_t(v)}" for k, v in f.items() if v) or 'ninguno') + '.'
+        )
+        ambito.update(cliente=f.get('cliente', ''), modelo=f.get('maquina', ''))
 
     elif req.modulo == 'gestor':
         f = p.get('filtros') or {}

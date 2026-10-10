@@ -63,40 +63,43 @@ class NuevoAviso(BaseModel):
 @router.get("/clientes-maquinas")
 def listar_clientes_maquinas():
     try:
-        drive = get_drive_service()
-
-        query = f"'{MAQUINAS_FOLDER_ID}' in parents and name = '{MAQUINAS_FICHERO}' and trashed = false"
-        res = drive.files().list(
-            q=query, fields="files(id, mimeType)",
-            supportsAllDrives=True, includeItemsFromAllDrives=True,
-        ).execute()
-        archivos = res.get("files", [])
-
-        if not archivos:
-            return {"error": f"No se encontró el archivo {MAQUINAS_FICHERO} en la carpeta 'Maquinas por cliente' de Google Drive. Comprueba que la carpeta está compartida con la cuenta de servicio de la app."}
-
-        file_id = archivos[0]['id']
-        mime_type = archivos[0].get("mimeType")
-
-        if mime_type == "application/vnd.google-apps.spreadsheet":
-            request = drive.files().export_media(
-                fileId=file_id,
-                mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        else:
-            request = drive.files().get_media(fileId=file_id, supportsAllDrives=True)
-
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-        fh.seek(0)
-
-        return construir_clientes_maquinas(fh)
-
+        return leer_clientes_maquinas(get_drive_service())
     except Exception as e:
         return {"error": str(e)}
+
+def leer_clientes_maquinas(drive):
+    """Descarga Maquinas.xlsx y devuelve las máquinas agrupadas por cliente
+    (o {"error": ...} si el Excel no tiene el formato esperado).
+    También lo usa el módulo de Manuales."""
+    query = f"'{MAQUINAS_FOLDER_ID}' in parents and name = '{MAQUINAS_FICHERO}' and trashed = false"
+    res = drive.files().list(
+        q=query, fields="files(id, mimeType)",
+        supportsAllDrives=True, includeItemsFromAllDrives=True,
+    ).execute()
+    archivos = res.get("files", [])
+
+    if not archivos:
+        raise RuntimeError(f"No se encontró el archivo {MAQUINAS_FICHERO} en la carpeta 'Maquinas por cliente' de Google Drive. Comprueba que la carpeta está compartida con la cuenta de servicio de la app.")
+
+    file_id = archivos[0]['id']
+    mime_type = archivos[0].get("mimeType")
+
+    if mime_type == "application/vnd.google-apps.spreadsheet":
+        request = drive.files().export_media(
+            fileId=file_id,
+            mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        request = drive.files().get_media(fileId=file_id, supportsAllDrives=True)
+
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    fh.seek(0)
+
+    return construir_clientes_maquinas(fh)
 
 def _quitar_acentos(texto):
     texto = unicodedata.normalize("NFKD", texto)
