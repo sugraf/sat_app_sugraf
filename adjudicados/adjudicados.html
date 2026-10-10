@@ -345,7 +345,7 @@
         <input type="hidden" id="res_descripcion">
         <input type="hidden" id="res_fecha_entr">
 
-        <button type="button" class="btn-hist btn-hist-form" onclick="abrirHistorico(parseInt(document.getElementById('res_index').value))">Ver histórico de la máquina y del cliente</button>
+        <button type="button" class="btn-hist btn-hist-form" id="btn-hist-parte" onclick="abrirHistorico(parseInt(document.getElementById('res_index').value))">Ver histórico de la máquina y del cliente</button>
 
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;">
           <div style="flex: 1; min-width: 140px;">
@@ -666,7 +666,10 @@
         if (currentUser === 'Master' && av['ESTADO'] === 'Cerrado') {
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
-        actionBtn += `<button onclick="event.stopPropagation(); abrirHistorico(${av.aviso_index})" class="btn-hist">Histórico</button>`;
+        // El histórico sirve mientras se trabaja el aviso; en los cerrados no se muestra.
+        if (av['ESTADO'] !== 'Cerrado') {
+            actionBtn += `<button onclick="event.stopPropagation(); abrirHistorico(${av.aviso_index})" class="btn-hist">Histórico</button>`;
+        }
 
         let fechasArr = (av['FECHA REALIZACIÓN'] || '').toString().split('\n').filter(f => f.trim() !== '');
         let fechasDisplay = fechaParte(fechasArr.length > 0 ? fechasArr[0] : av['F. ENTR.']) || 'Sin fecha';
@@ -947,6 +950,7 @@
       document.getElementById('res_fecha_entr').value = av['F. ENTR.'] || '';
 
       const isCerrado = av['ESTADO'] === 'Cerrado';
+      document.getElementById('btn-hist-parte').style.display = isCerrado ? 'none' : '';
       
       if (isCerrado) {
           document.getElementById('titulo-estado-parte').innerHTML = 'Parte de Trabajo <span style="color:#ef4444; font-size:0.8rem; margin-left:10px;">(CERRADO - NO MODIFICABLE)</span>';
