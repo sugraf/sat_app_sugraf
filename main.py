@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from generador.api_generador import router as generador_router
 from gestor.api_gestor import router as gestor_router
 from adjudicados.api_adjudicados import router as adjudicados_router
-from control.api_control import router as control_router
+from Control_IA.api_control import router as control_ia_router
 from historicos.api_historicos import router as historicos_router
 
 app = FastAPI()
@@ -22,7 +22,7 @@ app.add_middleware(
 app.include_router(generador_router, prefix="/api/generador")
 app.include_router(gestor_router, prefix="/api/gestor")
 app.include_router(adjudicados_router, prefix="/api/adjudicados")
-app.include_router(control_router, prefix="/api/control")
+app.include_router(control_ia_router, prefix="/api/control")
 app.include_router(historicos_router, prefix="/api/historicos")
 
 def get_html(path):
@@ -47,10 +47,6 @@ def view_gestor():
 def view_adjudicados():
     return get_html(os.path.join(os.path.dirname(__file__), "adjudicados", "adjudicados.html"))
 
-@app.get("/vista/control", response_class=HTMLResponse)
-def view_control():
-    return get_html(os.path.join(os.path.dirname(__file__), "control", "control.html"))
-
 @app.get("/vista/historicos", response_class=HTMLResponse)
 def view_historicos():
     return get_html(os.path.join(os.path.dirname(__file__), "historicos", "historicos.html"))
@@ -60,6 +56,10 @@ def get_png(filename: str):
     ruta = os.path.join(os.path.dirname(__file__), f"{filename}.png")
     if os.path.exists(ruta): return FileResponse(ruta, media_type="image/png")
     raise HTTPException(status_code=404, detail="Not found")
+
+@app.get("/chatbot.js")
+def get_chatbot_js():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "Control_IA", "chatbot.js"), media_type="application/javascript")
 
 @app.get("/{filename}.js")
 def get_js(filename: str):

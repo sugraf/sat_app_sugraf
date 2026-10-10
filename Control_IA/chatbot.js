@@ -1,10 +1,9 @@
-// chatbot.js — Asistente IA de Sugraf (robot flotante en todas las pantallas).
+// Control_IA/chatbot.js — Asistente IA de Sugraf (robot flotante en todas las pantallas).
 //
 // Cada página puede definir window.sugrafBotContexto = () => ({...}) con lo que
 // se ve en pantalla; el asistente lo envía con cada pregunta para que el
 // servidor busque solo la información relevante (RAG) y no todo el histórico.
-// Si la página tiene un elemento #bot-embebido, el chat se monta dentro de él
-// a pantalla completa (Control IA) en lugar de como botón flotante.
+// Se sirve en /chatbot.js (ver main.py) y la API está en Control_IA/api_control.py.
 (function () {
   const usuario = localStorage.getItem('sugraf_user');
   if (!usuario) return;
@@ -15,7 +14,7 @@
 
   const MODULOS = {
     inicio: 'Inicio', generador: 'Introducir Aviso', gestor: 'Organizador de Avisos',
-    adjudicados: 'Avisos Asignados', historicos: 'Históricos SAT', control: 'Control IA',
+    adjudicados: 'Avisos Asignados', historicos: 'Históricos SAT',
   };
   const SUGERENCIAS = {
     inicio: ['¿Qué puedo hacer en cada módulo?', 'Busca averías parecidas a "error 116" en Xerox'],
@@ -23,12 +22,10 @@
     gestor: ['¿Qué avisos urgentes están sin asignar?', '¿Cuántos avisos tiene cada técnico?'],
     adjudicados: ['¿Ha pasado algo parecido antes en esta máquina?', 'Resume el historial de este cliente'],
     historicos: ['¿Cuáles son las averías más repetidas?', '¿Qué se cambió la última vez?'],
-    control: ['¿Qué avisos urgentes están sin asignar?', 'Propón un reparto de avisos entre técnicos'],
   };
 
   const ruta = window.location.pathname;
   const modulo = (ruta.match(/^\/vista\/([a-z]+)/) || [])[1] || 'inicio';
-  const embebido = document.getElementById('bot-embebido');
 
   // ---------- Estilos ----------
   const css = `
@@ -42,7 +39,6 @@
     background:#fff; color:#10263B; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.45); display:none; flex-direction:column; overflow:hidden;
     font-family:'Montserrat',sans-serif; }
   .sbot-panel.abierto{ display:flex; animation:sbotIn .18s ease; }
-  .sbot-panel.embebido{ position:relative; right:auto; bottom:auto; width:100%; height:100%; max-height:none; display:flex; box-shadow:0 24px 60px rgba(0,0,0,0.35); }
   @keyframes sbotIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
   .sbot-head{ background:linear-gradient(160deg,#173654 0%,#10263B 100%); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; }
   .sbot-head .sbot-avatar{ width:36px; height:36px; border-radius:50%; background:rgba(0,104,88,0.35); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -80,7 +76,7 @@
   .sbot-estado{ font-size:0.72rem; color:#ef4444; padding:0 14px 8px; background:#fff; display:none; }
   @media (max-width:560px){
     .sbot-fab{ right:14px; bottom:14px; width:54px; height:54px; }
-    .sbot-panel:not(.embebido){ right:0; bottom:0; width:100%; height:100%; max-height:none; border-radius:0; }
+    .sbot-panel{ right:0; bottom:0; width:100%; height:100%; max-height:none; border-radius:0; }
   }`;
   const estilo = document.createElement('style');
   estilo.textContent = css;
@@ -106,13 +102,13 @@
   fab.innerHTML = ROBOT;
 
   const panel = document.createElement('div');
-  panel.className = 'sbot-panel' + (embebido ? ' embebido' : '');
+  panel.className = 'sbot-panel';
   panel.innerHTML = `
     <div class="sbot-head">
       <div class="sbot-avatar">${ROBOT}</div>
       <div class="sbot-titulo"><strong>Asistente Sugraf</strong><small class="sbot-viendo"></small></div>
       <button type="button" class="sbot-nueva" title="Empezar una conversación nueva">Nueva</button>
-      ${embebido ? '' : '<button type="button" class="sbot-cerrar" aria-label="Cerrar">&times;</button>'}
+      <button type="button" class="sbot-cerrar" aria-label="Cerrar">&times;</button>
     </div>
     <div class="sbot-msgs"></div>
     <div class="sbot-estado"></div>
@@ -122,12 +118,8 @@
       <button type="button" class="sbot-btn sbot-enviar" title="Enviar">${ICONO_ENVIAR}</button>
     </div>`;
 
-  if (embebido) {
-    embebido.appendChild(panel);
-  } else {
-    document.body.appendChild(fab);
-    document.body.appendChild(panel);
-  }
+  document.body.appendChild(fab);
+  document.body.appendChild(panel);
 
   const $msgs = panel.querySelector('.sbot-msgs');
   const $texto = panel.querySelector('textarea');
@@ -214,7 +206,8 @@
   // ---------- Envío ----------
   let enviando = false;
   async function enviar(texto) {
-    if (texto === undefined && grabando) pararDictado(); // Enviar también corta el dictado en curso
+    // Enviar corta el dictado (aunque ya se hubiera parado, puede quedar una frase en camino).
+    if (texto === undefined) pararDictado(true);
     texto = (texto ?? $texto.value).trim();
     if (!texto || enviando) return;
     enviando = true;
@@ -291,9 +284,19 @@
     $mic.title = activo ? 'Parar de dictar' : 'Dictar por voz';
   }
 
-  function pararDictado() {
+  // descartar=true (al enviar): se cancela el reconocimiento y se ignora lo que
+  // llegue después; si no, el navegador escribiría la última frase en la caja
+  // ya vaciada. Con el botón del micrófono se usa stop() para no perder esa frase.
+  function pararDictado(descartar = false) {
     grabando = false;
-    if (rec) { try { rec.stop(); } catch (e) {} }
+    if (rec) {
+      if (descartar) {
+        rec.onresult = null;
+        try { rec.abort(); } catch (e) {}
+      } else {
+        try { rec.stop(); } catch (e) {}
+      }
+    }
     estiloMic(false);
     mostrarEstado('');
   }
@@ -356,13 +359,7 @@
     fab.classList.remove('oculto');
   }
   fab.addEventListener('click', abrir);
-  const btnCerrar = panel.querySelector('.sbot-cerrar');
-  if (btnCerrar) btnCerrar.addEventListener('click', cerrar);
-
-  if (embebido) {
-    actualizarCabecera();
-    pintar();
-  }
+  panel.querySelector('.sbot-cerrar').addEventListener('click', cerrar);
 
   window.SugrafBot = { abrir, cerrar, enviar };
 })();

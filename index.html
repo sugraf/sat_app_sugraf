@@ -117,7 +117,7 @@
     .card-arrow span{ transition:transform 0.2s ease; }
     .card:hover .card-arrow span{ transform:translateX(4px); }
 
-    .note-icon, .nexus-icon, .person-icon, .ai-icon, .clock-icon { width:22px; height:22px; }
+    .note-icon, .nexus-icon, .person-icon, .clock-icon { width:22px; height:22px; }
     .clock-icon path{ transition:stroke 0.2s ease; }
     .note-icon .fold{ transition:stroke 0.2s ease; }
     .card:hover .note-icon .fold{ stroke:#2fd9b8; }
@@ -125,7 +125,6 @@
     .card:hover .nexus-icon .node-main{ stroke:#2fd9b8; }
     .person-icon path, .person-icon circle{ transition:stroke 0.2s ease; }
     .card:hover .person-icon .head{ stroke:#2fd9b8; }
-    .card:hover .ai-icon path { stroke:#2fd9b8; }
 
     .login-wrap{ min-height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; padding:20px; }
     .form-box {
@@ -256,17 +255,6 @@
           <p>Consulta los partes realizados por cliente y máquina.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
-        <div class="card" id="card-control-ia" style="display:none;" onclick="irA('control')">
-          <div class="card-icon">
-            <svg class="ai-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
-              <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Control IA</h3>
-          <p>Asistente de IA para consultar históricos y asignar rutas.</p>
-          <div class="card-arrow">Abrir <span>&rarr;</span></div>
-        </div>
       </div>
     </div>
   </div>
@@ -283,10 +271,6 @@
     let currentUser = localStorage.getItem("sugraf_user") || null;
 
     function applyUserPermissions() {
-        if (currentUser === "Master") {
-            const aiCard = document.getElementById("card-control-ia");
-            if (aiCard) aiCard.style.display = "block";
-        }
         if (currentUser === "Técnico 4") {
             const cGen = document.getElementById("card-generador");
             const cGes = document.getElementById("card-gestor");

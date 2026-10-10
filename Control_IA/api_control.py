@@ -1,14 +1,13 @@
-# control/api_control.py
+# Control_IA/api_control.py
 """Asistente IA de la aplicación (chatbot del robot).
 
 Cada pantalla envía junto a la pregunta un resumen de lo que se está viendo
 (aviso abierto, filtros, lista de avisos...). Con eso se arma un contexto corto:
   - descripción fija de la aplicación (siempre igual -> aprovecha la caché de prompts),
   - datos de la pantalla,
-  - partes del histórico recuperados por similitud (RAG en historicos/api_historicos.py),
+  - partes del histórico recuperados por similitud (RAG en Control_IA/rag.py),
 y solo eso viaja al modelo, en vez de los Excel completos.
 """
-import io
 import json
 import logging
 import os
@@ -16,18 +15,15 @@ import time
 import traceback
 from typing import List
 
-import pandas as pd
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
 from openai import OpenAI, APIError, AuthenticationError, RateLimitError, APIConnectionError, NotFoundError
 from pydantic import BaseModel
 
 from secretos import obtener as obtener_secreto
-from historicos.api_historicos import (
-    cargar_historico, detectar_entidades, resumen_ambito, similares, texto_registro,
-)
+from historicos.api_historicos import cargar_historico
+from Control_IA.rag import detectar_entidades, resumen_ambito, similares, texto_registro
 
 logger = logging.getLogger("api_control")
 logger.setLevel(logging.INFO)
@@ -62,7 +58,6 @@ NOMBRES_MODULO = {
     'gestor': 'Organizador de Avisos',
     'adjudicados': 'Avisos Asignados',
     'historicos': 'Históricos SAT',
-    'control': 'Control IA',
 }
 
 # Prompt fijo: no cambia entre peticiones para que OpenAI lo cachee.
@@ -73,7 +68,6 @@ La aplicación tiene estos módulos:
 - Organizador de Avisos (gestor): panel central con todos los avisos abiertos, sin tratar y tratados. Desde aquí se asigna técnico (al asignarlo pasa a "Avisos Tratados"), se marca si está metido en Pirineos (el ERP), el estado de las piezas, y se editan o eliminan avisos. Se filtra por técnico, Pirineos o etiqueta.
 - Avisos Asignados (adjudicados): cada técnico ve sus avisos (pendientes de empezar, en progreso y cerrados pendientes de pasar a Pirineos) y rellena el parte: fecha, horas, resuelto o pendiente, piezas necesarias y utilizadas, solución y observaciones internas; al cerrar firman técnico y cliente y se envía el PDF por correo. Si queda pendiente o faltan piezas se genera un aviso de seguimiento. El botón "Histórico" de cada aviso muestra los partes anteriores de esa máquina (misma unidad y mismo modelo en otros clientes) y de ese cliente.
 - Históricos SAT (historicos): consulta de los partes realizados exportados de Pirineos desde 2008, filtrando por cliente, máquina (modelo), nº de serie y fechas, con descarga a Excel.
-- Control IA: este mismo chat a pantalla completa.
 
 Reglas:
 - Responde en español, breve y práctico. Usa listas cortas con "- " y **negrita** solo para lo importante.
@@ -86,7 +80,7 @@ Reglas:
 
 
 # ==========================================
-# Drive (solo para el modo Control IA, que no tiene pantalla de avisos)
+# Drive (solo para el diagnóstico /test-drive)
 # ==========================================
 def get_drive_service():
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
@@ -97,50 +91,9 @@ def get_drive_service():
     ), cache_discovery=False)
 
 
-def get_excel(drive, name):
-    query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
-    archivos = drive.files().list(q=query, fields="files(id, mimeType)").execute().get("files", [])
-    if not archivos:
-        return pd.DataFrame()
-    file_id, mime_type = archivos[0]['id'], archivos[0].get('mimeType', '')
-    if mime_type == 'application/vnd.google-apps.spreadsheet':
-        request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    else:
-        request = drive.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    fh.seek(0)
-    return pd.read_excel(fh, engine='openpyxl', dtype=str).fillna("")
-
-
-ETIQUETAS = ['NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
-
-
-def _aviso_desde_fila(fila, estado_por_defecto):
-    """Fila de los Excel de avisos -> mismo formato que envían las pantallas."""
-    etiquetas = [e.capitalize() for e in ETIQUETAS if str(fila.get(e, '')).strip().upper() == 'SI']
-    if str(fila.get('PIEZAS', '')).strip() in ('Pendiente', 'Listo'):
-        etiquetas.append(f"Piezas {fila.get('PIEZAS')}")
-    return {
-        'fecha': str(fila.get('F. ENTR.', ''))[:10], 'cliente': fila.get('CLIENTE', ''),
-        'poblacion': fila.get('POBLACIÓN', ''), 'maquina': fila.get('MÁQUINA', ''),
-        'tecnico': fila.get('ASIGNADO A', '') or 'Pendiente', 'estado': fila.get('ESTADO', '') or estado_por_defecto,
-        'pirineos': fila.get('PIRINEOS', '') or 'NO', 'etiquetas': etiquetas, 'descripcion': fila.get('DESCRIPCIÓN', ''),
-    }
-
-
-def avisos_abiertos_desde_drive():
-    drive = get_drive_service()
-    avisos = []
-    for nombre, estado in (('Avisos Sin Tratar.xlsx', 'Sin tratar'), ('Avisos Tratados.xlsx', 'Asignado')):
-        df = get_excel(drive, nombre)
-        avisos += [_aviso_desde_fila(f, estado) for f in df.to_dict(orient='records')]
-    return avisos
-
-
+# ==========================================
+# Avisos que envían las pantallas
+# ==========================================
 def _linea_aviso(av):
     campos = [
         av.get('fecha'), av.get('cliente'), av.get('poblacion'), av.get('maquina'),
@@ -252,13 +205,6 @@ def contexto_pantalla(req):
         )
         ambito['cliente'] = f.get('cliente', '')
         extra_busqueda = f"{f.get('descripcion', '')} {' '.join(f.get('maquinas') or [])}"
-
-    elif req.modulo == 'control':
-        try:
-            lineas.append(_bloque_avisos("Avisos abiertos ahora mismo (sin tratar y asignados)", avisos_abiertos_desde_drive()))
-        except Exception as e:
-            logger.warning(f"No se pudieron leer los avisos abiertos: {e}")
-            lineas.append("No se han podido leer los avisos abiertos de Drive.")
 
     return '\n'.join(lineas), ambito, extra_busqueda
 
