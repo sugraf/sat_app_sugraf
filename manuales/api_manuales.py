@@ -28,6 +28,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from pydantic import BaseModel
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +58,31 @@ def _drive():
         json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON")), scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build("drive", "v3", credentials=creds, cache_discovery=False)
+
+
+def _email_cuenta_servicio():
+    try:
+        return json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON") or '{}').get('client_email', '')
+    except ValueError:
+        return ''
+
+
+def _carpeta_raiz(drive):
+    """Id real de "Manuales tecnicos" (si FOLDER_ID es un acceso directo, el de su destino).
+    Si la cuenta de servicio no la ve, el error dice con qué correo hay que compartirla."""
+    compartir = (f"Compártela (como Lector basta) con la cuenta de servicio de la app: {_email_cuenta_servicio()}"
+                 if _email_cuenta_servicio() else "Compártela con la cuenta de servicio de la app.")
+    try:
+        carpeta = drive.files().get(
+            fileId=FOLDER_ID, fields="id, name, mimeType, shortcutDetails", supportsAllDrives=True,
+        ).execute()
+    except HttpError as e:
+        if e.resp.status in (403, 404):
+            raise RuntimeError(f"La app no tiene acceso a la carpeta 'Manuales tecnicos' de Drive. {compartir}")
+        raise
+    if carpeta.get('mimeType') == MIME_ACCESO_DIRECTO:
+        return carpeta['shortcutDetails']['targetId'], carpeta['name'], compartir
+    return carpeta['id'], carpeta['name'], compartir
 
 
 # ---------------------------------------------------------------------------
@@ -267,11 +293,14 @@ def _orden_natural(texto):
 
 
 def leer_catalogo(drive):
-    marcas = [e for e in _listar_hijos(drive, [FOLDER_ID]) if _es_carpeta(e)]
+    raiz, nombre, compartir = _carpeta_raiz(drive)
+    hijos = _listar_hijos(drive, [raiz])
+    marcas = [e for e in hijos if _es_carpeta(e)]
     if not marcas:
         raise RuntimeError(
-            "No se encuentran carpetas de marcas en 'Manuales tecnicos' de Drive. "
-            "Comprueba que la carpeta está compartida con la cuenta de servicio de la app."
+            f"La app ve la carpeta '{nombre}' de Drive pero no encuentra dentro carpetas de marcas "
+            f"({len(hijos)} elemento(s) visibles). Si las subcarpetas no están dentro de esa carpeta "
+            f"compartida, la app no las ve. {compartir}"
         )
     marca_de = {_id_real(m): m['name'].strip() for m in marcas}
 
