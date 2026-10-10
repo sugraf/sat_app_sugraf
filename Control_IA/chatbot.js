@@ -111,6 +111,8 @@
   .sbot-fuentes b{ font-size:0.66rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em; }
   .sbot-fuentes a{ font-size:0.74rem; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .sbot-fuentes a:hover{ text-decoration:underline; }
+  .sbot-pagina{ font-size:0.74rem; color:#4a5a72; line-height:1.4; word-break:break-word; }
+  .sbot-fuentes .sbot-pagina a{ white-space:normal; overflow:visible; }
   .sbot-paso{ align-self:center; display:flex; align-items:center; gap:6px; max-width:94%; font-size:0.72rem; font-weight:600; color:#2c5a52;
     background:#e6f3f0; border:1px solid #c7e3dc; padding:4px 11px; border-radius:999px; }
   .sbot-paso svg{ width:13px; height:13px; flex-shrink:0; }
@@ -274,6 +276,15 @@
     actualizarCabecera();
   }
 
+  // "Manual X · págs. 12, 40" con cada página enlazada (abre el PDF en esa página).
+  function paginasPorManual(paginas) {
+    const grupos = {};
+    paginas.forEach(p => { (grupos[p.titulo] = grupos[p.titulo] || []).push(p); });
+    return Object.entries(grupos).map(([titulo, lista]) =>
+      `<span class="sbot-pagina">${escHtml(titulo)} · pág. ${lista.sort((x, y) => x.pagina - y.pagina)
+        .map(p => enlace(p.url || '#', String(p.pagina))).join(', ')}</span>`).join('');
+  }
+
   function burbuja(m) {
     const div = document.createElement('div');
     if (m.rol === 'paso') {
@@ -286,6 +297,7 @@
       div.innerHTML = formatear(m.texto) +
         (m.fuentes && m.fuentes.length
           ? `<div class="sbot-fuentes"><b>Fuentes</b>${m.fuentes.map(f => enlace(f.url, escHtml(f.titulo || f.url))).join('')}</div>` : '') +
+        (m.paginas && m.paginas.length ? `<div class="sbot-fuentes"><b>Manuales consultados</b>${paginasPorManual(m.paginas)}</div>` : '') +
         (m.partes && m.partes.length ? `<span class="sbot-fuente">Consultados ${m.partes.length} partes del histórico</span>` : '');
     } else {
       div.textContent = m.texto;
@@ -442,6 +454,12 @@
   // Ejecuta las acciones que pide el modelo y le devuelve los resultados, hasta que
   // responde con texto. Devuelve la respuesta final, o null si la página va a cambiar.
   async function resolverAcciones(data, partes) {
+    // Páginas de manuales consultadas en el servidor a lo largo de todas las rondas.
+    const paginas = [];
+    const sumarPaginas = d => (d.paginas || []).forEach(p => {
+      if (!paginas.some(x => x.url === p.url && x.pagina === p.pagina)) paginas.push(p);
+    });
+    sumarPaginas(data);
     for (let ronda = 0; data.acciones && data.acciones.length; ronda++) {
       if (cancelado || !modoControl) {
         anotar({rol: 'paso', texto: 'Control detenido', fallo: true});
@@ -457,7 +475,8 @@
         fab.classList.add('trabajando');
       }
 
-      const resultados = [];
+      // Las consultas a manuales de esta misma respuesta ya las ha resuelto el servidor.
+      const resultados = [...(data.resultados_servidor || [])];
       for (let i = 0; i < data.acciones.length; i++) {
         const llamada = data.acciones[i];
         const accion = acciones()[llamada.nombre];
@@ -502,8 +521,9 @@
         await pausa(PAUSA_ACCION);
       }
       data = await llamar({continuar: data.respuesta_id, resultados});
+      sumarPaginas(data);
     }
-    return data;
+    return {...data, paginas};
   }
 
   async function trabajar(primeraLlamada, partesPrevias = []) {
@@ -517,7 +537,7 @@
       const partes = partesPrevias.length ? partesPrevias : (data.partes || []);
       const final = await resolverAcciones(data, partes);
       if (final === null) { cambiaDePagina = true; return; } // la tarea sigue en la otra página
-      anotar({rol: 'assistant', texto: final.respuesta, partes, fuentes: final.fuentes || []});
+      anotar({rol: 'assistant', texto: final.respuesta, partes, fuentes: final.fuentes || [], paginas: final.paginas || []});
     } catch (e) {
       anotar({rol: 'error', texto: `No he podido responder: ${e.message}`});
     } finally {

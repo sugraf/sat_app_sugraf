@@ -15,6 +15,9 @@ Se usa la API Responses de OpenAI con dos herramientas opcionales:
     acciones que admite y se ofrecen al modelo como funciones. Las llamadas se
     devuelven al navegador, que las ejecuta y vuelve a llamar con sus resultados
     (`continuar` = id de la respuesta anterior) hasta que el modelo contesta con texto.
+Además, siempre están las herramientas de manuales, que se ejecutan aquí mismo:
+buscar_maquina_manuales (identifica UNA máquina) y consultar_manual (fragmentos
+relevantes de los manuales de esa máquina, ver manuales/rag_manuales.py).
 """
 import json
 import logging
@@ -33,6 +36,8 @@ from pydantic import BaseModel
 from secretos import obtener as obtener_secreto
 from historicos.api_historicos import cargar_historico
 from Control_IA.rag import detectar_entidades, resumen_ambito, similares, texto_registro
+from manuales import rag_manuales
+from manuales.api_manuales import _drive as drive_manuales, buscar_carpetas, cargar_catalogo
 
 logger = logging.getLogger("api_control")
 logger.setLevel(logging.INFO)
@@ -52,6 +57,37 @@ MAX_LINEAS_AVISOS = 60
 MAX_ACCIONES = 30
 MAX_MANUALES_CONTEXTO = 40
 MAX_FUENTES = 8
+MAX_CONSULTAS_MANUAL = 3   # por pregunta, para acotar los tokens
+MAX_VUELTAS_SERVIDOR = 6
+MAX_PAGINAS_MOSTRADAS = 8
+
+# Herramientas que se ejecutan en el servidor (no en el navegador).
+HERRAMIENTAS_MANUALES = [
+    {
+        "type": "function",
+        "name": "buscar_maquina_manuales",
+        "description": "Busca la carpeta de manuales de UNA máquina por su marca, modelo o nombre. Devuelve las "
+                       "candidatas con su carpeta_id. Úsala solo si la máquina no está ya en el CONTEXTO.",
+        "parameters": {"type": "object", "additionalProperties": False, "required": ["texto"], "properties": {
+            "texto": {"type": "string", "description": "Modelo o nombre de la máquina, p. ej. \"Roland VG3-640\""},
+            "marca": {"type": "string"},
+        }},
+        "strict": False,
+    },
+    {
+        "type": "function",
+        "name": "consultar_manual",
+        "description": "Busca en los manuales PDF de UNA máquina (su carpeta_id) los fragmentos más relevantes para "
+                       "la consulta. No lee los manuales enteros: devuelve unos pocos fragmentos con manual, página y enlace.",
+        "parameters": {"type": "object", "additionalProperties": False, "required": ["carpeta_id", "consulta"], "properties": {
+            "carpeta_id": {"type": "string", "description": "carpeta_id de la máquina (del CONTEXTO o de buscar_maquina_manuales)"},
+            "consulta": {"type": "string", "description": "Términos técnicos clave en español Y en inglés, con los códigos de error tal cual"},
+            "manual": {"type": "string", "description": "Opcional: parte del nombre de un manual para buscar solo en él"},
+        }},
+        "strict": False,
+    },
+]
+NOMBRES_HERRAMIENTAS_SERVIDOR = {h["name"] for h in HERRAMIENTAS_MANUALES}
 BUSQUEDA_WEB = {
     "type": "web_search",
     "search_context_size": "medium",
@@ -86,7 +122,7 @@ La aplicación tiene estos módulos:
 - Organizador de Avisos (gestor): panel central con todos los avisos abiertos, sin tratar y tratados. Desde aquí se asigna técnico (al asignarlo pasa a "Avisos Tratados"), se marca si está metido en Pirineos (el ERP), el estado de las piezas, y se editan o eliminan avisos. Se filtra por técnico, Pirineos o etiqueta.
 - Avisos Asignados (adjudicados): cada técnico ve sus avisos (pendientes de empezar, en progreso y cerrados pendientes de pasar a Pirineos) y rellena el parte: fecha, horas, resuelto o pendiente, piezas necesarias y utilizadas, solución y observaciones internas; al cerrar firman técnico y cliente y se envía el PDF por correo. Si queda pendiente o faltan piezas se genera un aviso de seguimiento. El botón "Histórico" de cada aviso muestra los partes anteriores de esa máquina (misma unidad y mismo modelo en otros clientes) y de ese cliente; el botón "Manuales" muestra los manuales técnicos de esa máquina para abrirlos.
 - Históricos SAT (historicos): consulta de los partes realizados exportados de Pirineos desde 2008, filtrando por cliente, máquina (modelo), nº de serie y fechas, con descarga a Excel.
-- Manuales Técnicos (manuales): manuales de las máquinas (PDF y manuales online) de la carpeta "Manuales tecnicos" de Drive, organizados por marca y modelo, filtrando por cliente (sus máquinas de Maquinas.xlsx), marca, máquina/modelo o nombre del manual. Tú no puedes leer el contenido de los manuales.
+- Manuales Técnicos (manuales): manuales de las máquinas (PDF y manuales online) de la carpeta "Manuales tecnicos" de Drive, organizados por marca y modelo, filtrando por cliente (sus máquinas de Maquinas.xlsx), marca, máquina/modelo o nombre del manual. Puedes consultar el contenido de los manuales PDF de una máquina con consultar_manual.
 
 Reglas:
 - Responde en español, breve y práctico. Usa listas cortas con "- " y **negrita** solo para lo importante.
@@ -97,6 +133,12 @@ Reglas:
 - Al proponer el reparto de avisos entre técnicos nunca des prioridad a un aviso solo por ser más antiguo.
 - Explica cómo se usa la aplicación cuando te lo pregunten, según la descripción de los módulos.
 - Para que el usuario abra un manual, dale su enlace en formato [título](url) con la url que aparece en el CONTEXTO o en el resultado de una función.
+
+Contenido de los manuales (herramientas buscar_maquina_manuales y consultar_manual):
+- Úsalas cuando pregunten cómo se hace algo en una máquina, un procedimiento, un ajuste, un error o una especificación que pueda estar en su manual.
+- Primero identifica UNA máquina concreta: la del aviso o el filtro en pantalla (sus carpetas de manuales aparecen en el CONTEXTO con su carpeta_id) o búscala con buscar_maquina_manuales. Si hay varias candidatas y no está claro cuál es, pregunta al usuario antes de consultar. Nunca consultes varias máquinas para una misma pregunta.
+- En consultar_manual escribe la consulta con los términos técnicos clave en español y en inglés (muchos manuales están en inglés), con los códigos de error tal cual. Si los fragmentos no responden, puedes repetir con otros términos (como mucho 3 consultas).
+- Responde solo con lo que digan los fragmentos y cita manual y página con su enlace, así: [Manual, pág. 12](enlace). Si no lo encuentras, dilo.
 
 Búsqueda en internet (solo si tienes la herramienta de búsqueda web):
 - Úsala para lo que no esté en el CONTEXTO: códigos de error, procedimientos y boletines del fabricante, referencias de piezas, firmware, manuales. Da prioridad a las webs oficiales de los fabricantes.
@@ -265,11 +307,16 @@ def contexto_pantalla(req):
         ambito['cliente'] = f.get('cliente', '')
         extra_busqueda = f"{f.get('descripcion', '')} {' '.join(f.get('maquinas') or [])}"
 
-    # Manuales visibles (módulo de Manuales o ventana de manuales de un aviso).
+    # Manuales visibles (módulo de Manuales o manuales de la máquina de un aviso), por carpeta de máquina.
     manuales = [m for m in (p.get('manuales') or []) if isinstance(m, dict) and m.get('url')][:MAX_MANUALES_CONTEXTO]
     if manuales:
-        lineas.append("Manuales en pantalla (enlace para abrirlos):\n" + '\n'.join(
-            f"- {_t(m.get('grupo'), 120)}: [{_t(m.get('titulo'), 150)}]({m['url']})" for m in manuales))
+        grupos = {}
+        for m in manuales:
+            grupos.setdefault((_t(m.get('grupo'), 120), _t(m.get('carpeta_id'), 80)), []).append(m)
+        lineas.append("Manuales en pantalla (carpeta de cada máquina y enlace para abrirlos):\n" + '\n'.join(
+            f"- {grupo}" + (f" [carpeta_id: {carpeta}]" if carpeta else '') + ": "
+            + '; '.join(f"[{_t(m.get('titulo'), 150)}]({m['url']})" for m in lista)
+            for (grupo, carpeta), lista in grupos.items()))
     if p.get('sin_manuales'):
         lineas.append("Máquinas sin manuales en la carpeta: " + '; '.join(_t(x, 80) for x in p['sin_manuales'][:20]) + '.')
 
@@ -312,11 +359,12 @@ def contexto_historico(req, ambito, extra_busqueda):
 # Rutas
 # ==========================================
 def herramientas(req):
-    """Búsqueda web y acciones de la pantalla, en el formato de herramientas de la API Responses."""
+    """Búsqueda web, manuales y acciones de la pantalla, en el formato de herramientas de la API Responses."""
     tools = [dict(BUSQUEDA_WEB)] if req.web else []
+    tools += HERRAMIENTAS_MANUALES
     if req.control:
         for a in req.acciones[:MAX_ACCIONES]:
-            if not re.fullmatch(r'[A-Za-z0-9_]{1,64}', a.nombre):
+            if not re.fullmatch(r'[A-Za-z0-9_]{1,64}', a.nombre) or a.nombre in NOMBRES_HERRAMIENTAS_SERVIDOR:
                 continue
             tools.append({
                 "type": "function",
@@ -349,6 +397,33 @@ def leer_respuesta(respuesta):
                         fuentes[url] = getattr(ann, 'title', '') or url
     texto = (getattr(respuesta, 'output_text', '') or '').strip()
     return texto, llamadas, [{"titulo": t, "url": u} for u, t in list(fuentes.items())[:MAX_FUENTES]], busquedas
+
+
+def ejecutar_en_servidor(llamada, estado):
+    """Ejecuta una herramienta de manuales y devuelve su salida (JSON) para el modelo."""
+    args = llamada['args']
+    try:
+        catalogo = cargar_catalogo()
+        if llamada['nombre'] == 'buscar_maquina_manuales':
+            candidatas = rag_manuales.buscar_maquina(catalogo, buscar_carpetas, str(args.get('texto', '')), str(args.get('marca', '')))
+            salida = {'ok': True, 'candidatas': candidatas} if candidatas else {
+                'ok': False, 'error': 'No hay ninguna carpeta de manuales para esa máquina.'}
+        elif estado['consultas'] >= MAX_CONSULTAS_MANUAL:
+            salida = {'ok': False, 'error': 'Ya se han hecho las consultas permitidas para esta pregunta: responde con lo encontrado.'}
+        else:
+            estado['consultas'] += 1
+            salida = rag_manuales.consultar(drive_manuales(), catalogo, str(args.get('carpeta_id', '')),
+                                            str(args.get('consulta', '')), str(args.get('manual', '') or ''))
+            for r in salida.get('resultados', []):
+                pagina = {'titulo': r['manual'], 'pagina': r['pagina'], 'url': r['enlace']}
+                if pagina not in estado['paginas']:
+                    estado['paginas'].append(pagina)
+        logger.info(f"{llamada['nombre']} {json.dumps(args, ensure_ascii=False)[:200]} -> "
+                    f"{len(salida.get('resultados', salida.get('candidatas', [])))} resultados")
+    except Exception as e:
+        logger.error(f"Error en {llamada['nombre']}:\n{traceback.format_exc()}")
+        salida = {'ok': False, 'error': f'No se han podido consultar los manuales: {e}'}
+    return json.dumps(salida, ensure_ascii=False)
 
 
 @router.post("/chat")
@@ -396,13 +471,33 @@ def chat_ia(req: PeticionChat):
         if continuando:
             parametros["previous_response_id"] = req.continuar
 
-        respuesta = cliente_ia().responses.create(**parametros)
-        texto, llamadas, fuentes, busquedas = leer_respuesta(respuesta)
+        # Las herramientas de manuales se resuelven aquí; las de la app vuelven al navegador.
+        estado = {'consultas': 0, 'paginas': []}
+        fuentes, busquedas, resultados_servidor = [], 0, []
+        for vuelta in range(MAX_VUELTAS_SERVIDOR):
+            respuesta = cliente_ia().responses.create(**parametros)
+            texto, llamadas, fuentes_vuelta, busquedas_vuelta = leer_respuesta(respuesta)
+            fuentes += [f for f in fuentes_vuelta if f not in fuentes]
+            busquedas += busquedas_vuelta
+            en_servidor = [c for c in llamadas if c['nombre'] in NOMBRES_HERRAMIENTAS_SERVIDOR]
+            llamadas = [c for c in llamadas if c['nombre'] not in NOMBRES_HERRAMIENTAS_SERVIDOR]
+            if not en_servidor:
+                break
+            salidas = [{"type": "function_call_output", "call_id": c['call_id'], "output": ejecutar_en_servidor(c, estado)}
+                       for c in en_servidor]
+            if llamadas:
+                # También hay acciones para el navegador: estas salidas vuelven con las suyas.
+                resultados_servidor = [{"call_id": x["call_id"], "salida": x["output"]} for x in salidas]
+                break
+            if vuelta == MAX_VUELTAS_SERVIDOR - 1:
+                texto = texto or "He necesitado demasiadas consultas a los manuales. Prueba a concretar más la pregunta."
+                break
+            parametros.update(previous_response_id=respuesta.id, input=salidas)
         uso = respuesta.usage
         logger.info(
             f"/chat {modulo} | {round(time.time() - inicio, 2)}s | tokens entrada={getattr(uso, 'input_tokens', '?')} "
             f"salida={getattr(uso, 'output_tokens', '?')} | partes={len(partes_usados)} | web={busquedas} "
-            f"| acciones={[c['nombre'] for c in llamadas]}"
+            f"| manuales={estado['consultas']} | acciones={[c['nombre'] for c in llamadas]}"
         )
         if not texto and not llamadas:
             texto = ("La respuesta se ha cortado antes de terminar. Prueba a preguntar algo más concreto."
@@ -412,8 +507,10 @@ def chat_ia(req: PeticionChat):
             "respuesta": texto,
             "acciones": llamadas,
             "respuesta_id": respuesta.id,
+            "resultados_servidor": resultados_servidor,
             "partes": partes_usados,
-            "fuentes": fuentes,
+            "fuentes": fuentes[:MAX_FUENTES],
+            "paginas": estado['paginas'][:MAX_PAGINAS_MOSTRADAS],
             "ambito": {k: v for k, v in ambito.items() if v},
         }
     except AuthenticationError:

@@ -1639,7 +1639,7 @@
     }
 
     function manualesBot(carpetas) {
-        return carpetas.flatMap(c => c.archivos.map(a => ({grupo: `${c.marca} · ${c.nombre}`, titulo: a.titulo, url: a.url})));
+        return carpetas.flatMap(c => c.archivos.map(a => ({grupo: `${c.marca} · ${c.nombre}`, carpeta_id: c.id, titulo: a.titulo, url: a.url})));
     }
 
     function parteAbiertoBot() {

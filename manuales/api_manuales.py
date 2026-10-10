@@ -41,6 +41,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 from generador.api_generador import leer_clientes_maquinas
+from manuales.rag_manuales import CARPETA_INDICES
 
 FOLDER_ID = "13PVvdyJUQCrDnamESBT0dqVhQQUaA5Na"  # Mi unidad/Manuales tecnicos
 MIME_CARPETA = 'application/vnd.google-apps.folder'
@@ -240,7 +241,7 @@ def _listar_hijos(drive, padres):
         while True:
             res = drive.files().list(
                 q=q, pageSize=1000, pageToken=token,
-                fields="nextPageToken, files(id, name, mimeType, parents, size, webViewLink, shortcutDetails)",
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, webViewLink, shortcutDetails)",
                 supportsAllDrives=True, includeItemsFromAllDrives=True,
             ).execute()
             elementos += res.get('files', [])
@@ -308,6 +309,7 @@ def _archivo(drive, e, ruta, descargas):
             nombre += extension
         descargas[e['id']] = {
             'drive_id': _id_real(e), 'mime_drive': mime, 'mime': mime_descarga, 'nombre': nombre,
+            'ruta': '/'.join([*ruta, e['name']]),  # dentro de la carpeta de modelo; la usan los índices del RAG
             'tamano': 0 if extension else int(e.get('size') or 0),
         }
         url = f"/api/manuales/archivo/{e['id']}/{quote(nombre)}"
@@ -329,7 +331,9 @@ def _orden_natural(texto):
 def leer_catalogo(drive):
     raiz, nombre, compartir = _carpeta_raiz(drive)
     hijos = _listar_hijos(drive, [raiz])
-    marcas = [e for e in hijos if _es_carpeta(e)]
+    # Las carpetas que empiezan por "_" no son marcas (p. ej. los índices del asistente).
+    marcas = [e for e in hijos if _es_carpeta(e) and not e['name'].startswith('_')]
+    carpeta_indices = next((e for e in hijos if _es_carpeta(e) and e['name'] == CARPETA_INDICES), None)
     if not marcas:
         raise RuntimeError(
             f"La app ve la carpeta '{nombre}' de Drive pero no encuentra dentro carpetas de marcas "
@@ -385,7 +389,12 @@ def leer_catalogo(drive):
             'claves': variantes_modelo(m['nombre'], m['marca']) if m['nombre'] != 'General' else set(),
         })
     carpetas.sort(key=lambda c: (_orden_natural(c['publica']['marca']), _orden_natural(c['publica']['nombre'])))
-    return {'carpetas': carpetas, 'descargas': descargas, 'leido': time.time()}
+    indices = {}  # nombre del fichero de índice -> {id, modificado}
+    if carpeta_indices:
+        for e in _listar_hijos(drive, [_id_real(carpeta_indices)]):
+            if e['name'].endswith('.json.gz'):
+                indices[e['name']] = {'id': e['id'], 'modificado': e.get('modifiedTime', '')}
+    return {'carpetas': carpetas, 'descargas': descargas, 'indices': indices, 'leido': time.time()}
 
 
 def cargar_catalogo(refrescar=False):

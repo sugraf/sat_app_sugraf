@@ -428,7 +428,7 @@
         const archivos = c.archivos.filter(a => coincideTexto(a, c, texto));
         if (!archivos.length) return '';
         return `
-        <div class="item">
+        <div class="item" data-carpeta="${escHtml(c.id)}">
             <div class="item-head">
                 <span class="item-titulo">${escHtml(c.nombre)}</span>
                 <span class="item-marca">${escHtml(c.marca)}</span>
@@ -451,7 +451,7 @@
                 const archivos = c.archivos.filter(a => coincideTexto(a, c, texto));
                 totalManuales += archivos.length;
                 return archivos.length
-                    ? `<div class="carpeta-sub">${escHtml(c.marca)} · ${escHtml(c.nombre)}</div>${archivos.map(filaManual).join('')}`
+                    ? `<div data-carpeta="${escHtml(c.id)}" data-grupo="${escHtml(c.marca)} · ${escHtml(c.nombre)}"><div class="carpeta-sub">${escHtml(c.marca)} · ${escHtml(c.nombre)}</div>${archivos.map(filaManual).join('')}</div>`
                     : '';
             }).join('');
             let cuerpo = bloques;
@@ -592,11 +592,15 @@
     function manualesVisiblesBot() {
         const lista = [];
         document.querySelectorAll('#lista .item').forEach(item => {
-            const grupo = [item.querySelector('.item-marca'), item.querySelector('.item-titulo')]
+            const maquina = [item.querySelector('.item-marca'), item.querySelector('.item-titulo')]
                 .filter(Boolean).map(el => el.textContent.trim()).join(' · ');
-            item.querySelectorAll('a.manual').forEach(a => lista.push({
-                grupo, titulo: a.querySelector('.manual-nombre').textContent.trim(), url: a.getAttribute('href'),
-            }));
+            item.querySelectorAll('a.manual').forEach(a => {
+                const carpeta = a.closest('[data-carpeta]');
+                lista.push({
+                    grupo: (carpeta && carpeta.dataset.grupo) || maquina, carpeta_id: carpeta ? carpeta.dataset.carpeta : '',
+                    titulo: a.querySelector('.manual-nombre').textContent.trim(), url: a.getAttribute('href'),
+                });
+            });
         });
         return lista;
     }
