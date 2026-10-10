@@ -489,7 +489,7 @@
         }
     }
 
-    iniciar();
+    window.sugrafBotListo = iniciar();
 
     // Filtros en pantalla, para el asistente IA (chatbot.js).
     window.sugrafBotContexto = function () {
@@ -500,6 +500,67 @@
             total: totalResultados,
             etiqueta: [filtros.cliente, filtros.modelo, filtros.n_serie].filter(Boolean).join(' · '),
         };
+    };
+
+    // ---------------- Acciones del asistente (modo control de chatbot.js) ----------------
+    function partesVisiblesBot() {
+        return [...document.querySelectorAll('#lista .item')].slice(0, 8)
+            .map(el => el.innerText.replace(/\s+/g, ' ').trim().slice(0, 350));
+    }
+
+    async function buscarBot() {
+        actualizarDependientes();
+        dropdowns.forEach(d => d.sincronizar());
+        await buscar();
+        return {ok: true, total: totalResultados, resumen: document.getElementById('resumen-txt').innerText, primeros: partesVisiblesBot()};
+    }
+
+    window.sugrafBotAcciones = {
+        filtrar_historico: {
+            descripcion: 'Filtra los partes del histórico. Solo cambia los filtros que se indiquen ("" quita un filtro). '
+                + 'Devuelve el total y los primeros partes.',
+            parametros: {type: 'object', additionalProperties: false, properties: {
+                cliente: {type: 'string'},
+                modelo: {type: 'string', description: 'Modelo de la máquina'},
+                n_serie: {type: 'string', description: 'Solo junto con un modelo'},
+                desde: {type: 'string', description: 'AAAA-MM-DD'},
+                hasta: {type: 'string', description: 'AAAA-MM-DD'},
+                orden: {type: 'string', enum: ['desc', 'asc'], description: 'desc = más recientes primero'},
+            }},
+            etiqueta: () => 'Filtrando el histórico',
+            ejecutar: async (a) => {
+                const exacto = (opciones, v) => (opciones.find(o => normalizar(o.valor) === normalizar(v)) || {valor: v}).valor;
+                if (a.cliente !== undefined) await SugrafBot.escribir(document.getElementById('f_cliente'), exacto(opcionesClientes(), a.cliente), {eventos: false});
+                if (a.modelo !== undefined) {
+                    await SugrafBot.escribir(document.getElementById('f_modelo'), exacto(opcionesModelos(), a.modelo), {eventos: false});
+                    actualizarDependientes();
+                }
+                if (a.n_serie !== undefined) await SugrafBot.escribir(document.getElementById('f_n_serie'), a.n_serie, {eventos: false});
+                for (const campo of ['desde', 'hasta', 'orden']) {
+                    if (a[campo] !== undefined) await SugrafBot.escribir(document.getElementById(`f_${campo}`), a[campo], {eventos: false});
+                }
+                return buscarBot();
+            },
+        },
+        limpiar_filtros: {
+            descripcion: 'Quita todos los filtros del histórico.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Quitando los filtros',
+            ejecutar: async () => {
+                CAMPOS.filter(c => c !== 'orden').forEach(c => { document.getElementById(`f_${c}`).value = ''; });
+                return buscarBot();
+            },
+        },
+        descargar_excel: {
+            descripcion: 'Descarga en Excel los partes que cumplen los filtros actuales.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Descargando el Excel',
+            ejecutar: async () => {
+                if (!totalResultados) return {ok: false, error: 'No hay partes con los filtros actuales.'};
+                exportarExcel();
+                return {ok: true};
+            },
+        },
     };
   </script>
   <script src="/chatbot.js"></script>

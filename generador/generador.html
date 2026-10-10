@@ -365,7 +365,7 @@
       btn.innerText = "Crear Aviso"; btn.disabled = false;
     }
 
-    cargarData();
+    window.sugrafBotListo = cargarData();
 
     function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
         const input = document.getElementById(inputId);
@@ -609,6 +609,103 @@
         },
         etiqueta: cliente,
       };
+    };
+
+    // ---------------- Acciones del asistente (modo control de chatbot.js) ----------------
+    const ETIQUETAS_BOT = {Nuevo: 'ni_nuevo', Urgente: 'ni_urg', Parado: 'ni_parado', Reclama: 'ni_reclama', Presupuesto: 'ni_pre',
+                           Piezas: 'ni_piezas', 'Garantía': 'ni_gar', Mantenimiento: 'ni_man', 'Instalación': 'ni_ins', Revisar: 'ni_rev'};
+
+    // Cliente del Excel a partir de lo que diga el usuario (nombre exacto o una parte).
+    function clienteBot(texto) {
+        const exacto = buscarCliente(texto);
+        if (exacto) return exacto;
+        const buscado = normalizarCliente(texto);
+        const candidatos = Object.values(dbEquipos).filter(c => normalizarCliente(c.nombre).includes(buscado));
+        if (candidatos.length === 1) return candidatos[0];
+        if (!candidatos.length) throw new Error(`No hay ningún cliente que coincida con "${texto}".`);
+        throw new Error(`Hay varios clientes que coinciden con "${texto}": ${candidatos.slice(0, 8).map(c => c.nombre).join('; ')}. Pregunta cuál es.`);
+    }
+
+    function maquinaBot(cliente, texto) {
+        const buscado = normalizarCliente(texto);
+        const lista = cliente ? cliente.maquinas : [];
+        return (lista.find(m => normalizarCliente(m.nombre) === buscado)
+            || lista.find(m => normalizarCliente(m.nombre).includes(buscado))
+            || {nombre: texto}).nombre;
+    }
+
+    window.sugrafBotAcciones = {
+        rellenar_aviso: {
+            descripcion: 'Rellena el formulario de nuevo aviso (no lo crea). Solo cambia los campos que se indiquen. '
+                + 'Elegir el cliente rellena su población y email y vacía las máquinas.',
+            parametros: {type: 'object', additionalProperties: false, properties: {
+                cliente: {type: 'string', description: 'Nombre (o parte) del cliente de la lista'},
+                poblacion: {type: 'string'},
+                email: {type: 'string'},
+                maquinas: {type: 'array', items: {type: 'string'}, description: 'Máquinas del cliente; sustituyen a las elegidas'},
+                descripcion: {type: 'string', description: 'Explicación de la incidencia'},
+                marcar: {type: 'array', items: {type: 'string', enum: Object.keys(ETIQUETAS_BOT)}},
+                desmarcar: {type: 'array', items: {type: 'string', enum: Object.keys(ETIQUETAS_BOT)}},
+                fecha: {type: 'string', description: 'AAAA-MM-DD'},
+                hora: {type: 'string', description: 'HH:MM'},
+            }},
+            etiqueta: a => a.cliente ? `Rellenando el aviso de ${a.cliente}` : 'Rellenando el aviso',
+            ejecutar: async (a) => {
+                if (!Object.keys(dbEquipos).length) return {ok: false, error: 'La lista de clientes aún no ha cargado.'};
+                if (a.fecha) await SugrafBot.escribir(document.getElementById('ni_fecha'), a.fecha);
+                if (a.hora) await SugrafBot.escribir(document.getElementById('ni_hora'), a.hora);
+                if (a.cliente) {
+                    const cliente = clienteBot(a.cliente);
+                    const input = document.getElementById('ni_cliente');
+                    await SugrafBot.escribir(input, cliente.nombre, {eventos: false});
+                    // Al salir del campo con un nombre exacto se elige el cliente (población, email...).
+                    input.dispatchEvent(new Event('blur'));
+                    await SugrafBot.pausa(250);
+                }
+                const cliente = buscarCliente(document.getElementById('ni_cliente').value);
+                if (a.poblacion !== undefined) await SugrafBot.escribir(document.getElementById('ni_poblacion'), a.poblacion);
+                if (a.email !== undefined) await SugrafBot.escribir(document.getElementById('ni_email'), a.email);
+                if (Array.isArray(a.maquinas)) {
+                    maquinasSel = [];
+                    renderMaquinas();
+                    for (const m of a.maquinas) {
+                        await SugrafBot.resaltar(document.getElementById('ni_maquina'));
+                        addMaquina(maquinaBot(cliente, m));
+                    }
+                }
+                if (a.descripcion !== undefined) await SugrafBot.escribir(document.getElementById('ni_desc'), a.descripcion);
+                for (const [lista, valor] of [[a.marcar, true], [a.desmarcar, false]]) {
+                    for (const nombre of lista || []) {
+                        const casilla = document.getElementById(ETIQUETAS_BOT[nombre]);
+                        if (!casilla) continue;
+                        await SugrafBot.resaltar(casilla.closest('label') || casilla);
+                        casilla.checked = valor;
+                    }
+                }
+                return {
+                    ok: true, formulario: window.sugrafBotContexto().formulario,
+                    maquinas_del_cliente: cliente ? cliente.maquinas.slice(0, 30).map(m => m.nombre) : [],
+                    aviso: 'El aviso no está creado todavía.',
+                };
+            },
+        },
+        crear_aviso: {
+            descripcion: 'Crea el aviso con lo que hay en el formulario. Pide confirmación al usuario; después la app vuelve al inicio.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Creando el aviso',
+            terminal: true,
+            ejecutar: async () => {
+                const f = window.sugrafBotContexto().formulario;
+                if (!f.cliente || !f.maquinas.length || !f.descripcion) {
+                    return {ok: false, error: 'Faltan datos: hacen falta cliente, al menos una máquina y la descripción.'};
+                }
+                await SugrafBot.resaltar(document.getElementById('btn-save-inc'));
+                const ok = await appConfirm(`El asistente va a crear el aviso de ${f.cliente} (${f.maquinas.join(', ')}). ¿Lo confirmas?`);
+                if (!ok) return {ok: false, error: 'El usuario no lo ha confirmado.'};
+                document.getElementById('form-nuevo-aviso').requestSubmit();
+                return {ok: true, mensaje: 'He enviado el aviso. La aplicación confirmará si se ha guardado.'};
+            },
+        },
     };
   </script>
   <script src="/chatbot.js"></script>

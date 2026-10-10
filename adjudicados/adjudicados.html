@@ -1575,7 +1575,7 @@
         btn.innerText = "Enviar y Cerrar Definitivamente"; btn.disabled = false;
     }
 
-    cargarAvisos();
+    window.sugrafBotListo = cargarAvisos();
 
     // Lo que ve el técnico, para el asistente IA (chatbot.js).
     window.sugrafBotContexto = function () {
@@ -1601,7 +1601,7 @@
                 if (a['ESTADO PIEZAS'] === 'Sí necesita Piezas' || a['PIEZAS'] === 'Pendiente') etiquetas.push('Piezas Pendiente');
                 else if (a['ESTADO PIEZAS'] === 'Piezas Recibidas' || a['PIEZAS'] === 'Listo') etiquetas.push('Piezas Listo');
                 return {
-                    fecha: String(a['F. ENTR.'] || '').slice(0, 10), cliente: a['CLIENTE'] || '',
+                    id: a.aviso_index, fecha: String(a['F. ENTR.'] || '').slice(0, 10), cliente: a['CLIENTE'] || '',
                     poblacion: a['POBLACIÓN'] || '', maquina: a['MÁQUINA'] || '', tecnico: a['ASIGNADO A'] || '',
                     estado: a['ESTADO'] || '', pirineos: a['PIRINEOS'] || 'NO', etiquetas, descripcion: a['DESCRIPCIÓN'] || '',
                 };
@@ -1609,15 +1609,191 @@
         };
         if (av) {
             ctx.aviso = {
-                cliente: av['CLIENTE'] || '', maquina: av['MÁQUINA'] || '', marca: av['MARCA'] || '',
+                id: av.aviso_index, cliente: av['CLIENTE'] || '', maquina: av['MÁQUINA'] || '', marca: av['MARCA'] || '',
                 modelo: av['MODELO'] || '', n_serie: av['Nº SERIE'] || '', fecha: av['F. ENTR.'] || '',
                 estado: av['ESTADO'] || '', descripcion: av['DESCRIPCIÓN'] || '',
                 solucion: parteVisible ? document.getElementById('res_solucion').value : (av['SOLUCIÓN'] || ''),
             };
             ctx.etiqueta = `${av['CLIENTE']} · ${av['MÁQUINA']}`;
+            const carpetas = manualesPorMaquina[claveMaquina(av)];
+            if (carpetas) ctx.manuales = manualesBot(carpetas);
         }
         return ctx;
     };
+
+    // ---------------- Acciones del asistente (modo control de chatbot.js) ----------------
+    function avisoBot(id) {
+        const av = misAvisos.find(a => a.aviso_index === Number(id));
+        if (!av) throw new Error(`No hay ningún aviso con id ${id} en la lista.`);
+        return av;
+    }
+
+    function nombreAvisoBot(id) {
+        const av = misAvisos.find(a => a.aviso_index === Number(id));
+        return av ? `${av['CLIENTE']} (${av['MÁQUINA']})` : `el aviso ${id}`;
+    }
+
+    function tarjetaAvisoBot(index) {
+        return [...document.querySelectorAll('.inc-item')]
+            .find(el => (el.getAttribute('onclick') || '') === `abrirResolucion(${index})`);
+    }
+
+    function manualesBot(carpetas) {
+        return carpetas.flatMap(c => c.archivos.map(a => ({grupo: `${c.marca} · ${c.nombre}`, titulo: a.titulo, url: a.url})));
+    }
+
+    function parteAbiertoBot() {
+        if (document.getElementById('resolucion-box').style.display !== 'block') return null;
+        return misAvisos.find(a => a.aviso_index === parseInt(document.getElementById('res_index').value)) || null;
+    }
+
+    function datosParteBot() {
+        const av = parteAbiertoBot();
+        if (!av) return null;
+        const v = id => document.getElementById(id).value;
+        return {
+            id: av.aviso_index, cliente: av['CLIENTE'], maquina: av['MÁQUINA'], cerrado: av['ESTADO'] === 'Cerrado',
+            tipo_asistencia: v('res_tipo_asistencia'), fecha: v('ses_fecha'), hora_entrada: v('ses_hora_ent'), hora_salida: v('ses_hora_sal'),
+            estado_resolucion: v('res_estado_resolucion'), necesita_piezas: v('res_necesita_piezas'), piezas_necesarias: v('res_piezas'),
+            solucion: v('res_solucion'), piezas_utilizadas: v('res_piezas_utilizadas'), observaciones: v('res_observaciones'),
+            opcion_venta: v('res_opcion_venta'), detalle_venta: v('res_detalle_venta'),
+        };
+    }
+
+    function cerrarVentanasBot() {
+        cerrarHistorico();
+        cerrarManuales();
+    }
+
+    const ID_AVISO_BOT = {type: 'object', properties: {id: {type: 'integer', description: 'id del aviso en el CONTEXTO'}},
+                          required: ['id'], additionalProperties: false};
+
+    window.sugrafBotAcciones = {
+        abrir_parte: {
+            descripcion: 'Abre el parte de trabajo de un aviso para verlo o rellenarlo. Devuelve lo que tiene escrito.',
+            parametros: ID_AVISO_BOT,
+            etiqueta: a => `Abriendo el parte de ${nombreAvisoBot(a.id)}`,
+            ejecutar: async ({id}) => {
+                const av = avisoBot(id);
+                cerrarVentanasBot();
+                await SugrafBot.resaltar(tarjetaAvisoBot(av.aviso_index));
+                if (parteAbiertoBot() !== av) abrirResolucion(av.aviso_index);
+                await SugrafBot.resaltar(document.getElementById('titulo-estado-parte'));
+                return {ok: true, parte: datosParteBot()};
+            },
+        },
+        rellenar_parte: {
+            descripcion: 'Escribe en el parte que está abierto (no lo guarda). Solo cambia los campos que se indiquen; '
+                + 'los textos sustituyen a lo que haya, así que para añadir incluye también el texto actual.',
+            parametros: {type: 'object', additionalProperties: false, properties: {
+                tipo_asistencia: {type: 'string', enum: ['Presencial', 'Telemático']},
+                fecha: {type: 'string', description: 'Fecha del trabajo, AAAA-MM-DD'},
+                hora_entrada: {type: 'string', description: 'HH:MM'},
+                hora_salida: {type: 'string', description: 'HH:MM'},
+                estado_resolucion: {type: 'string', enum: ['Pendiente', 'Resuelto']},
+                necesita_piezas: {type: 'string', enum: ['NO', 'SI'], description: 'Solo si el estado es Pendiente'},
+                piezas_necesarias: {type: 'string'},
+                solucion: {type: 'string', description: 'Trabajos realizados / solución'},
+                piezas_utilizadas: {type: 'string'},
+                observaciones: {type: 'string', description: 'Observación interna'},
+                opcion_venta: {type: 'string', enum: ['NO', 'SI']},
+                detalle_venta: {type: 'string'},
+            }},
+            etiqueta: () => 'Rellenando el parte',
+            ejecutar: async (a) => {
+                const av = parteAbiertoBot();
+                if (!av) return {ok: false, error: 'No hay ningún parte abierto. Ábrelo antes con abrir_parte.'};
+                if (av['ESTADO'] === 'Cerrado') return {ok: false, error: 'El parte está cerrado y no se puede modificar.'};
+                const campos = [
+                    ['tipo_asistencia', 'res_tipo_asistencia'], ['opcion_venta', 'res_opcion_venta'], ['detalle_venta', 'res_detalle_venta'],
+                    ['fecha', 'ses_fecha'], ['hora_entrada', 'ses_hora_ent'], ['hora_salida', 'ses_hora_sal'],
+                    ['estado_resolucion', 'res_estado_resolucion'], ['necesita_piezas', 'res_necesita_piezas'],
+                    ['piezas_necesarias', 'res_piezas'], ['solucion', 'res_solucion'],
+                    ['piezas_utilizadas', 'res_piezas_utilizadas'], ['observaciones', 'res_observaciones'],
+                ];
+                const cambiados = [];
+                for (const [clave, idCampo] of campos) {
+                    if (a[clave] === undefined || a[clave] === null) continue;
+                    const el = document.getElementById(idCampo);
+                    // La fecha se ve en un campo de texto aparte (dd/mm/aa).
+                    await SugrafBot.escribir(el, a[clave]);
+                    if (clave === 'fecha') mostrarFechaParte();
+                    cambiados.push(clave);
+                }
+                return {ok: true, cambiados, parte: datosParteBot(), aviso: 'Los cambios no están guardados todavía.'};
+            },
+        },
+        guardar_progreso: {
+            descripcion: 'Guarda el progreso del parte abierto (queda "en progreso"). Pide confirmación al usuario.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Guardando el progreso del parte',
+            ejecutar: async () => {
+                const av = parteAbiertoBot();
+                if (!av) return {ok: false, error: 'No hay ningún parte abierto.'};
+                if (av['ESTADO'] === 'Cerrado') return {ok: false, error: 'El parte está cerrado.'};
+                await SugrafBot.resaltar(document.getElementById('btn-progreso'));
+                const ok = await appConfirm(`El asistente va a guardar el progreso del parte de ${av['CLIENTE']}. ¿Lo confirmas?`);
+                if (!ok) return {ok: false, error: 'El usuario no lo ha confirmado.'};
+                await guardarProgreso();
+                const guardado = document.getElementById('resolucion-box').style.display !== 'block';
+                return guardado ? {ok: true} : {ok: false, error: 'No se ha podido guardar (revisa el mensaje en pantalla).'};
+            },
+        },
+        abrir_historico: {
+            descripcion: 'Abre el histórico SAT de la máquina y del cliente de un aviso. Devuelve los partes más recientes.',
+            parametros: ID_AVISO_BOT,
+            etiqueta: a => `Abriendo el histórico de ${nombreAvisoBot(a.id)}`,
+            ejecutar: async ({id}) => {
+                const av = avisoBot(id);
+                cerrarManuales();
+                await abrirHistorico(av.aviso_index);
+                if (!historicoActual || avisoEnHistorico !== av) return {ok: false, error: 'No se ha podido cargar el histórico.'};
+                const resumir = r => ({fecha: r.fecha, parte: r.n_parte, cliente: r.cliente, maquina: etiquetaMaquina(r),
+                                       anomalia: String(r.anomalia || '').slice(0, 200), solucion: String(r.solucion || '').slice(0, 250)});
+                return {
+                    ok: true,
+                    maquina: {total: historicoActual.maquina.total, recientes: historicoActual.maquina.registros.slice(0, 6).map(resumir)},
+                    cliente: {total: historicoActual.cliente.total, recientes: historicoActual.cliente.registros.slice(0, 4).map(resumir)},
+                };
+            },
+        },
+        abrir_manuales: {
+            descripcion: 'Abre la ventana de manuales técnicos de la máquina de un aviso. Devuelve los manuales con su enlace.',
+            parametros: ID_AVISO_BOT,
+            etiqueta: a => `Buscando los manuales de ${nombreAvisoBot(a.id)}`,
+            ejecutar: async ({id}) => {
+                const av = avisoBot(id);
+                cerrarHistorico();
+                await abrirManuales(av.aviso_index);
+                const carpetas = manualesPorMaquina[claveMaquina(av)];
+                if (!carpetas) return {ok: false, error: 'No se han podido cargar los manuales.'};
+                return {ok: true, manuales: manualesBot(carpetas),
+                        aviso: carpetas.length ? '' : 'No hay manuales de esta máquina; se pueden buscar en el módulo Manuales.'};
+            },
+        },
+        cerrar_ventanas: {
+            descripcion: 'Cierra las ventanas de histórico o manuales que estén abiertas.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Cerrando ventanas',
+            ejecutar: async () => { cerrarVentanasBot(); return {ok: true}; },
+        },
+    };
+
+    if (currentUser === 'Master') {
+        window.sugrafBotAcciones.ver_avisos_de_tecnico = {
+            descripcion: 'Muestra los avisos de un técnico, o con "todos" los cerrados pendientes de pasar a Pirineos.',
+            parametros: {type: 'object', properties: {tecnico: {type: 'string', enum: ['todos', ...TECNICOS]}},
+                         required: ['tecnico'], additionalProperties: false},
+            etiqueta: a => a.tecnico === 'todos' ? 'Mostrando los cerrados de todos' : `Mostrando los avisos de ${a.tecnico}`,
+            ejecutar: async ({tecnico}) => {
+                filtroTecnicoMaster = tecnico === 'todos' ? null : tecnico;
+                renderBotonesMaster();
+                renderAvisos();
+                await SugrafBot.resaltar(document.getElementById('botones-tecnicos'));
+                return {ok: true};
+            },
+        };
+    }
   </script>
   <script src="/chatbot.js"></script>
 </body>

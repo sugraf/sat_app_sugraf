@@ -586,16 +586,85 @@
         }
     }
 
-    iniciar();
+    window.sugrafBotListo = iniciar();
 
-    // Filtros en pantalla, para el asistente IA (chatbot.js).
+    // Manuales y máquinas en pantalla, para el asistente IA (chatbot.js).
+    function manualesVisiblesBot() {
+        const lista = [];
+        document.querySelectorAll('#lista .item').forEach(item => {
+            const grupo = [item.querySelector('.item-marca'), item.querySelector('.item-titulo')]
+                .filter(Boolean).map(el => el.textContent.trim()).join(' · ');
+            item.querySelectorAll('a.manual').forEach(a => lista.push({
+                grupo, titulo: a.querySelector('.manual-nombre').textContent.trim(), url: a.getAttribute('href'),
+            }));
+        });
+        return lista;
+    }
+
+    function sinManualesBot() {
+        return [...document.querySelectorAll('#lista .item')].filter(item => item.querySelector('.item-vacio'))
+            .map(item => item.querySelector('.item-titulo').textContent.trim());
+    }
+
     window.sugrafBotContexto = function () {
         const filtros = {};
         ['cliente', 'marca', 'maquina', 'texto'].forEach(c => { if (valor(c)) filtros[c] = valor(c); });
         return {
             filtros,
+            resumen: document.getElementById('resumen-txt').innerText,
+            manuales: manualesVisiblesBot().slice(0, 40),
+            sin_manuales: sinManualesBot(),
             etiqueta: [filtros.cliente, filtros.marca, filtros.maquina].filter(Boolean).join(' · '),
         };
+    };
+
+    // ---------------- Acciones del asistente (modo control de chatbot.js) ----------------
+    function resultadoBot() {
+        return {ok: true, resumen: document.getElementById('resumen-txt').innerText,
+                manuales: manualesVisiblesBot().slice(0, 40), sin_manuales: sinManualesBot()};
+    }
+
+    window.sugrafBotAcciones = {
+        filtrar_manuales: {
+            descripcion: 'Filtra los manuales por cliente (sus máquinas), marca, máquina/modelo o nombre del manual. '
+                + 'Solo cambia los filtros que se indiquen ("" quita un filtro). Devuelve los manuales con su enlace.',
+            parametros: {type: 'object', additionalProperties: false, properties: {
+                cliente: {type: 'string'},
+                marca: {type: 'string'},
+                maquina: {type: 'string', description: 'Máquina del cliente o modelo de la carpeta'},
+                texto: {type: 'string', description: 'Palabras del nombre del manual (usuario, mantenimiento, instalación...)'},
+            }},
+            etiqueta: a => `Buscando manuales${a.marca ? ` de ${a.marca}` : ''}${a.cliente ? ` de ${a.cliente}` : ''}`,
+            ejecutar: async (a) => {
+                if (a.cliente) {
+                    const buscado = normalizar(a.cliente);
+                    const candidatos = clientes.filter(c => normalizar(c.nombre).includes(buscado));
+                    const exacto = clientes.find(c => normalizar(c.nombre) === buscado) || (candidatos.length === 1 ? candidatos[0] : null);
+                    if (!exacto) {
+                        return {ok: false, error: candidatos.length
+                            ? `Varios clientes coinciden: ${candidatos.slice(0, 8).map(c => c.nombre).join('; ')}. Pregunta cuál es.`
+                            : `No hay ningún cliente que coincida con "${a.cliente}".`};
+                    }
+                    a.cliente = exacto.nombre;
+                }
+                if (a.marca) {
+                    const marca = marcas.find(m => marcasCompatibles(m.nombre, a.marca));
+                    if (marca) a.marca = marca.nombre;
+                }
+                for (const campo of ['cliente', 'marca', 'maquina', 'texto']) {
+                    if (a[campo] !== undefined) await SugrafBot.escribir(document.getElementById(`f_${campo}`), a[campo], {eventos: false});
+                }
+                alCambiarFiltro();
+                await SugrafBot.resaltar(document.getElementById('resumen-txt'));
+                return resultadoBot();
+            },
+        },
+        limpiar_filtros: {
+            descripcion: 'Quita todos los filtros de manuales.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Quitando los filtros',
+            ejecutar: async () => { limpiarFiltros(); return resultadoBot(); },
+        },
     };
   </script>
   <script src="/chatbot.js"></script>

@@ -725,7 +725,7 @@
         }
     }
 
-    cargarGestionAvisos();
+    window.sugrafBotListo = cargarGestionAvisos();
 
     // Avisos visibles con los filtros actuales, para el asistente IA (chatbot.js).
     window.sugrafBotContexto = function () {
@@ -740,7 +740,7 @@
                 const marcas = etiquetas.filter(e => av[e] === 'SI').map(e => e.charAt(0) + e.slice(1).toLowerCase());
                 if (av['PIEZAS'] === 'Pendiente' || av['PIEZAS'] === 'Listo') marcas.push(`Piezas ${av['PIEZAS']}`);
                 return {
-                    fecha: String(av['F. ENTR.'] || '').slice(0, 10), cliente: av['CLIENTE'] || '',
+                    id: idAvisoBot(av), fecha: String(av['F. ENTR.'] || '').slice(0, 10), cliente: av['CLIENTE'] || '',
                     poblacion: av['POBLACIÓN'] || '', maquina: av['MÁQUINA'] || '',
                     tecnico: av['ASIGNADO A'] || 'Pendiente',
                     estado: av['ESTADO'] || (av.fuente === 'sin_tratar' ? 'Sin tratar' : 'Asignado'),
@@ -748,6 +748,110 @@
                 };
             }),
         };
+    };
+
+    // ---------------- Acciones del asistente (modo control de chatbot.js) ----------------
+    function idAvisoBot(av) {
+        return `${av.fuente}-${av.original_index}`;
+    }
+
+    function avisoBot(id) {
+        const av = avisosGlobales.find(a => idAvisoBot(a) === String(id));
+        if (!av) throw new Error(`No hay ningún aviso con id ${id}.`);
+        return av;
+    }
+
+    function nombreAvisoBot(id) {
+        const av = avisosGlobales.find(a => idAvisoBot(a) === String(id));
+        return av ? `${av['CLIENTE']} (${av['MÁQUINA']})` : `el aviso ${id}`;
+    }
+
+    // Desplegable de la tarjeta del aviso (asignar técnico o Pirineos).
+    function selectorAvisoBot(av, funcion) {
+        return document.querySelector(`select[onchange^="${funcion}(${av.original_index}, '${av.fuente}'"]`);
+    }
+
+    function opcionesDe(id) {
+        return [...document.getElementById(id).options].map(o => o.value);
+    }
+
+    const ID_AVISO_BOT = {type: 'string', description: 'id del aviso en el CONTEXTO (p. ej. "sin_tratar-3")'};
+
+    window.sugrafBotAcciones = {
+        filtrar_avisos: {
+            descripcion: 'Aplica los filtros del organizador. Solo cambia los que se indiquen.',
+            parametros: {type: 'object', additionalProperties: false, properties: {
+                tecnico: {type: 'string', enum: opcionesDe('filtro-tecnico'), description: '"Pendiente" = sin asignar'},
+                pirineos: {type: 'string', enum: opcionesDe('filtro-pirineos')},
+                etiqueta: {type: 'string', enum: opcionesDe('filtro-etiqueta')},
+            }},
+            etiqueta: () => 'Filtrando los avisos',
+            ejecutar: async (a) => {
+                for (const [clave, id] of [['tecnico', 'filtro-tecnico'], ['pirineos', 'filtro-pirineos'], ['etiqueta', 'filtro-etiqueta']]) {
+                    if (a[clave]) await SugrafBot.escribir(document.getElementById(id), a[clave], {eventos: false});
+                }
+                renderGestionAvisos();
+                return {ok: true, visibles: avisosVisibles.length};
+            },
+        },
+        ver_detalles: {
+            descripcion: 'Abre la ficha con todos los datos de un aviso.',
+            parametros: {type: 'object', properties: {id: ID_AVISO_BOT}, required: ['id'], additionalProperties: false},
+            etiqueta: a => `Abriendo los detalles de ${nombreAvisoBot(a.id)}`,
+            ejecutar: async ({id}) => {
+                const av = avisoBot(id);
+                abrirDetalles(av.original_index, av.fuente);
+                await SugrafBot.resaltar(document.querySelector('#aviso-modal .modal-content'));
+                const datos = {};
+                COLUMNAS_MOSTRAR.forEach(c => { if (String(av[c] || '').trim()) datos[c] = String(av[c]).slice(0, 300); });
+                return {ok: true, aviso: datos};
+            },
+        },
+        cerrar_detalles: {
+            descripcion: 'Cierra la ficha de detalles del aviso.',
+            parametros: {type: 'object', properties: {}, additionalProperties: false},
+            etiqueta: () => 'Cerrando la ficha',
+            ejecutar: async () => { cerrarModal(); return {ok: true}; },
+        },
+        asignar_tecnico: {
+            descripcion: 'Asigna un aviso a un técnico ("Pendiente" lo deja sin asignar). Pide confirmación al usuario.',
+            parametros: {type: 'object', additionalProperties: false, required: ['id', 'tecnico'], properties: {
+                id: ID_AVISO_BOT, tecnico: {type: 'string', enum: ['Pendiente', ...TECNICOS_PERMITIDOS]},
+            }},
+            etiqueta: a => `Asignando ${nombreAvisoBot(a.id)} a ${a.tecnico === 'Pendiente' ? 'nadie' : a.tecnico}`,
+            ejecutar: async ({id, tecnico}) => {
+                const av = avisoBot(id);
+                const sel = selectorAvisoBot(av, 'actualizarTecnico');
+                if (!sel) return {ok: false, error: 'El aviso no está visible con los filtros actuales.'};
+                if (sel.disabled) return {ok: false, error: sel.title || 'Este aviso no se puede reasignar.'};
+                if (![...sel.options].some(o => o.value === tecnico && !o.disabled)) return {ok: false, error: `No tienes permiso para asignarlo a ${tecnico}.`};
+                await SugrafBot.resaltar(sel);
+                const ok = await appConfirm(`El asistente va a asignar el aviso de ${av['CLIENTE']} a ${tecnico === 'Pendiente' ? 'nadie (sin asignar)' : tecnico}. ¿Lo confirmas?`);
+                if (!ok) return {ok: false, error: 'El usuario no lo ha confirmado.'};
+                sel.value = tecnico;
+                await actualizarTecnico(av.original_index, av.fuente, sel);
+                return {ok: true};
+            },
+        },
+        marcar_pirineos: {
+            descripcion: 'Marca si un aviso está metido en Pirineos (solo Master). Pide confirmación al usuario.',
+            parametros: {type: 'object', additionalProperties: false, required: ['id', 'valor'], properties: {
+                id: ID_AVISO_BOT, valor: {type: 'string', enum: ['SI', 'NO']},
+            }},
+            etiqueta: a => `Marcando Pirineos en ${nombreAvisoBot(a.id)}`,
+            ejecutar: async ({id, valor}) => {
+                const av = avisoBot(id);
+                const sel = selectorAvisoBot(av, 'actualizarPirineos');
+                if (!sel) return {ok: false, error: 'El aviso no está visible con los filtros actuales.'};
+                if (sel.disabled) return {ok: false, error: 'Solo el usuario Master puede cambiar Pirineos.'};
+                await SugrafBot.resaltar(sel);
+                const ok = await appConfirm(`El asistente va a marcar Pirineos = ${valor === 'SI' ? 'Sí' : 'No'} en el aviso de ${av['CLIENTE']}. ¿Lo confirmas?`);
+                if (!ok) return {ok: false, error: 'El usuario no lo ha confirmado.'};
+                sel.value = valor;
+                await actualizarPirineos(av.original_index, av.fuente, sel);
+                return {ok: true};
+            },
+        },
     };
   </script>
   <script src="/chatbot.js"></script>

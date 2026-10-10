@@ -1,47 +1,90 @@
 // Control_IA/chatbot.js — Asistente IA de Sugraf (robot flotante en todas las pantallas).
 //
-// Cada página puede definir window.sugrafBotContexto = () => ({...}) con lo que
-// se ve en pantalla; el asistente lo envía con cada pregunta para que el
-// servidor busque solo la información relevante (RAG) y no todo el histórico.
+// Cada página puede definir:
+//   - window.sugrafBotContexto = () => ({...}): lo que se ve en pantalla. Se envía con
+//     cada pregunta para que el servidor busque solo la información relevante (RAG).
+//   - window.sugrafBotAcciones = {nombre: {descripcion, parametros, etiqueta(args), ejecutar(args), terminal}}:
+//     lo que el asistente puede hacer en esa pantalla cuando el modo control está activo.
+//   - window.sugrafBotListo: promesa que se resuelve cuando la página ha cargado sus datos.
+//
+// Modo control (interruptor bajo el robot): el servidor devuelve llamadas a esas acciones,
+// se ejecutan aquí a la vista del usuario y su resultado vuelve al modelo, hasta que
+// responde con texto. Si una acción cambia de módulo, la tarea sigue en la página nueva
+// (sessionStorage). Búsqueda en internet: botón de la bola del mundo de la cabecera.
 // Se sirve en /chatbot.js (ver main.py) y la API está en Control_IA/api_control.py.
 (function () {
   const usuario = localStorage.getItem('sugraf_user');
   if (!usuario) return;
+  if (window.SugrafBot) return; // el inicio puede cargarlo dos veces (al entrar)
 
   const CLAVE_CONVERSACION = 'sugraf_bot_conversacion';
-  const MAX_GUARDADOS = 30;
+  const CLAVE_PENDIENTE = 'sugraf_bot_pendiente';
+  const CLAVE_CONTROL = 'sugraf_bot_control';
+  const CLAVE_WEB = 'sugraf_bot_web';
+  const MAX_GUARDADOS = 40;
   const MAX_HISTORIAL_ENVIO = 6;
+  const MAX_RONDAS = 8;
+  const PAUSA_ACCION = 450;
+  const CADUCIDAD_PENDIENTE = 3 * 60 * 1000;
 
   const MODULOS = {
     inicio: 'Inicio', generador: 'Introducir Aviso', gestor: 'Organizador de Avisos',
     adjudicados: 'Avisos Asignados', historicos: 'Históricos SAT', manuales: 'Manuales Técnicos',
   };
+  const RUTAS = {inicio: '/', generador: '/vista/generador', gestor: '/vista/gestor', adjudicados: '/vista/adjudicados',
+                 historicos: '/vista/historicos', manuales: '/vista/manuales'};
   const SUGERENCIAS = {
     inicio: ['¿Qué puedo hacer en cada módulo?', 'Busca averías parecidas a "error 116" en Xerox'],
     generador: ['¿Este cliente ha tenido este problema antes?', '¿Qué etiquetas debería marcar?'],
     gestor: ['¿Qué avisos urgentes están sin asignar?', '¿Cuántos avisos tiene cada técnico?'],
     adjudicados: ['¿Ha pasado algo parecido antes en esta máquina?', 'Resume el historial de este cliente'],
     historicos: ['¿Cuáles son las averías más repetidas?', '¿Qué se cambió la última vez?'],
-    manuales: ['¿Qué averías se repiten en este modelo?', 'Resume el historial de este cliente'],
+    manuales: ['¿Hay manual de mantenimiento de esta máquina?', '¿Qué máquinas de este cliente no tienen manual?'],
+  };
+  const SUGERENCIAS_CONTROL = {
+    inicio: ['Llévame a mis avisos asignados', 'Abre los manuales de Roland'],
+    generador: ['Rellena un aviso para este cliente: no imprime'],
+    gestor: ['Muéstrame los avisos urgentes sin asignar'],
+    adjudicados: ['Abre el parte del primer aviso pendiente', 'Enséñame los manuales de esta máquina'],
+    historicos: ['Filtra los partes de este año'],
+    manuales: ['Busca los manuales de mantenimiento de Epson'],
   };
 
   const ruta = window.location.pathname;
   const modulo = (ruta.match(/^\/vista\/([a-z]+)/) || [])[1] || 'inicio';
 
+  function leerPref(clave) { try { return localStorage.getItem(clave) === '1'; } catch (e) { return false; } }
+  function guardarPref(clave, valor) { try { localStorage.setItem(clave, valor ? '1' : '0'); } catch (e) {} }
+  let modoControl = leerPref(CLAVE_CONTROL);
+  let modoWeb = leerPref(CLAVE_WEB);
+
   // ---------- Estilos ----------
   const css = `
-  .sbot-fab{ position:fixed; right:20px; bottom:20px; width:58px; height:58px; border-radius:50%; border:none; cursor:pointer;
+  .sbot-dock{ position:fixed; right:20px; bottom:14px; z-index:10000; display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .sbot-dock.oculto{ display:none; }
+  .sbot-fab{ position:relative; width:58px; height:58px; border-radius:50%; border:none; cursor:pointer;
     background:linear-gradient(160deg,#00806c 0%,#006858 60%,#004d40 100%); box-shadow:0 10px 26px rgba(0,0,0,0.35), 0 0 0 4px rgba(0,104,88,0.18);
-    display:flex; align-items:center; justify-content:center; z-index:10000; transition:transform .2s ease; }
+    display:flex; align-items:center; justify-content:center; transition:transform .2s ease; }
   .sbot-fab:hover{ transform:translateY(-2px) scale(1.04); }
   .sbot-fab svg{ width:32px; height:32px; }
-  .sbot-fab.oculto{ display:none; }
+  .sbot-fab.trabajando::after{ content:""; position:absolute; inset:-6px; border-radius:50%; border:3px solid transparent; border-top-color:#2fd9b8; border-right-color:#2fd9b8; animation:sbotGiro .9s linear infinite; }
+  .sbot-fab.aviso::before{ content:""; position:absolute; top:1px; right:1px; width:13px; height:13px; border-radius:50%; background:#ef4444; border:2px solid #fff; }
+  @keyframes sbotGiro{ to{ transform:rotate(360deg); } }
+  .sbot-switch{ display:flex; align-items:center; gap:7px; background:rgba(10,24,38,0.88); border:1px solid rgba(182,190,196,0.28); color:#a9bcd6;
+    padding:4px 5px 4px 10px; border-radius:999px; font-family:'Montserrat',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.3); transition:border-color .2s, color .2s; }
+  .sbot-switch:hover{ border-color:rgba(47,217,184,.6); }
+  .sbot-switch .sbot-pista{ width:28px; height:16px; border-radius:999px; background:#4a5a72; position:relative; transition:background .2s; flex-shrink:0; }
+  .sbot-switch .sbot-pista::after{ content:""; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .2s; }
+  .sbot-switch[aria-checked="true"]{ color:#fff; border-color:rgba(47,217,184,.6); }
+  .sbot-switch[aria-checked="true"] .sbot-pista{ background:#2fd9b8; }
+  .sbot-switch[aria-checked="true"] .sbot-pista::after{ transform:translateX(12px); }
   .sbot-panel{ position:fixed; right:20px; bottom:20px; width:390px; height:600px; max-height:calc(100vh - 40px); z-index:10001;
     background:#fff; color:#10263B; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.45); display:none; flex-direction:column; overflow:hidden;
     font-family:'Montserrat',sans-serif; }
   .sbot-panel.abierto{ display:flex; animation:sbotIn .18s ease; }
   @keyframes sbotIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
-  .sbot-head{ background:linear-gradient(160deg,#173654 0%,#10263B 100%); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; }
+  .sbot-head{ background:linear-gradient(160deg,#173654 0%,#10263B 100%); color:#fff; padding:14px 12px 14px 16px; display:flex; align-items:center; gap:8px; }
   .sbot-head .sbot-avatar{ width:36px; height:36px; border-radius:50%; background:rgba(0,104,88,0.35); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .sbot-head .sbot-avatar svg{ width:24px; height:24px; }
   .sbot-head .sbot-titulo{ flex:1; min-width:0; }
@@ -50,14 +93,28 @@
   .sbot-head button{ background:none; border:none; color:#a9bcd6; cursor:pointer; font-size:0.72rem; font-weight:700; font-family:inherit; padding:6px; border-radius:8px; }
   .sbot-head button:hover{ color:#fff; background:rgba(255,255,255,0.08); }
   .sbot-head .sbot-cerrar{ font-size:1.4rem; line-height:1; }
+  .sbot-head .sbot-web{ width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    border:1px solid rgba(182,190,196,0.25); transition:background .15s, border-color .15s; }
+  .sbot-head .sbot-web svg{ width:17px; height:17px; }
+  .sbot-head .sbot-web.activo{ background:#006858; border-color:#2fd9b8; box-shadow:0 0 0 3px rgba(47,217,184,0.18); }
+  .sbot-head .sbot-web.activo:hover{ background:#00806c; }
   .sbot-msgs{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; background:#f4f7fa; }
   .sbot-msg{ max-width:86%; padding:10px 13px; border-radius:14px; font-size:0.86rem; line-height:1.45; word-break:break-word; }
   .sbot-msg.user{ align-self:flex-end; background:#006858; color:#fff; border-bottom-right-radius:4px; white-space:pre-wrap; }
   .sbot-msg.assistant{ align-self:flex-start; background:#fff; color:#10263B; border:1px solid #e2e8f0; border-bottom-left-radius:4px; }
   .sbot-msg.error{ align-self:flex-start; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
+  .sbot-msg a{ color:#006858; font-weight:600; }
   .sbot-msg ul{ margin:4px 0 4px 18px; padding:0; }
   .sbot-msg p{ margin:0 0 6px; } .sbot-msg p:last-child{ margin-bottom:0; }
   .sbot-fuente{ display:block; margin-top:6px; font-size:0.68rem; color:#64748b; }
+  .sbot-fuentes{ margin-top:8px; padding-top:7px; border-top:1px dashed #e2e8f0; display:flex; flex-direction:column; gap:3px; }
+  .sbot-fuentes b{ font-size:0.66rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em; }
+  .sbot-fuentes a{ font-size:0.74rem; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sbot-fuentes a:hover{ text-decoration:underline; }
+  .sbot-paso{ align-self:center; display:flex; align-items:center; gap:6px; max-width:94%; font-size:0.72rem; font-weight:600; color:#2c5a52;
+    background:#e6f3f0; border:1px solid #c7e3dc; padding:4px 11px; border-radius:999px; }
+  .sbot-paso svg{ width:13px; height:13px; flex-shrink:0; }
+  .sbot-paso.fallo{ color:#b45309; background:#fef3c7; border-color:#fde68a; }
   .sbot-escribiendo{ display:inline-flex; gap:4px; } .sbot-escribiendo i{ width:6px; height:6px; border-radius:50%; background:#94a3b8; animation:sbotPunto 1s infinite; }
   .sbot-escribiendo i:nth-child(2){ animation-delay:.15s; } .sbot-escribiendo i:nth-child(3){ animation-delay:.3s; }
   @keyframes sbotPunto{ 0%,80%,100%{ opacity:.3; } 40%{ opacity:1; } }
@@ -75,8 +132,16 @@
   .sbot-mic.grabando{ background:#ef4444; animation:sbotPulso 1.2s infinite; }
   @keyframes sbotPulso{ 0%{ box-shadow:0 0 0 0 rgba(239,68,68,.5); } 70%{ box-shadow:0 0 0 10px rgba(239,68,68,0); } 100%{ box-shadow:0 0 0 0 rgba(239,68,68,0); } }
   .sbot-estado{ font-size:0.72rem; color:#ef4444; padding:0 14px 8px; background:#fff; display:none; }
+  .sbot-toast{ position:fixed; right:20px; bottom:118px; max-width:340px; z-index:10002; display:none; align-items:center; gap:8px;
+    background:#10263B; color:#fff; border:1px solid rgba(47,217,184,0.4); padding:10px 13px; border-radius:12px;
+    font-family:'Montserrat',sans-serif; font-size:0.8rem; font-weight:600; box-shadow:0 12px 28px rgba(0,0,0,.35); }
+  .sbot-toast.visible{ display:flex; animation:sbotIn .18s ease; }
+  .sbot-resalte{ outline:3px solid #2fd9b8 !important; outline-offset:2px !important; box-shadow:0 0 0 7px rgba(47,217,184,.28) !important;
+    transition:outline-color .2s, box-shadow .2s; }
   @media (max-width:560px){
-    .sbot-fab{ right:14px; bottom:14px; width:54px; height:54px; }
+    .sbot-dock{ right:14px; bottom:12px; }
+    .sbot-toast{ left:14px; right:14px; bottom:108px; max-width:none; }
+    .sbot-fab{ width:54px; height:54px; }
     .sbot-panel{ right:0; bottom:0; width:100%; height:100%; max-height:none; border-radius:0; }
   }`;
   const estilo = document.createElement('style');
@@ -93,14 +158,20 @@
     <rect x="11" y="25.5" width="10" height="3" rx="1.5" fill="#fff" opacity=".85"/></svg>`;
   const ICONO_ENVIAR = `<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l15-7-5 15-2.5-6.5L4 12z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
   const ICONO_MIC = (color) => `<svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="${color}" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+  const ICONO_MUNDO = `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.25" stroke="#a9bcd6"/><path d="M3.75 12h16.5M12 3.75c2.3 2.4 3.4 5.15 3.4 8.25S14.3 17.85 12 20.25C9.7 17.85 8.6 15.1 8.6 12S9.7 6.15 12 3.75Z" stroke="#2fd9b8"/></svg>`;
+  const ICONO_MUNDO_ACTIVO = ICONO_MUNDO.replace('stroke="#a9bcd6"', 'stroke="#fff"').replace('stroke="#2fd9b8"', 'stroke="#fff"');
+  const ICONO_PASO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
 
   // ---------- Estructura ----------
-  const fab = document.createElement('button');
-  fab.className = 'sbot-fab';
-  fab.type = 'button';
-  fab.title = 'Asistente Sugraf';
-  fab.setAttribute('aria-label', 'Abrir asistente');
-  fab.innerHTML = ROBOT;
+  const dock = document.createElement('div');
+  dock.className = 'sbot-dock';
+  dock.innerHTML = `
+    <button type="button" class="sbot-fab" title="Asistente Sugraf" aria-label="Abrir asistente">${ROBOT}</button>
+    <button type="button" class="sbot-switch" role="switch" title="Permite que el asistente use la aplicación por ti">
+      Control <span class="sbot-pista"></span>
+    </button>`;
+  const fab = dock.querySelector('.sbot-fab');
+  const $switch = dock.querySelector('.sbot-switch');
 
   const panel = document.createElement('div');
   panel.className = 'sbot-panel';
@@ -108,19 +179,24 @@
     <div class="sbot-head">
       <div class="sbot-avatar">${ROBOT}</div>
       <div class="sbot-titulo"><strong>Asistente Sugraf</strong><small class="sbot-viendo"></small></div>
+      <button type="button" class="sbot-web" aria-pressed="false"></button>
       <button type="button" class="sbot-nueva" title="Empezar una conversación nueva">Nueva</button>
       <button type="button" class="sbot-cerrar" aria-label="Cerrar">&times;</button>
     </div>
     <div class="sbot-msgs"></div>
     <div class="sbot-estado"></div>
     <div class="sbot-input">
-      <textarea rows="1" placeholder="Escribe o pulsa el micrófono..."></textarea>
+      <textarea rows="1"></textarea>
       <button type="button" class="sbot-btn sbot-mic" title="Dictar por voz">${ICONO_MIC('#10263B')}</button>
       <button type="button" class="sbot-btn sbot-enviar" title="Enviar">${ICONO_ENVIAR}</button>
     </div>`;
 
-  document.body.appendChild(fab);
+  const toast = document.createElement('div');
+  toast.className = 'sbot-toast';
+
+  document.body.appendChild(dock);
   document.body.appendChild(panel);
+  document.body.appendChild(toast);
 
   const $msgs = panel.querySelector('.sbot-msgs');
   const $texto = panel.querySelector('textarea');
@@ -128,6 +204,10 @@
   const $mic = panel.querySelector('.sbot-mic');
   const $estado = panel.querySelector('.sbot-estado');
   const $viendo = panel.querySelector('.sbot-viendo');
+  const $web = panel.querySelector('.sbot-web');
+
+  const pausa = ms => new Promise(r => setTimeout(r, ms));
+  const esMovil = () => window.matchMedia('(max-width:560px)').matches;
 
   // ---------- Conversación (se conserva al cambiar de pantalla) ----------
   function leerConversacion() {
@@ -142,9 +222,20 @@
     return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  // Markdown mínimo: **negrita**, listas con "- " y párrafos.
+  // Solo enlaces web o rutas de la propia app (p. ej. /api/manuales/archivo/...).
+  function enlace(url, texto) {
+    const seguro = /^(https?:\/\/|\/(?!\/))/i.test(url) ? url : '#';
+    return `<a href="${seguro}" target="_blank" rel="noopener">${texto}</a>`;
+  }
+
+  // Markdown mínimo: **negrita**, listas con "- ", párrafos y enlaces [texto](url) o sueltos.
   function formatear(texto) {
-    const lineas = escHtml(texto).split('\n');
+    const enlaces = [];
+    const guardar = html => `\u0000${enlaces.push(html) - 1}\u0000`;
+    const conEnlaces = escHtml(texto)
+      .replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)/g, (_, txt, url) => guardar(enlace(url, txt)))
+      .replace(/https?:\/\/[^\s<\u0000]+[^\s<.,;:!?)\u0000]/g, url => guardar(enlace(url, url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 45))));
+    const lineas = conEnlaces.split('\n');
     let html = '', enLista = false;
     lineas.forEach(l => {
       const item = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
@@ -157,7 +248,7 @@
       }
     });
     if (enLista) html += '</ul>';
-    return html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\u0000(\d+)\u0000/g, (_, i) => enlaces[i]);
   }
 
   function contexto() {
@@ -167,14 +258,34 @@
 
   function actualizarCabecera() {
     const ctx = contexto();
-    $viendo.textContent = 'Viendo: ' + (ctx.etiqueta ? `${MODULOS[modulo]} · ${ctx.etiqueta}` : MODULOS[modulo]);
+    const modos = [modoControl && 'Control', modoWeb && 'Internet'].filter(Boolean).join(' · ');
+    $viendo.textContent = 'Viendo: ' + (ctx.etiqueta ? `${MODULOS[modulo]} · ${ctx.etiqueta}` : MODULOS[modulo]) + (modos ? ` · ${modos}` : '');
+  }
+
+  function pintarModos() {
+    $switch.setAttribute('aria-checked', modoControl ? 'true' : 'false');
+    $switch.title = modoControl ? 'El asistente puede usar la aplicación (pulsa para desactivar)'
+                                : 'Permite que el asistente use la aplicación por ti';
+    $web.classList.toggle('activo', modoWeb);
+    $web.setAttribute('aria-pressed', modoWeb ? 'true' : 'false');
+    $web.innerHTML = modoWeb ? ICONO_MUNDO_ACTIVO : ICONO_MUNDO;
+    $web.title = modoWeb ? 'Búsqueda en internet activada (pulsa para desactivar)' : 'Buscar también en internet';
+    $texto.placeholder = modoWeb ? 'Pregunta (también buscaré en internet)...' : 'Escribe o pulsa el micrófono...';
+    actualizarCabecera();
   }
 
   function burbuja(m) {
     const div = document.createElement('div');
+    if (m.rol === 'paso') {
+      div.className = `sbot-paso ${m.fallo ? 'fallo' : ''}`;
+      div.innerHTML = ICONO_PASO + `<span>${escHtml(m.texto)}</span>`;
+      return div;
+    }
     div.className = `sbot-msg ${m.rol}`;
     if (m.rol === 'assistant') {
       div.innerHTML = formatear(m.texto) +
+        (m.fuentes && m.fuentes.length
+          ? `<div class="sbot-fuentes"><b>Fuentes</b>${m.fuentes.map(f => enlace(f.url, escHtml(f.titulo || f.url))).join('')}</div>` : '') +
         (m.partes && m.partes.length ? `<span class="sbot-fuente">Consultados ${m.partes.length} partes del histórico</span>` : '');
     } else {
       div.textContent = m.texto;
@@ -182,16 +293,18 @@
     return div;
   }
 
+  let trabajando = false;
   function pintar() {
     $msgs.innerHTML = '';
     if (!conversacion.length) {
       const hola = document.createElement('div');
       hola.className = 'sbot-msg assistant';
-      hola.innerHTML = formatear(`Hola, ${usuario}. Soy el asistente de Sugraf y veo lo mismo que tú en **${MODULOS[modulo]}**. Puedes escribirme o hablarme con el micrófono.`);
+      hola.innerHTML = formatear(`Hola, ${usuario}. Soy el asistente de Sugraf y veo lo mismo que tú en **${MODULOS[modulo]}**. Puedes escribirme o hablarme con el micrófono.` +
+        (modoControl ? '\nEl **control** está activado: puedo usar la aplicación por ti.' : ''));
       $msgs.appendChild(hola);
       const sug = document.createElement('div');
       sug.className = 'sbot-sugerencias';
-      (SUGERENCIAS[modulo] || []).forEach(s => {
+      [...(modoControl ? SUGERENCIAS_CONTROL[modulo] || [] : []), ...(SUGERENCIAS[modulo] || [])].slice(0, 3).forEach(s => {
         const b = document.createElement('button');
         b.type = 'button';
         b.textContent = s;
@@ -201,49 +314,258 @@
       $msgs.appendChild(sug);
     }
     conversacion.forEach(m => $msgs.appendChild(burbuja(m)));
+    if (trabajando) {
+      const pensando = document.createElement('div');
+      pensando.className = 'sbot-msg assistant';
+      pensando.innerHTML = '<span class="sbot-escribiendo"><i></i><i></i><i></i></span>';
+      $msgs.appendChild(pensando);
+    }
     $msgs.scrollTop = $msgs.scrollHeight;
   }
 
-  // ---------- Envío ----------
-  let enviando = false;
+  function anotar(m) {
+    conversacion.push(m);
+    guardarConversacion(conversacion);
+    pintar();
+  }
+
+  // ---------- Acciones sobre la aplicación (modo control) ----------
+  function modulosPermitidos() {
+    const todos = Object.keys(MODULOS);
+    return usuario === 'Técnico 4' ? todos.filter(m => m !== 'generador' && m !== 'gestor') : todos;
+  }
+
+  const ACCIONES_GLOBALES = {
+    ir_a_modulo: {
+      descripcion: 'Cambia a otro módulo de la aplicación. Úsalo cuando lo que pide el usuario está en otra pantalla.',
+      parametros: {type: 'object', properties: {modulo: {type: 'string', enum: modulosPermitidos(),
+        description: 'inicio, generador (Introducir Aviso), gestor (Organizador), adjudicados (Avisos Asignados), historicos, manuales'}},
+        required: ['modulo'], additionalProperties: false},
+      etiqueta: a => `Abriendo ${MODULOS[a.modulo] || a.modulo}`,
+      navega: true,
+    },
+  };
+
+  function acciones() {
+    return {...ACCIONES_GLOBALES, ...(window.sugrafBotAcciones || {})};
+  }
+
+  function catalogoAcciones() {
+    return Object.entries(acciones()).map(([nombre, a]) => ({
+      nombre, descripcion: a.descripcion || '',
+      parametros: a.parametros || {type: 'object', properties: {}, additionalProperties: false},
+    }));
+  }
+
+  // Lleva la vista al elemento y lo marca un momento, para que se vea qué toca el asistente.
+  async function resaltar(el) {
+    if (!el) return;
+    try { el.scrollIntoView({behavior: 'smooth', block: 'center'}); } catch (e) {}
+    el.classList.add('sbot-resalte');
+    setTimeout(() => el.classList.remove('sbot-resalte'), 1500);
+    await pausa(350);
+  }
+
+  // Escribe en un campo como si se tecleara (rápido) y lanza sus eventos input/change.
+  async function escribir(el, valor, {eventos = true} = {}) {
+    if (!el) return;
+    const texto = String(valor ?? '');
+    await resaltar(el);
+    if (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'time' || texto.length > 400) {
+      el.value = texto;
+    } else {
+      const paso = Math.max(1, Math.ceil(texto.length / 24));
+      el.value = '';
+      for (let i = 0; i < texto.length; i += paso) {
+        el.value = texto.slice(0, i + paso);
+        await pausa(16);
+      }
+      el.value = texto;
+    }
+    if (eventos) {
+      el.dispatchEvent(new Event('input', {bubbles: true}));
+      el.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+  }
+
+  function etiquetaDe(llamada) {
+    const accion = acciones()[llamada.nombre];
+    try { return (accion && accion.etiqueta && accion.etiqueta(llamada.args || {})) || `Usando ${llamada.nombre}`; }
+    catch (e) { return `Usando ${llamada.nombre}`; }
+  }
+
+  async function ejecutar(llamada) {
+    const accion = acciones()[llamada.nombre];
+    if (!accion) return {ok: false, error: `La acción ${llamada.nombre} no está disponible en esta pantalla.`};
+    try {
+      const r = await accion.ejecutar(llamada.args || {});
+      return r === undefined ? {ok: true} : r;
+    } catch (e) {
+      return {ok: false, error: e.message || String(e)};
+    }
+  }
+
+  function mostrarToast(texto, ms = 0) {
+    toast.textContent = texto;
+    toast.classList.add('visible');
+    clearTimeout(mostrarToast.t);
+    if (ms) mostrarToast.t = setTimeout(() => toast.classList.remove('visible'), ms);
+  }
+
+  // Pendiente al cambiar de página: id de la respuesta y resultados de sus llamadas.
+  function guardarPendiente(p) { try { sessionStorage.setItem(CLAVE_PENDIENTE, JSON.stringify({...p, hora: Date.now()})); } catch (e) {} }
+  function sacarPendiente() {
+    try {
+      const p = JSON.parse(sessionStorage.getItem(CLAVE_PENDIENTE));
+      sessionStorage.removeItem(CLAVE_PENDIENTE);
+      return p && Date.now() - p.hora < CADUCIDAD_PENDIENTE ? p : null;
+    } catch (e) { return null; }
+  }
+
+  // ---------- Envío y bucle de acciones ----------
+  async function llamar(extra) {
+    const res = await fetch('/api/control/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        modulo, usuario, pantalla: contexto(), web: modoWeb, control: modoControl,
+        acciones: modoControl ? catalogoAcciones() : [], ...extra,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Error HTTP ${res.status}`);
+    return data;
+  }
+
+  let cancelado = false;
+
+  // Ejecuta las acciones que pide el modelo y le devuelve los resultados, hasta que
+  // responde con texto. Devuelve la respuesta final, o null si la página va a cambiar.
+  async function resolverAcciones(data, partes) {
+    for (let ronda = 0; data.acciones && data.acciones.length; ronda++) {
+      if (cancelado || !modoControl) {
+        anotar({rol: 'paso', texto: 'Control detenido', fallo: true});
+        return {respuesta: 'He parado de usar la aplicación.', fuentes: []};
+      }
+      if (ronda >= MAX_RONDAS) {
+        return {respuesta: 'He necesitado demasiados pasos y me he detenido. Dime cómo seguir.', fuentes: []};
+      }
+      if (data.respuesta) anotar({rol: 'assistant', texto: data.respuesta, fuentes: data.fuentes || []});
+      if (esMovil()) {
+        // En el móvil el chat ocupa la pantalla: se oculta para que se vea lo que hace.
+        cerrar();
+        fab.classList.add('trabajando');
+      }
+
+      const resultados = [];
+      for (let i = 0; i < data.acciones.length; i++) {
+        const llamada = data.acciones[i];
+        const accion = acciones()[llamada.nombre];
+        const etiqueta = etiquetaDe(llamada);
+        anotar({rol: 'paso', texto: etiqueta});
+        if (esMovil()) mostrarToast(etiqueta);
+
+        if (accion && accion.navega) {
+          const destino = (llamada.args || {}).modulo;
+          if (destino === modulo) {
+            resultados.push({call_id: llamada.call_id, salida: JSON.stringify({ok: true, aviso: 'Ya estabas en ese módulo.'})});
+            continue;
+          }
+          if (!modulosPermitidos().includes(destino)) {
+            resultados.push({call_id: llamada.call_id, salida: JSON.stringify({ok: false, error: 'Este usuario no tiene acceso a ese módulo.'})});
+            continue;
+          }
+          // La página va a cambiar: las llamadas que quedan no se ejecutan.
+          resultados.push({call_id: llamada.call_id, salida: JSON.stringify({ok: true, resultado: `Ahora estás en ${MODULOS[destino]}.`})});
+          data.acciones.slice(i + 1).forEach(r => resultados.push({call_id: r.call_id,
+            salida: JSON.stringify({ok: false, error: 'No ejecutada: se cambió de módulo antes. Vuelve a pedirla si hace falta.'})}));
+          guardarPendiente({respuesta_id: data.respuesta_id, resultados, partes});
+          await pausa(300);
+          window.location.href = RUTAS[destino];
+          return null;
+        }
+
+        if (accion && accion.terminal) {
+          // Acción que deja la página (p. ej. crear el aviso): no se espera respuesta.
+          const r = await ejecutar(llamada);
+          if (r && r.ok === false) {
+            resultados.push({call_id: llamada.call_id, salida: JSON.stringify(r)});
+            anotar({rol: 'paso', texto: `No se ha podido: ${r.error}`, fallo: true});
+            continue;
+          }
+          return {respuesta: r.mensaje || 'Hecho.', fuentes: []};
+        }
+
+        const r = await ejecutar(llamada);
+        resultados.push({call_id: llamada.call_id, salida: JSON.stringify(r)});
+        if (r && r.ok === false) anotar({rol: 'paso', texto: `No se ha podido: ${r.error}`, fallo: true});
+        await pausa(PAUSA_ACCION);
+      }
+      data = await llamar({continuar: data.respuesta_id, resultados});
+    }
+    return data;
+  }
+
+  async function trabajar(primeraLlamada, partesPrevias = []) {
+    trabajando = true;
+    cancelado = false;
+    $enviar.disabled = true;
+    pintar();
+    let cambiaDePagina = false;
+    try {
+      const data = await primeraLlamada();
+      const partes = partesPrevias.length ? partesPrevias : (data.partes || []);
+      const final = await resolverAcciones(data, partes);
+      if (final === null) { cambiaDePagina = true; return; } // la tarea sigue en la otra página
+      anotar({rol: 'assistant', texto: final.respuesta, partes, fuentes: final.fuentes || []});
+    } catch (e) {
+      anotar({rol: 'error', texto: `No he podido responder: ${e.message}`});
+    } finally {
+      if (!cambiaDePagina) {
+        trabajando = false;
+        $enviar.disabled = false;
+        fab.classList.remove('trabajando');
+        pintar();
+        if (!panel.classList.contains('abierto')) {
+          fab.classList.add('aviso');
+          mostrarToast('Listo. Toca el robot para ver la respuesta.', 4500);
+        } else {
+          toast.classList.remove('visible');
+        }
+      }
+    }
+  }
+
   async function enviar(texto) {
     // Enviar corta el dictado (aunque ya se hubiera parado, puede quedar una frase en camino).
     if (texto === undefined) pararDictado(true);
     texto = (texto ?? $texto.value).trim();
-    if (!texto || enviando) return;
-    enviando = true;
-    $enviar.disabled = true;
+    if (!texto || trabajando) return;
     $texto.value = '';
     ajustarAltura();
 
-    const historial = conversacion.filter(m => m.rol !== 'error').slice(-MAX_HISTORIAL_ENVIO)
+    const historial = conversacion.filter(m => m.rol === 'user' || m.rol === 'assistant').slice(-MAX_HISTORIAL_ENVIO)
       .map(m => ({rol: m.rol, texto: m.texto}));
     conversacion.push({rol: 'user', texto});
     guardarConversacion(conversacion);
-    pintar();
+    await trabajar(() => llamar({mensaje: texto, historial}));
+  }
 
-    const pensando = document.createElement('div');
-    pensando.className = 'sbot-msg assistant';
-    pensando.innerHTML = '<span class="sbot-escribiendo"><i></i><i></i><i></i></span>';
-    $msgs.appendChild(pensando);
-    $msgs.scrollTop = $msgs.scrollHeight;
-
-    try {
-      const res = await fetch('/api/control/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({mensaje: texto, modulo, usuario, pantalla: contexto(), historial}),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || `Error HTTP ${res.status}`);
-      conversacion.push({rol: 'assistant', texto: data.respuesta, partes: data.partes || []});
-    } catch (e) {
-      conversacion.push({rol: 'error', texto: `No he podido responder: ${e.message}`});
+  // Tras cambiar de módulo por una acción, se sigue la tarea cuando la página ha cargado.
+  async function reanudar() {
+    const pendiente = sacarPendiente();
+    if (!pendiente || !modoControl) return;
+    if (esMovil()) {
+      fab.classList.add('trabajando');
+      mostrarToast('Continuando…');
+    } else {
+      abrir();
     }
-    guardarConversacion(conversacion);
-    enviando = false;
-    $enviar.disabled = false;
+    trabajando = true;
     pintar();
+    await Promise.race([Promise.resolve(window.sugrafBotListo).catch(() => {}), pausa(15000)]);
+    await pausa(300);
+    await trabajar(() => llamar({continuar: pendiente.respuesta_id, resultados: pendiente.resultados}), pendiente.partes || []);
   }
 
   function ajustarAltura() {
@@ -257,9 +579,23 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
   });
   panel.querySelector('.sbot-nueva').addEventListener('click', () => {
+    if (trabajando) cancelado = true;
     conversacion = [];
     guardarConversacion(conversacion);
     pintar();
+  });
+  $web.addEventListener('click', () => {
+    modoWeb = !modoWeb;
+    guardarPref(CLAVE_WEB, modoWeb);
+    pintarModos();
+  });
+  $switch.addEventListener('click', () => {
+    modoControl = !modoControl;
+    guardarPref(CLAVE_CONTROL, modoControl);
+    if (!modoControl && trabajando) cancelado = true;
+    pintarModos();
+    mostrarToast(modoControl ? 'Control activado: el asistente puede usar la aplicación.' : 'Control desactivado.', 2500);
+    if (panel.classList.contains('abierto') || !conversacion.length) pintar();
   });
 
   // ---------- Voz (reconocimiento del navegador, sin coste) ----------
@@ -348,19 +684,23 @@
 
   // ---------- Abrir / cerrar ----------
   function abrir() {
-    actualizarCabecera();
+    pintarModos();
     pintar();
     panel.classList.add('abierto');
-    fab.classList.add('oculto');
+    dock.classList.add('oculto');
+    fab.classList.remove('aviso');
+    toast.classList.remove('visible');
     setTimeout(() => $texto.focus(), 50);
   }
   function cerrar() {
     if (grabando) pararDictado();
     panel.classList.remove('abierto');
-    fab.classList.remove('oculto');
+    dock.classList.remove('oculto');
   }
   fab.addEventListener('click', abrir);
   panel.querySelector('.sbot-cerrar').addEventListener('click', cerrar);
 
-  window.SugrafBot = { abrir, cerrar, enviar };
+  pintarModos();
+  window.SugrafBot = { abrir, cerrar, enviar, resaltar, escribir, pausa };
+  reanudar();
 })();

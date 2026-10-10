@@ -7,10 +7,19 @@ Cada pantalla envía junto a la pregunta un resumen de lo que se está viendo
   - datos de la pantalla,
   - partes del histórico recuperados por similitud (RAG en Control_IA/rag.py),
 y solo eso viaja al modelo, en vez de los Excel completos.
+
+Se usa la API Responses de OpenAI con dos herramientas opcionales:
+  - Búsqueda en internet (botón de la bola del mundo): herramienta web_search;
+    las fuentes citadas se devuelven aparte para mostrarlas como enlaces.
+  - Control de la aplicación (interruptor bajo el robot): cada pantalla envía las
+    acciones que admite y se ofrecen al modelo como funciones. Las llamadas se
+    devuelven al navegador, que las ejecuta y vuelve a llamar con sus resultados
+    (`continuar` = id de la respuesta anterior) hasta que el modelo contesta con texto.
 """
 import json
 import logging
 import os
+import re
 import time
 import traceback
 from typing import List
@@ -40,6 +49,14 @@ MAX_TOKENS_RESPUESTA = 3000  # incluye el razonamiento interno del modelo
 ESFUERZO_RAZONAMIENTO = "low"  # gpt-6-luna admite none / low; con más, gasta tokens pensando
 MAX_TURNOS_HISTORIAL = 6
 MAX_LINEAS_AVISOS = 60
+MAX_ACCIONES = 30
+MAX_MANUALES_CONTEXTO = 40
+MAX_FUENTES = 8
+BUSQUEDA_WEB = {
+    "type": "web_search",
+    "search_context_size": "medium",
+    "user_location": {"type": "approximate", "country": "ES", "timezone": "Europe/Madrid"},
+}
 
 _clientes_ia = {}
 
@@ -73,12 +90,25 @@ La aplicación tiene estos módulos:
 
 Reglas:
 - Responde en español, breve y práctico. Usa listas cortas con "- " y **negrita** solo para lo importante.
-- Usa únicamente la información del bloque CONTEXTO y de la conversación. Si algo no está, dilo claramente. Nunca inventes partes, fechas, clientes, piezas ni soluciones.
+- Usa únicamente la información del bloque CONTEXTO, de la conversación, de los resultados de las funciones de la app y, si la tienes, de la búsqueda en internet. Si algo no está, dilo claramente. Nunca inventes partes, fechas, clientes, piezas ni soluciones.
 - Los partes del histórico del CONTEXTO son una selección automática de los más parecidos, no el histórico completo. Para totales usa las líneas de resumen.
 - Cuando te describan un fallo, compáralo con los partes del histórico: primero los de la misma unidad, luego los del mismo modelo y después el resto. Resume qué se hizo y qué funcionó, citando nº de parte y fecha. Si no hay nada parecido, dilo; puedes proponer comprobaciones generales, pero indicando que son sugerencias tuyas y no salen del histórico.
 - Cuando el CONTEXTO incluya un "RESUMEN EXACTO" de avisos, usa sus cifras y listas tal cual: ya están calculadas, no vuelvas a contar el detalle ni señales diferencias con él. No enumeres todos los avisos salvo que te lo pidan.
 - Al proponer el reparto de avisos entre técnicos nunca des prioridad a un aviso solo por ser más antiguo.
-- Explica cómo se usa la aplicación cuando te lo pregunten, según la descripción de los módulos."""
+- Explica cómo se usa la aplicación cuando te lo pregunten, según la descripción de los módulos.
+- Para que el usuario abra un manual, dale su enlace en formato [título](url) con la url que aparece en el CONTEXTO o en el resultado de una función.
+
+Búsqueda en internet (solo si tienes la herramienta de búsqueda web):
+- Úsala para lo que no esté en el CONTEXTO: códigos de error, procedimientos y boletines del fabricante, referencias de piezas, firmware, manuales. Da prioridad a las webs oficiales de los fabricantes.
+- Distingue siempre lo que sale del histórico de Sugraf de lo que sale de internet, y cita las fuentes con enlace.
+
+Control de la aplicación (solo si tienes funciones de la app):
+- Con esas funciones manejas la aplicación por el usuario: cambiar de módulo, filtrar, abrir avisos, partes, históricos y manuales, y rellenar campos. Úsalas cuando el usuario te pida hacer algo en la app, no para responder preguntas que ya puedes contestar con el CONTEXTO.
+- Para referirte a un aviso usa su id del CONTEXTO. Si cambias de módulo, las funciones de la nueva pantalla estarán disponibles en el siguiente paso.
+- Guardar el parte, crear un aviso, asignar técnico o marcar Pirineos cambia datos reales: hazlo solo si el usuario lo pide expresamente (la app le pedirá confirmación). Antes de guardar, rellena los campos y comprueba el resultado.
+- No puedes cerrar avisos definitivos (necesitan las firmas) ni eliminar avisos: explica al usuario cómo hacerlo él.
+- Si una función devuelve un error, explícalo; no repitas la misma llamada.
+- Al terminar, resume en una o dos frases lo que has hecho y lo que le queda por hacer al usuario."""
 
 
 # ==========================================
@@ -98,6 +128,7 @@ def get_drive_service():
 # ==========================================
 def _linea_aviso(av):
     campos = [
+        f"id {av.get('id')}" if av.get('id') not in (None, '') else '',
         av.get('fecha'), av.get('cliente'), av.get('poblacion'), av.get('maquina'),
         f"Técnico: {av.get('tecnico') or 'Pendiente'}", f"Estado: {av.get('estado') or '-'}",
         f"Pirineos: {av.get('pirineos') or 'NO'}", ', '.join(av.get('etiquetas') or []), _t(av.get('descripcion'), 160),
@@ -148,12 +179,28 @@ class MensajeChat(BaseModel):
     texto: str
 
 
+class AccionApp(BaseModel):
+    nombre: str
+    descripcion: str = ''
+    parametros: dict = {}
+
+
+class ResultadoAccion(BaseModel):
+    call_id: str
+    salida: str = ''
+
+
 class PeticionChat(BaseModel):
-    mensaje: str
+    mensaje: str = ''
     modulo: str = 'inicio'
     usuario: str = ''
     pantalla: dict = {}
     historial: List[MensajeChat] = []
+    web: bool = False            # búsqueda en internet activada
+    control: bool = False        # el asistente puede manejar la app
+    acciones: List[AccionApp] = []  # lo que admite la pantalla actual
+    continuar: str = ''          # id de la respuesta cuyas llamadas a funciones se han ejecutado
+    resultados: List[ResultadoAccion] = []
 
 
 def _t(valor, maximo=300):
@@ -174,7 +221,7 @@ def contexto_pantalla(req):
         if aviso:
             lineas.append(
                 "Aviso abierto en pantalla: "
-                f"cliente {_t(aviso.get('cliente'))}; máquina {_t(aviso.get('maquina'))}; marca {_t(aviso.get('marca'))}; "
+                f"id {_t(aviso.get('id'))}; cliente {_t(aviso.get('cliente'))}; máquina {_t(aviso.get('maquina'))}; marca {_t(aviso.get('marca'))}; "
                 f"modelo {_t(aviso.get('modelo'))}; nº serie {_t(aviso.get('n_serie'))}; fecha entrada {_t(aviso.get('fecha'))}; "
                 f"estado {_t(aviso.get('estado'))}; motivo del aviso: {_t(aviso.get('descripcion'), 500)}"
                 + (f"; solución escrita hasta ahora: {_t(aviso.get('solucion'), 400)}" if aviso.get('solucion') else '')
@@ -198,6 +245,8 @@ def contexto_pantalla(req):
             "Filtros aplicados en Manuales Técnicos: "
             + (', '.join(f"{k}={_t(v)}" for k, v in f.items() if v) or 'ninguno') + '.'
         )
+        if p.get('resumen'):
+            lineas.append(f"En pantalla: {_t(p.get('resumen'))}.")
         ambito.update(cliente=f.get('cliente', ''), modelo=f.get('maquina', ''))
 
     elif req.modulo == 'gestor':
@@ -215,6 +264,14 @@ def contexto_pantalla(req):
         )
         ambito['cliente'] = f.get('cliente', '')
         extra_busqueda = f"{f.get('descripcion', '')} {' '.join(f.get('maquinas') or [])}"
+
+    # Manuales visibles (módulo de Manuales o ventana de manuales de un aviso).
+    manuales = [m for m in (p.get('manuales') or []) if isinstance(m, dict) and m.get('url')][:MAX_MANUALES_CONTEXTO]
+    if manuales:
+        lineas.append("Manuales en pantalla (enlace para abrirlos):\n" + '\n'.join(
+            f"- {_t(m.get('grupo'), 120)}: [{_t(m.get('titulo'), 150)}]({m['url']})" for m in manuales))
+    if p.get('sin_manuales'):
+        lineas.append("Máquinas sin manuales en la carpeta: " + '; '.join(_t(x, 80) for x in p['sin_manuales'][:20]) + '.')
 
     return '\n'.join(lineas), ambito, extra_busqueda
 
@@ -254,42 +311,109 @@ def contexto_historico(req, ambito, extra_busqueda):
 # ==========================================
 # Rutas
 # ==========================================
+def herramientas(req):
+    """Búsqueda web y acciones de la pantalla, en el formato de herramientas de la API Responses."""
+    tools = [dict(BUSQUEDA_WEB)] if req.web else []
+    if req.control:
+        for a in req.acciones[:MAX_ACCIONES]:
+            if not re.fullmatch(r'[A-Za-z0-9_]{1,64}', a.nombre):
+                continue
+            tools.append({
+                "type": "function",
+                "name": a.nombre,
+                "description": _t(a.descripcion, 600),
+                "parameters": a.parametros or {"type": "object", "properties": {}},
+                "strict": False,
+            })
+    return tools
+
+
+def leer_respuesta(respuesta):
+    """(texto, llamadas a funciones, fuentes web citadas, nº de búsquedas web)."""
+    llamadas, fuentes, busquedas = [], {}, 0
+    for item in respuesta.output or []:
+        tipo = getattr(item, 'type', '')
+        if tipo == 'function_call':
+            try:
+                args = json.loads(item.arguments or '{}')
+            except ValueError:
+                args = {}
+            llamadas.append({"call_id": item.call_id, "nombre": item.name, "args": args if isinstance(args, dict) else {}})
+        elif tipo == 'web_search_call':
+            busquedas += 1
+        elif tipo == 'message':
+            for parte in getattr(item, 'content', None) or []:
+                for ann in getattr(parte, 'annotations', None) or []:
+                    url = getattr(ann, 'url', '')
+                    if getattr(ann, 'type', '') == 'url_citation' and url and url not in fuentes:
+                        fuentes[url] = getattr(ann, 'title', '') or url
+    texto = (getattr(respuesta, 'output_text', '') or '').strip()
+    return texto, llamadas, [{"titulo": t, "url": u} for u, t in list(fuentes.items())[:MAX_FUENTES]], busquedas
+
+
 @router.post("/chat")
 def chat_ia(req: PeticionChat):
     inicio = time.time()
-    if not req.mensaje.strip():
+    continuando = bool(req.continuar)
+    if not continuando and not req.mensaje.strip():
         raise HTTPException(status_code=400, detail="El mensaje está vacío.")
     modulo = req.modulo if req.modulo in NOMBRES_MODULO else 'inicio'
     req.modulo = modulo
 
     try:
         texto_pantalla, ambito, extra = contexto_pantalla(req)
-        texto_historico, partes_usados = contexto_historico(req, ambito, extra)
-        contexto = (
-            f"Pantalla actual: {NOMBRES_MODULO[modulo]}. Usuario: {_t(req.usuario) or 'desconocido'}. "
-            f"Fecha de hoy: {time.strftime('%Y-%m-%d')}.\n{texto_pantalla}\n\n{texto_historico}"
-        )
+        partes_usados = []
+        if continuando:
+            # Resultado de las acciones ejecutadas en el navegador. La pantalla puede haber
+            # cambiado (otro módulo, filtros, parte abierto...), así que se añade al final.
+            entrada = [{"type": "function_call_output", "call_id": r.call_id, "output": _t(r.salida, 6000)}
+                       for r in req.resultados]
+            if entrada:
+                entrada[-1]["output"] += f"\n\nPANTALLA AHORA ({NOMBRES_MODULO[modulo]}):\n{texto_pantalla}"
+        else:
+            texto_historico, partes_usados = contexto_historico(req, ambito, extra)
+            modos = [m for m, activo in (("búsqueda en internet", req.web), ("control de la app", req.control)) if activo]
+            contexto = (
+                f"Pantalla actual: {NOMBRES_MODULO[modulo]}. Usuario: {_t(req.usuario) or 'desconocido'}. "
+                f"Fecha de hoy: {time.strftime('%Y-%m-%d')}. "
+                f"Herramientas activadas: {', '.join(modos) or 'ninguna'}.\n{texto_pantalla}\n\n{texto_historico}"
+            )
+            entrada = []
+            for m in req.historial[-MAX_TURNOS_HISTORIAL:]:
+                entrada.append({"role": "assistant" if m.rol == 'assistant' else "user", "content": _t(m.texto, 800)})
+            entrada.append({"role": "user", "content": f"CONTEXTO:\n{contexto}\n\nPREGUNTA:\n{req.mensaje.strip()}"})
 
-        mensajes = [{"role": "system", "content": PROMPT_SISTEMA}]
-        for m in req.historial[-MAX_TURNOS_HISTORIAL:]:
-            mensajes.append({"role": "assistant" if m.rol == 'assistant' else "user", "content": _t(m.texto, 800)})
-        mensajes.append({"role": "user", "content": f"CONTEXTO:\n{contexto}\n\nPREGUNTA:\n{req.mensaje.strip()}"})
-
-        respuesta = cliente_ia().chat.completions.create(
+        parametros = dict(
             model=MODELO_IA,
-            messages=mensajes,
-            max_completion_tokens=MAX_TOKENS_RESPUESTA,
-            reasoning_effort=ESFUERZO_RAZONAMIENTO,
+            instructions=PROMPT_SISTEMA,
+            input=entrada,
+            max_output_tokens=MAX_TOKENS_RESPUESTA,
+            reasoning={"effort": ESFUERZO_RAZONAMIENTO},
         )
-        texto = (respuesta.choices[0].message.content or '').strip()
+        tools = herramientas(req)
+        if tools:
+            parametros["tools"] = tools
+        if continuando:
+            parametros["previous_response_id"] = req.continuar
+
+        respuesta = cliente_ia().responses.create(**parametros)
+        texto, llamadas, fuentes, busquedas = leer_respuesta(respuesta)
         uso = respuesta.usage
         logger.info(
-            f"/chat {modulo} | {round(time.time() - inicio, 2)}s | tokens entrada={getattr(uso, 'prompt_tokens', '?')} "
-            f"salida={getattr(uso, 'completion_tokens', '?')} | partes={len(partes_usados)}"
+            f"/chat {modulo} | {round(time.time() - inicio, 2)}s | tokens entrada={getattr(uso, 'input_tokens', '?')} "
+            f"salida={getattr(uso, 'output_tokens', '?')} | partes={len(partes_usados)} | web={busquedas} "
+            f"| acciones={[c['nombre'] for c in llamadas]}"
         )
+        if not texto and not llamadas:
+            texto = ("La respuesta se ha cortado antes de terminar. Prueba a preguntar algo más concreto."
+                     if getattr(respuesta, 'status', '') == 'incomplete'
+                     else "No he podido generar una respuesta. Prueba a reformular la pregunta.")
         return {
-            "respuesta": texto or "No he podido generar una respuesta. Prueba a reformular la pregunta.",
+            "respuesta": texto,
+            "acciones": llamadas,
+            "respuesta_id": respuesta.id,
             "partes": partes_usados,
+            "fuentes": fuentes,
             "ambito": {k: v for k, v in ambito.items() if v},
         }
     except AuthenticationError:
