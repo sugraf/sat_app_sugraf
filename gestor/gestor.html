@@ -377,6 +377,7 @@
 
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
+      sessionStorage.removeItem("sugraf_bot_conversacion");
       window.location.href = "/";
     }
 
@@ -386,6 +387,7 @@
     const CAMPOS_MATCH = ['CLIENTE', 'MÁQUINA', 'DESCRIPCIÓN', 'F. ENTR.'];
 
     let avisosGlobales = [];
+    let avisosVisibles = []; // tras aplicar filtros (lo usa el asistente)
 
     async function cargarGestionAvisos() {
       showLoading();
@@ -435,6 +437,7 @@
           const clientB = (b['CLIENTE'] || '').toLowerCase();
           return clientA.localeCompare(clientB);
       });
+      avisosVisibles = filtrados;
 
       let html = "";
       filtrados.forEach((av) => {
@@ -723,6 +726,30 @@
     }
 
     cargarGestionAvisos();
+
+    // Avisos visibles con los filtros actuales, para el asistente IA (chatbot.js).
+    window.sugrafBotContexto = function () {
+        const etiquetas = ['NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR'];
+        return {
+            filtros: {
+                tecnico: document.getElementById('filtro-tecnico').value,
+                pirineos: document.getElementById('filtro-pirineos').value,
+                etiqueta: document.getElementById('filtro-etiqueta').value,
+            },
+            avisos: avisosVisibles.map(av => {
+                const marcas = etiquetas.filter(e => av[e] === 'SI').map(e => e.charAt(0) + e.slice(1).toLowerCase());
+                if (av['PIEZAS'] === 'Pendiente' || av['PIEZAS'] === 'Listo') marcas.push(`Piezas ${av['PIEZAS']}`);
+                return {
+                    fecha: String(av['F. ENTR.'] || '').slice(0, 10), cliente: av['CLIENTE'] || '',
+                    poblacion: av['POBLACIÓN'] || '', maquina: av['MÁQUINA'] || '',
+                    tecnico: av['ASIGNADO A'] || 'Pendiente',
+                    estado: av['ESTADO'] || (av.fuente === 'sin_tratar' ? 'Sin tratar' : 'Asignado'),
+                    pirineos: av['PIRINEOS'] || 'NO', etiquetas: marcas, descripcion: av['DESCRIPCIÓN'] || '',
+                };
+            }),
+        };
+    };
   </script>
+  <script src="/chatbot.js"></script>
 </body>
 </html>

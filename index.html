@@ -253,7 +253,7 @@
             </svg>
           </div>
           <h3>Históricos SAT</h3>
-          <p>Consulta los partes realizados por cliente, máquina o avería.</p>
+          <p>Consulta los partes realizados por cliente y máquina.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
         <div class="card" id="card-control-ia" style="display:none;" onclick="irA('control')">
@@ -332,6 +332,11 @@
         document.getElementById("view-dashboard").classList.add("active");
 
         applyUserPermissions();
+        if (!window.SugrafBot) {
+          const bot = document.createElement('script');
+          bot.src = '/chatbot.js';
+          document.body.appendChild(bot);
+        }
       } else {
         await appAlert("Contraseña incorrecta.", {type: 'error'});
       }
@@ -339,6 +344,7 @@
 
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
+      sessionStorage.removeItem("sugraf_bot_conversacion");
       location.reload();
     }
 
@@ -346,5 +352,6 @@
       window.location.href = `/vista/${modulo}`;
     }
   </script>
+  <script src="/chatbot.js"></script>
 </body>
 </html>

@@ -23,6 +23,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 from logger_movimientos import registrar_movimiento
+from secretos import obtener as obtener_secreto
 from aviso_matcher import resolver_indice_aviso
 from historicos.api_historicos import cargar_historico, buscar_por_aviso
 
@@ -411,7 +412,10 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
 def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
     user = "sugraf.digitalhub@gmail.com"
-    pwd = "dbsn dinz jakv vkay"
+    try:
+        pwd = obtener_secreto("GMAIL_PASSWORD")
+    except Exception as e:
+        return True, False, f"No se pudo leer la contraseña del correo: {e}"
 
     msg = EmailMessage()
     msg['Subject'] = f"Parte de Trabajo Sugraf Nº {num_parte} - {datos.pdf_cliente} - {datos.pdf_maquina}"
@@ -457,7 +461,10 @@ def enviar_email_cierre(datos: CerrarYEnviarParte, pdf_bytes, num_parte):
 def enviar_email_cierre_por_destinatario(datos: CerrarYEnviarParte, pdf_interno, pdf_cliente, num_parte):
     """Envía el PDF con observaciones solo a Laura; técnico y cliente reciben el PDF sin observaciones."""
     user = "sugraf.digitalhub@gmail.com"
-    pwd = "dbsn dinz jakv vkay"
+    try:
+        pwd = obtener_secreto("GMAIL_PASSWORD")
+    except Exception as e:
+        return True, False, f"No se pudo leer la contraseña del correo: {e}"
     laura = datos.email_laura.strip()
     sin_observaciones = []
     if datos.email_tecnico.strip():
@@ -511,7 +518,10 @@ def enviar_email_venta(row_data):
         return False, False, None
 
     user = "sugraf.digitalhub@gmail.com"
-    pwd = "dbsn dinz jakv vkay"
+    try:
+        pwd = obtener_secreto("GMAIL_PASSWORD")
+    except Exception as e:
+        return True, False, f"No se pudo leer la contraseña del correo: {e}"
 
     cliente = str(row_data.get('CLIENTE', '')).strip()
     poblacion = str(row_data.get('POBLACIÓN', '')).strip()

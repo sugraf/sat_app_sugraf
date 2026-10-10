@@ -1,305 +1,378 @@
 # control/api_control.py
+"""Asistente IA de la aplicación (chatbot del robot).
+
+Cada pantalla envía junto a la pregunta un resumen de lo que se está viendo
+(aviso abierto, filtros, lista de avisos...). Con eso se arma un contexto corto:
+  - descripción fija de la aplicación (siempre igual -> aprovecha la caché de prompts),
+  - datos de la pantalla,
+  - partes del histórico recuperados por similitud (RAG en historicos/api_historicos.py),
+y solo eso viaja al modelo, en vez de los Excel completos.
+"""
 import io
 import json
-import os
-import traceback
 import logging
+import os
 import time
+import traceback
+from typing import List
+
+import pandas as pd
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+from openai import OpenAI, APIError, AuthenticationError, RateLimitError, APIConnectionError, NotFoundError
 from pydantic import BaseModel
-import pandas as pd
-from openai import OpenAI, APIError, AuthenticationError, RateLimitError, APIConnectionError
 
-# ==========================================
-# CONFIGURACIÓN DE LOGGING ESTRUCTURADO
-# ==========================================
+from secretos import obtener as obtener_secreto
+from historicos.api_historicos import (
+    cargar_historico, detectar_entidades, resumen_ambito, similares, texto_registro,
+)
+
 logger = logging.getLogger("api_control")
 logger.setLevel(logging.INFO)
 if not logger.handlers:
     ch = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s | %(levelname)s | [%(funcName)s] | %(message)s')
-    ch.setFormatter(formatter)
+    ch.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | [%(funcName)s] | %(message)s'))
     logger.addHandler(ch)
 
-# ==========================================
-# VARIABLES GLOBALES
-# ==========================================
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
-GROQ_API_KEY = "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"
 
-# MODELO ACTUALIZADO
-MODEL_NAME = "openai/gpt-oss-120b" 
+MODELO_IA = "gpt-6-luna"
+MAX_TOKENS_RESPUESTA = 3000  # incluye el razonamiento interno del modelo
+ESFUERZO_RAZONAMIENTO = "low"  # gpt-6-luna admite none / low; con más, gasta tokens pensando
+MAX_TURNOS_HISTORIAL = 6
+MAX_LINEAS_AVISOS = 60
 
-COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'REALIZADO POR', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
-COLS_TRA = COLS_SIN + ['FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'TIPO ASISTENCIA']
+_clientes_ia = {}
 
-masked_api_key = f"{GROQ_API_KEY[:4]}...{GROQ_API_KEY[-4:]}" if len(GROQ_API_KEY) > 8 else "INVALID_KEY"
-logger.info(f"Inicializando cliente OpenAI (Groq). API Key usada: {masked_api_key}")
 
-client = OpenAI(
-    api_key=GROQ_API_KEY,
-    base_url="https://api.groq.com/openai/v1"
-)
+def cliente_ia():
+    """Cliente de OpenAI con la API key de contraseñas.txt (Drive); se rehace si la key cambia."""
+    clave = obtener_secreto("OPENAI_API_KEY")
+    if clave not in _clientes_ia:
+        _clientes_ia.clear()
+        _clientes_ia[clave] = OpenAI(api_key=clave)
+    return _clientes_ia[clave]
+
+NOMBRES_MODULO = {
+    'inicio': 'Inicio (menú principal)',
+    'generador': 'Introducir Aviso',
+    'gestor': 'Organizador de Avisos',
+    'adjudicados': 'Avisos Asignados',
+    'historicos': 'Históricos SAT',
+    'control': 'Control IA',
+}
+
+# Prompt fijo: no cambia entre peticiones para que OpenAI lo cachee.
+PROMPT_SISTEMA = """Eres el asistente técnico de Sugraf, empresa de servicio técnico (SAT) de maquinaria de artes gráficas: impresoras digitales, plotters, CTP, láseres, prensas, grapadoras, laminadoras, etc. Te usan técnicos (a menudo desde el móvil, en casa del cliente) y la oficina.
+
+La aplicación tiene estos módulos:
+- Introducir Aviso (generador): se registra un aviso nuevo con fecha, hora, cliente, población, una o varias máquinas del cliente, descripción del problema y etiquetas (Nuevo, Urgente, Parado, Reclama, Presupuesto, Piezas, Garantía, Mantenimiento, Instalación, Revisar). Se guarda en "Avisos Sin Tratar".
+- Organizador de Avisos (gestor): panel central con todos los avisos abiertos, sin tratar y tratados. Desde aquí se asigna técnico (al asignarlo pasa a "Avisos Tratados"), se marca si está metido en Pirineos (el ERP), el estado de las piezas, y se editan o eliminan avisos. Se filtra por técnico, Pirineos o etiqueta.
+- Avisos Asignados (adjudicados): cada técnico ve sus avisos (pendientes de empezar, en progreso y cerrados pendientes de pasar a Pirineos) y rellena el parte: fecha, horas, resuelto o pendiente, piezas necesarias y utilizadas, solución y observaciones internas; al cerrar firman técnico y cliente y se envía el PDF por correo. Si queda pendiente o faltan piezas se genera un aviso de seguimiento. El botón "Histórico" de cada aviso muestra los partes anteriores de esa máquina (misma unidad y mismo modelo en otros clientes) y de ese cliente.
+- Históricos SAT (historicos): consulta de los partes realizados exportados de Pirineos desde 2008, filtrando por cliente, máquina (modelo), nº de serie y fechas, con descarga a Excel.
+- Control IA: este mismo chat a pantalla completa.
+
+Reglas:
+- Responde en español, breve y práctico. Usa listas cortas con "- " y **negrita** solo para lo importante.
+- Usa únicamente la información del bloque CONTEXTO y de la conversación. Si algo no está, dilo claramente. Nunca inventes partes, fechas, clientes, piezas ni soluciones.
+- Los partes del histórico del CONTEXTO son una selección automática de los más parecidos, no el histórico completo. Para totales usa las líneas de resumen.
+- Cuando te describan un fallo, compáralo con los partes del histórico: primero los de la misma unidad, luego los del mismo modelo y después el resto. Resume qué se hizo y qué funcionó, citando nº de parte y fecha. Si no hay nada parecido, dilo; puedes proponer comprobaciones generales, pero indicando que son sugerencias tuyas y no salen del histórico.
+- Cuando el CONTEXTO incluya un "RESUMEN EXACTO" de avisos, usa sus cifras y listas tal cual: ya están calculadas, no vuelvas a contar el detalle ni señales diferencias con él. No enumeres todos los avisos salvo que te lo pidan.
+- Al proponer el reparto de avisos entre técnicos nunca des prioridad a un aviso solo por ser más antiguo.
+- Explica cómo se usa la aplicación cuando te lo pregunten, según la descripción de los módulos."""
+
 
 # ==========================================
-# FUNCIONES AUXILIARES
+# Drive (solo para el modo Control IA, que no tiene pantalla de avisos)
 # ==========================================
 def get_drive_service():
-    logger.info("Iniciando validación de credenciales de Google Drive...")
     creds_raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-    
     if not creds_raw:
-        logger.error("La variable de entorno GOOGLE_CREDENTIALS_JSON no existe o está vacía.")
         raise ValueError("Faltan las credenciales de Google Drive (GOOGLE_CREDENTIALS_JSON).")
-    
-    try:
-        creds_dict = json.loads(creds_raw)
-        logger.info("Credenciales JSON decodificadas correctamente (secretos ocultos).")
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decodificando GOOGLE_CREDENTIALS_JSON: {str(e)}")
-        raise ValueError("El formato de GOOGLE_CREDENTIALS_JSON es inválido.")
-        
-    try:
-        service = build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
-            creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
-        ))
-        logger.info("Servicio de Google Drive (API v3) creado con éxito.")
-        return service
-    except Exception as e:
-        logger.error(f"Fallo al construir el servicio de Drive: {str(e)}")
-        raise Exception(f"GoogleDriveAuthError: {str(e)}")
+    return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(
+        json.loads(creds_raw), scopes=["https://www.googleapis.com/auth/drive"]
+    ), cache_discovery=False)
 
 
-def get_excel(drive, name, cols):
-    logger.info(f"Buscando archivo en Drive: '{name}' en carpeta '{FOLDER_ID}'...")
+def get_excel(drive, name):
     query = f"'{FOLDER_ID}' in parents and name = '{name}' and trashed = false"
-    
-    try:
-        res = drive.files().list(q=query, fields="files(id, mimeType)").execute()
-    except Exception as e:
-        logger.error(f"Fallo en la API de Drive al buscar '{name}': {str(e)}")
-        raise Exception(f"DriveSearchError: No se pudo buscar el archivo {name}. Detalle: {str(e)}")
+    archivos = drive.files().list(q=query, fields="files(id, mimeType)").execute().get("files", [])
+    if not archivos:
+        return pd.DataFrame()
+    file_id, mime_type = archivos[0]['id'], archivos[0].get('mimeType', '')
+    if mime_type == 'application/vnd.google-apps.spreadsheet':
+        request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    else:
+        request = drive.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    fh.seek(0)
+    return pd.read_excel(fh, engine='openpyxl', dtype=str).fillna("")
 
-    if not res.get("files"):
-        logger.error(f"Archivo '{name}' no encontrado en la carpeta '{FOLDER_ID}'.")
-        raise Exception(f"FileNotFoundError: El archivo {name} no existe en Drive.")
 
-    file_info = res.get("files")[0]
-    file_id = file_info['id']
-    mime_type = file_info.get('mimeType', '')
-    logger.info(f"Archivo '{name}' encontrado. ID: {file_id} | MimeType: {mime_type}")
-    
-    try:
-        logger.info(f"Iniciando descarga de '{name}'...")
-        if mime_type == 'application/vnd.google-apps.spreadsheet':
-            request = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        else:
-            request = drive.files().get_media(fileId=file_id)
-        
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done: 
-            _, done = downloader.next_chunk()
-        fh.seek(0)
-        logger.info(f"Descarga de '{name}' finalizada. Tamaño en memoria: {len(fh.getvalue())} bytes.")
-    except Exception as e:
-        logger.error(f"Error durante la descarga de '{name}': {str(e)}")
-        raise Exception(f"DriveDownloadError: Fallo al descargar {name}. Detalle: {str(e)}")
+ETIQUETAS = ['NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
 
-    try:
-        logger.info(f"Procesando '{name}' con pandas...")
-        df = pd.read_excel(fh, engine='openpyxl', dtype=str).fillna("")
-        logger.info(f"Excel '{name}' procesado con éxito. Filas: {len(df)}, Columnas: {len(df.columns)}")
-        
-        missing_cols = [c for c in cols if c not in df.columns]
-        if missing_cols:
-            logger.info(f"Añadiendo {len(missing_cols)} columnas faltantes a '{name}'.")
-            for c in missing_cols:
-                df[c] = ""
-        return df
-    except Exception as e:
-        logger.error(f"Error de pandas leyendo '{name}': {str(e)}")
-        raise Exception(f"PandasError: El archivo {name} está corrupto o no es legible. Detalle: {str(e)}")
+
+def _aviso_desde_fila(fila, estado_por_defecto):
+    """Fila de los Excel de avisos -> mismo formato que envían las pantallas."""
+    etiquetas = [e.capitalize() for e in ETIQUETAS if str(fila.get(e, '')).strip().upper() == 'SI']
+    if str(fila.get('PIEZAS', '')).strip() in ('Pendiente', 'Listo'):
+        etiquetas.append(f"Piezas {fila.get('PIEZAS')}")
+    return {
+        'fecha': str(fila.get('F. ENTR.', ''))[:10], 'cliente': fila.get('CLIENTE', ''),
+        'poblacion': fila.get('POBLACIÓN', ''), 'maquina': fila.get('MÁQUINA', ''),
+        'tecnico': fila.get('ASIGNADO A', '') or 'Pendiente', 'estado': fila.get('ESTADO', '') or estado_por_defecto,
+        'pirineos': fila.get('PIRINEOS', '') or 'NO', 'etiquetas': etiquetas, 'descripcion': fila.get('DESCRIPCIÓN', ''),
+    }
+
+
+def avisos_abiertos_desde_drive():
+    drive = get_drive_service()
+    avisos = []
+    for nombre, estado in (('Avisos Sin Tratar.xlsx', 'Sin tratar'), ('Avisos Tratados.xlsx', 'Asignado')):
+        df = get_excel(drive, nombre)
+        avisos += [_aviso_desde_fila(f, estado) for f in df.to_dict(orient='records')]
+    return avisos
+
+
+def _linea_aviso(av):
+    campos = [
+        av.get('fecha'), av.get('cliente'), av.get('poblacion'), av.get('maquina'),
+        f"Técnico: {av.get('tecnico') or 'Pendiente'}", f"Estado: {av.get('estado') or '-'}",
+        f"Pirineos: {av.get('pirineos') or 'NO'}", ', '.join(av.get('etiquetas') or []), _t(av.get('descripcion'), 160),
+    ]
+    return ' | '.join(_t(c) for c in campos if str(c or '').strip())
+
+
+ETIQUETAS_RESUMEN = ['Urgente', 'Parado', 'Reclama', 'Garantía', 'Piezas Pendiente', 'Piezas Listo']
+
+
+def _bloque_avisos(titulo, avisos):
+    """Resumen calculado aquí (recuentos y listas exactas, que el modelo no tenga que
+    contar) + el detalle de cada aviso."""
+    avisos = [a for a in (avisos or []) if isinstance(a, dict)][:MAX_LINEAS_AVISOS]
+    if not avisos:
+        return f"{titulo}: ninguno."
+
+    def nombre(a):
+        tec = a.get('tecnico') or 'Pendiente'
+        return f"{_t(a.get('cliente'), 60)} – {_t(a.get('maquina'), 50)} ({'sin asignar' if tec == 'Pendiente' else tec})"
+
+    por_tecnico, por_estado = {}, {}
+    for a in avisos:
+        tec = a.get('tecnico') or 'Pendiente'
+        por_tecnico[tec] = por_tecnico.get(tec, 0) + 1
+        por_estado[a.get('estado') or '-'] = por_estado.get(a.get('estado') or '-', 0) + 1
+    resumen = [
+        f"Total: {len(avisos)} avisos.",
+        "Por técnico: " + ', '.join(f"{'Sin asignar' if t == 'Pendiente' else t} {n}" for t, n in sorted(por_tecnico.items())) + '.',
+        "Por estado: " + ', '.join(f"{e} {n}" for e, n in sorted(por_estado.items())) + '.',
+    ]
+    for etiqueta in ETIQUETAS_RESUMEN:
+        con = [a for a in avisos if etiqueta in (a.get('etiquetas') or [])]
+        if con:
+            resumen.append(f"{etiqueta} ({len(con)}): " + '; '.join(nombre(a) for a in con) + '.')
+    urgentes_libres = [a for a in avisos if 'Urgente' in (a.get('etiquetas') or []) and (a.get('tecnico') or 'Pendiente') == 'Pendiente']
+    resumen.append(f"Urgentes sin asignar: {len(urgentes_libres)}.")
+
+    return (f"{titulo} — RESUMEN EXACTO (úsalo para recuentos y listas):\n" + '\n'.join(resumen)
+            + f"\nDetalle de cada aviso:\n" + '\n'.join(f"- {_linea_aviso(a)}" for a in avisos))
 
 
 # ==========================================
-# RUTAS DE LA APLICACIÓN
+# Contexto por pantalla
 # ==========================================
-class ChatRequest(BaseModel):
-    query: str
-    mode: str
+class MensajeChat(BaseModel):
+    rol: str
+    texto: str
 
-@router.post("/chat")
-def chat_ia(req: ChatRequest):
-    start_time = time.time()
-    logger.info(f"=== INICIO PETICIÓN /chat | Mode: '{req.mode}' | Query length: {len(req.query)} ===")
-    
-    try:
-        drive = get_drive_service()
-        
-        if req.mode == "abiertos":
-            df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
-            df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
-            
-            logger.info("Concatenando DataFrames (Avisos Sin Tratar + Avisos Tratados)...")
-            df_combined = pd.concat([df_sin, df_tra], ignore_index=True)
-            df_combined = df_combined.fillna("")
-            context_text = df_combined.to_csv(index=False)
-            logger.info(f"Contexto generado. Filas totales: {len(df_combined)}")
-        else:
-            df_fin = get_excel(drive, 'Partes Finalizados.xlsx', COLS_TRA)
-            context_text = df_fin.to_csv(index=False)
-            logger.info(f"Contexto generado. Filas totales: {len(df_fin)}")
-        
-        context_len = len(context_text)
-        logger.info(f"Longitud del contexto CSV en texto: {context_len} caracteres.")
-        
-        if context_len > 20000:
-            logger.warning(f"El contexto supera los 20000 caracteres ({context_len}). Truncando datos para evitar error de tokens.")
-            context_text = context_text[:20000] + "\n...[TRUNCATED]"
 
-        system_prompt = (
-            "You are an expert technical service manager assistant. "
-            "Answer the user's question using ONLY the provided context data. "
-            "When routing or assigning technicians to locations, NEVER prioritize older tickets or give preference based on antiquity. "
-            "Answer in the same language the user asks in."
-        )
-        
-        user_prompt = f"Context Data (CSV Format):\n{context_text}\n\nQuestion: {req.query}"
-        
-        logger.info(f"Llamando a Groq API con el modelo '{MODEL_NAME}'...")
-        groq_start = time.time()
-        
-        try:
-            response = client.chat.completions.create(
-                model=MODEL_NAME, 
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.1
+class PeticionChat(BaseModel):
+    mensaje: str
+    modulo: str = 'inicio'
+    usuario: str = ''
+    pantalla: dict = {}
+    historial: List[MensajeChat] = []
+
+
+def _t(valor, maximo=300):
+    texto = ' '.join(str(valor or '').split())
+    return texto if len(texto) <= maximo else texto[:maximo] + '…'
+
+
+def contexto_pantalla(req):
+    """Devuelve (texto de la pantalla, ámbito del histórico, texto extra para la búsqueda)."""
+    p = req.pantalla or {}
+    ambito = {'cliente': '', 'modelo': '', 'n_serie': '', 'desde': '', 'hasta': ''}
+    extra_busqueda = ''
+    lineas = []
+
+    if req.modulo == 'adjudicados':
+        lineas.append(f"Técnico cuyos avisos se ven: {_t(p.get('tecnico'))}. Vista: {_t(p.get('vista'))}.")
+        aviso = p.get('aviso') or {}
+        if aviso:
+            lineas.append(
+                "Aviso abierto en pantalla: "
+                f"cliente {_t(aviso.get('cliente'))}; máquina {_t(aviso.get('maquina'))}; marca {_t(aviso.get('marca'))}; "
+                f"modelo {_t(aviso.get('modelo'))}; nº serie {_t(aviso.get('n_serie'))}; fecha entrada {_t(aviso.get('fecha'))}; "
+                f"estado {_t(aviso.get('estado'))}; motivo del aviso: {_t(aviso.get('descripcion'), 500)}"
+                + (f"; solución escrita hasta ahora: {_t(aviso.get('solucion'), 400)}" if aviso.get('solucion') else '')
             )
-            groq_time = round(time.time() - groq_start, 2)
-            logger.info(f"Respuesta de Groq recibida con éxito en {groq_time}s.")
-            
-            # --- DIAGNOSTIC INJECTION START ---
-            logger.info("[Groq Debug] HTTP response received. Inspecting content...")
-            
-            choice = response.choices[0]
-            message = choice.message
-            content = message.content
-            
-            logger.info(f"[Groq Debug] content type: {type(content)}")
-            logger.info(f"[Groq Debug] content is None: {content is None}")
-            
-            if content is not None:
-                logger.info(f"[Groq Debug] content length: {len(content)}")
-            else:
-                logger.info("[Groq Debug] content length: N/A (content is None)")
-                
-            logger.info(f"[Groq Debug] finish_reason: {choice.finish_reason}")
-            
-            has_reasoning = hasattr(message, 'reasoning')
-            logger.info(f"[Groq Debug] reasoning exists: {has_reasoning}")
-            
-            if has_reasoning:
-                reasoning_val = getattr(message, 'reasoning', None)
-                logger.info(f"[Groq Debug] reasoning is None: {reasoning_val is None}")
-                if reasoning_val is not None:
-                    try:
-                        logger.info(f"[Groq Debug] reasoning length: {len(reasoning_val)}")
-                    except Exception:
-                        logger.info("[Groq Debug] reasoning length: Unable to determine (not a sized object)")
-            else:
-                logger.info("[Groq Debug] reasoning field not present")
-            # --- DIAGNOSTIC INJECTION END ---
-            
-        except AuthenticationError as e:
-            logger.error("Fallo de autenticación con Groq. La API Key puede ser inválida.")
-            raise Exception(f"GroqAuthError: Verifica tu API Key. {str(e)}")
-        except RateLimitError as e:
-            logger.error("Límite de peticiones de Groq superado.")
-            raise Exception(f"GroqRateLimitError: Has alcanzado el límite de uso de Groq. {str(e)}")
-        except APIConnectionError as e:
-            logger.error("Error de conexión a la API de Groq.")
-            raise Exception(f"GroqConnectionError: Fallo de red hacia Groq. {str(e)}")
-        except APIError as e:
-            logger.error(f"Error devuelto por la API de Groq: {str(e)}")
-            if "model" in str(e).lower() or "does not exist" in str(e).lower() or "decommissioned" in str(e).lower():
-                 raise Exception(f"GroqModelError: El modelo '{MODEL_NAME}' ha fallado o tu API key no tiene acceso. {str(e)}")
-            raise Exception(f"GroqAPIError: {str(e)}")
-            
-        total_time = round(time.time() - start_time, 2)
-        logger.info(f"=== FIN PETICIÓN /chat | Tiempo total: {total_time}s ===")
-        
-        return {"reply": response.choices[0].message.content}
-        
+            ambito.update(cliente=aviso.get('cliente', ''), modelo=aviso.get('modelo', ''), n_serie=aviso.get('n_serie', ''))
+            extra_busqueda = aviso.get('descripcion', '')
+        lineas.append(_bloque_avisos("Avisos del técnico en pantalla", p.get("avisos")))
+
+    elif req.modulo == 'historicos':
+        f = p.get('filtros') or {}
+        lineas.append(
+            "Filtros aplicados en Históricos SAT: "
+            + (', '.join(f"{k}={_t(v)}" for k, v in f.items() if v) or 'ninguno')
+            + f". Resultados en pantalla: {_t(p.get('total'))}."
+        )
+        ambito.update({k: f.get(k, '') for k in ambito})
+
+    elif req.modulo == 'gestor':
+        f = p.get('filtros') or {}
+        lineas.append("Filtros del organizador: " + (', '.join(f"{k}={_t(v)}" for k, v in f.items() if v) or 'ninguno') + '.')
+        lineas.append(_bloque_avisos("Avisos visibles en el organizador", p.get("avisos")))
+
+    elif req.modulo == 'generador':
+        f = p.get('formulario') or {}
+        lineas.append(
+            "Formulario de nuevo aviso: "
+            f"cliente {_t(f.get('cliente'))}; población {_t(f.get('poblacion'))}; "
+            f"máquinas {_t(', '.join(f.get('maquinas') or []))}; descripción {_t(f.get('descripcion'), 500)}; "
+            f"etiquetas {_t(', '.join(f.get('etiquetas') or []))}."
+        )
+        ambito['cliente'] = f.get('cliente', '')
+        extra_busqueda = f"{f.get('descripcion', '')} {' '.join(f.get('maquinas') or [])}"
+
+    elif req.modulo == 'control':
+        try:
+            lineas.append(_bloque_avisos("Avisos abiertos ahora mismo (sin tratar y asignados)", avisos_abiertos_desde_drive()))
+        except Exception as e:
+            logger.warning(f"No se pudieron leer los avisos abiertos: {e}")
+            lineas.append("No se han podido leer los avisos abiertos de Drive.")
+
+    return '\n'.join(lineas), ambito, extra_busqueda
+
+
+def contexto_historico(req, ambito, extra_busqueda):
+    """Resumen + partes recuperados por similitud. Devuelve (texto, nº de partes usados)."""
+    try:
+        indice, _ = cargar_historico()
     except Exception as e:
-        total_time = round(time.time() - start_time, 2)
-        error_trace = traceback.format_exc()
-        logger.error(f"!!! CRASH EN /chat ({total_time}s) !!!\n{error_trace}")
+        logger.warning(f"Histórico no disponible: {e}")
+        return "El histórico de SAT no está disponible ahora mismo.", []
+
+    # Cliente / modelo / serie citados en la pregunta completan lo que no da la pantalla.
+    for clave, valor in detectar_entidades(indice, req.mensaje).items():
+        if valor and not ambito.get(clave):
+            ambito[clave] = valor
+
+    # La pregunta anterior ayuda en seguimientos cortos ("¿y cómo se solucionó?").
+    anterior = next((m.texto for m in reversed(req.historial) if m.rol == 'user'), '')
+    consulta = f"{req.mensaje} {anterior if len(req.mensaje.split()) < 6 else ''} {extra_busqueda}"
+
+    res = similares(indice, consulta, **ambito)
+    bloques = []
+    resumen = resumen_ambito(indice, ambito['cliente'], ambito['modelo'], ambito['n_serie'])
+    if resumen:
+        bloques.append("Resumen del histórico:\n" + resumen)
+    bloques.append(
+        "Partes del histórico más parecidos a la consulta:\n" + '\n'.join(texto_registro(r) for r in res['similares'])
+        if res['similares'] else "Partes del histórico parecidos a la consulta: ninguno."
+    )
+    if res['recientes']:
+        bloques.append("Últimos partes de esta máquina / cliente:\n" + '\n'.join(texto_registro(r) for r in res['recientes']))
+    usados = [r['n_parte'] for r in res['similares'] + res['recientes']]
+    return '\n\n'.join(bloques), usados
+
+
+# ==========================================
+# Rutas
+# ==========================================
+@router.post("/chat")
+def chat_ia(req: PeticionChat):
+    inicio = time.time()
+    if not req.mensaje.strip():
+        raise HTTPException(status_code=400, detail="El mensaje está vacío.")
+    modulo = req.modulo if req.modulo in NOMBRES_MODULO else 'inicio'
+    req.modulo = modulo
+
+    try:
+        texto_pantalla, ambito, extra = contexto_pantalla(req)
+        texto_historico, partes_usados = contexto_historico(req, ambito, extra)
+        contexto = (
+            f"Pantalla actual: {NOMBRES_MODULO[modulo]}. Usuario: {_t(req.usuario) or 'desconocido'}. "
+            f"Fecha de hoy: {time.strftime('%Y-%m-%d')}.\n{texto_pantalla}\n\n{texto_historico}"
+        )
+
+        mensajes = [{"role": "system", "content": PROMPT_SISTEMA}]
+        for m in req.historial[-MAX_TURNOS_HISTORIAL:]:
+            mensajes.append({"role": "assistant" if m.rol == 'assistant' else "user", "content": _t(m.texto, 800)})
+        mensajes.append({"role": "user", "content": f"CONTEXTO:\n{contexto}\n\nPREGUNTA:\n{req.mensaje.strip()}"})
+
+        respuesta = cliente_ia().chat.completions.create(
+            model=MODELO_IA,
+            messages=mensajes,
+            max_completion_tokens=MAX_TOKENS_RESPUESTA,
+            reasoning_effort=ESFUERZO_RAZONAMIENTO,
+        )
+        texto = (respuesta.choices[0].message.content or '').strip()
+        uso = respuesta.usage
+        logger.info(
+            f"/chat {modulo} | {round(time.time() - inicio, 2)}s | tokens entrada={getattr(uso, 'prompt_tokens', '?')} "
+            f"salida={getattr(uso, 'completion_tokens', '?')} | partes={len(partes_usados)}"
+        )
+        return {
+            "respuesta": texto or "No he podido generar una respuesta. Prueba a reformular la pregunta.",
+            "partes": partes_usados,
+            "ambito": {k: v for k, v in ambito.items() if v},
+        }
+    except AuthenticationError:
+        raise HTTPException(status_code=500, detail="La API key de OpenAI no es válida o ha caducado.")
+    except NotFoundError:
+        raise HTTPException(status_code=500, detail=f"El modelo '{MODELO_IA}' no está disponible para esta API key.")
+    except RateLimitError:
+        raise HTTPException(status_code=500, detail="Se ha alcanzado el límite de uso de OpenAI. Inténtalo en un momento.")
+    except APIConnectionError:
+        raise HTTPException(status_code=500, detail="No se ha podido conectar con OpenAI.")
+    except APIError as e:
+        raise HTTPException(status_code=500, detail=f"Error de OpenAI: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en /chat:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==========================================
-# ENDPOINTS DE DIAGNÓSTICO
-# ==========================================
 
-@router.get("/test-groq")
-def test_groq():
-    logger.info("=== INICIO /test-groq ===")
+@router.get("/test-ia")
+def test_ia():
     try:
-        res = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": "Say 'hello world' and nothing else."}],
-            max_tokens=10
+        res = cliente_ia().chat.completions.create(
+            model=MODELO_IA,
+            messages=[{"role": "user", "content": "Responde solo: hola"}],
+            max_completion_tokens=50,
         )
-        logger.info("Groq ha respondido correctamente.")
-        return {
-            "success": True,
-            "stage": "Groq API Connectivity",
-            "model_tested": MODEL_NAME,
-            "response": res.choices[0].message.content,
-            "message": "La API Key y el modelo funcionan perfectamente."
-        }
+        return {"success": True, "modelo": MODELO_IA, "respuesta": res.choices[0].message.content}
     except Exception as e:
-        logger.error(f"Fallo en /test-groq: {str(e)}")
-        return {
-            "success": False,
-            "stage": "Groq API Connectivity",
-            "model_tested": MODEL_NAME,
-            "error_type": type(e).__name__,
-            "message": str(e)
-        }
+        return {"success": False, "modelo": MODELO_IA, "error_type": type(e).__name__, "message": str(e)}
+
 
 @router.get("/test-drive")
 def test_drive():
-    logger.info("=== INICIO /test-drive ===")
     try:
         drive = get_drive_service()
-        query = f"'{FOLDER_ID}' in parents and trashed = false"
-        res = drive.files().list(q=query, fields="files(id, name, mimeType)").execute()
+        res = drive.files().list(q=f"'{FOLDER_ID}' in parents and trashed = false", fields="files(id, name, mimeType)").execute()
         files = res.get("files", [])
-        
-        logger.info(f"Se han encontrado {len(files)} archivos en la carpeta.")
-        return {
-            "success": True,
-            "stage": "Google Drive Connectivity",
-            "folder_id": FOLDER_ID,
-            "files_found": len(files),
-            "file_list": [{"name": f["name"], "type": f["mimeType"]} for f in files],
-            "message": "Credenciales correctas y acceso a la carpeta confirmado."
-        }
+        return {"success": True, "folder_id": FOLDER_ID, "files_found": len(files),
+                "file_list": [{"name": f["name"], "type": f["mimeType"]} for f in files]}
     except Exception as e:
-        logger.error(f"Fallo en /test-drive: {str(e)}")
-        return {
-            "success": False,
-            "stage": "Google Drive Connectivity",
-            "folder_id": FOLDER_ID,
-            "error_type": type(e).__name__,
-            "message": str(e)
-        }
+        return {"success": False, "folder_id": FOLDER_ID, "error_type": type(e).__name__, "message": str(e)}

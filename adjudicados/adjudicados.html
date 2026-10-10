@@ -515,6 +515,7 @@
 
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
+      sessionStorage.removeItem("sugraf_bot_conversacion");
       window.location.href = "/";
     }
 
@@ -686,6 +687,7 @@
     // ---------------- Histórico SAT (Pirineos) ----------------
     const cacheHistorico = {};
     let historicoActual = null;
+    let avisoEnHistorico = null; // aviso cuyo histórico está abierto (lo usa el asistente)
     let tabHistorico = 'maquina';
 
     function escHtml(valor) {
@@ -731,6 +733,7 @@
         }
 
         historicoActual = cacheHistorico[clave];
+        avisoEnHistorico = av;
         document.getElementById('hist-subtitulo').innerHTML =
             `<strong>${escHtml(av['CLIENTE'])}</strong> — ${escHtml(av['MÁQUINA'])}` +
             (av['Nº SERIE'] ? ` (S/N ${escHtml(av['Nº SERIE'])})` : '');
@@ -1316,6 +1319,44 @@
     }
 
     cargarAvisos();
+
+    // Lo que ve el técnico, para el asistente IA (chatbot.js).
+    window.sugrafBotContexto = function () {
+        const historicoVisible = document.getElementById('modal-historico').style.display === 'flex';
+        const parteVisible = document.getElementById('resolucion-box').style.display === 'block';
+        let av = null;
+        if (historicoVisible) av = avisoEnHistorico;
+        else if (parteVisible) av = misAvisos.find(a => a.aviso_index === parseInt(document.getElementById('res_index').value));
+
+        const tecnico = currentUser === 'Master' ? filtroTecnicoMaster : currentUser;
+        const visibles = misAvisos.filter(a => currentUser !== 'Master' || a['ASIGNADO A'] === filtroTecnicoMaster);
+        const ctx = {
+            tecnico,
+            vista: historicoVisible ? 'histórico del aviso' : parteVisible ? 'parte de trabajo del aviso' : 'lista de avisos',
+            avisos: visibles.map(a => {
+                const etiquetas = ['URGENTE', 'PARADO', 'RECLAMA', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR']
+                    .filter(e => a[e] === 'SI').map(e => e.charAt(0) + e.slice(1).toLowerCase());
+                if (a['ESTADO PIEZAS'] === 'Sí necesita Piezas' || a['PIEZAS'] === 'Pendiente') etiquetas.push('Piezas Pendiente');
+                else if (a['ESTADO PIEZAS'] === 'Piezas Recibidas' || a['PIEZAS'] === 'Listo') etiquetas.push('Piezas Listo');
+                return {
+                    fecha: String(a['F. ENTR.'] || '').slice(0, 10), cliente: a['CLIENTE'] || '',
+                    poblacion: a['POBLACIÓN'] || '', maquina: a['MÁQUINA'] || '', tecnico: a['ASIGNADO A'] || '',
+                    estado: a['ESTADO'] || '', pirineos: a['PIRINEOS'] || 'NO', etiquetas, descripcion: a['DESCRIPCIÓN'] || '',
+                };
+            }),
+        };
+        if (av) {
+            ctx.aviso = {
+                cliente: av['CLIENTE'] || '', maquina: av['MÁQUINA'] || '', marca: av['MARCA'] || '',
+                modelo: av['MODELO'] || '', n_serie: av['Nº SERIE'] || '', fecha: av['F. ENTR.'] || '',
+                estado: av['ESTADO'] || '', descripcion: av['DESCRIPCIÓN'] || '',
+                solucion: parteVisible ? document.getElementById('res_solucion').value : (av['SOLUCIÓN'] || ''),
+            };
+            ctx.etiqueta = `${av['CLIENTE']} · ${av['MÁQUINA']}`;
+        }
+        return ctx;
+    };
   </script>
+  <script src="/chatbot.js"></script>
 </body>
 </html>

@@ -490,6 +490,18 @@
     }
 
     iniciar();
+
+    // Filtros en pantalla, para el asistente IA (chatbot.js).
+    window.sugrafBotContexto = function () {
+        const filtros = {};
+        CAMPOS.filter(c => c !== 'orden').forEach(c => { if (valor(c)) filtros[c] = valor(c); });
+        return {
+            filtros,
+            total: totalResultados,
+            etiqueta: [filtros.cliente, filtros.modelo, filtros.n_serie].filter(Boolean).join(' · '),
+        };
+    };
   </script>
+  <script src="/chatbot.js"></script>
 </body>
 </html>

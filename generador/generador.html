@@ -276,6 +276,7 @@
 
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
+      sessionStorage.removeItem("sugraf_bot_conversacion");
       window.location.href = "/";
     }
 
@@ -587,6 +588,24 @@
         hideLoading();
       }
     });
+
+    // Lo que hay escrito en el formulario, para el asistente IA (chatbot.js).
+    window.sugrafBotContexto = function () {
+      const etiquetas = {ni_nuevo: 'Nuevo', ni_urg: 'Urgente', ni_parado: 'Parado', ni_reclama: 'Reclama', ni_pre: 'Presupuesto',
+                         ni_piezas: 'Piezas', ni_gar: 'Garantía', ni_man: 'Mantenimiento', ni_ins: 'Instalación', ni_rev: 'Revisar'};
+      const cliente = document.getElementById('ni_cliente').value.trim();
+      return {
+        formulario: {
+          cliente,
+          poblacion: document.getElementById('ni_poblacion').value.trim(),
+          maquinas: maquinasSel.slice(),
+          descripcion: document.getElementById('ni_desc').value.trim(),
+          etiquetas: Object.entries(etiquetas).filter(([id]) => document.getElementById(id).checked).map(([, n]) => n),
+        },
+        etiqueta: cliente,
+      };
+    };
   </script>
+  <script src="/chatbot.js"></script>
 </body>
 </html>
