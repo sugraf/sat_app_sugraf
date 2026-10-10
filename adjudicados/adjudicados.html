@@ -244,9 +244,6 @@
     .hist-txt{ font-size:0.85rem; line-height:1.4; white-space:pre-wrap; word-break:break-word; }
     .hist-txt b{ color:#5c6b7d; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; }
     .hist-vacio{ color:#64748b; font-size:0.9rem; padding:18px 4px; text-align:center; }
-    .hist-enlace{ display:block; text-align:center; margin-top:12px; font-size:0.82rem; font-weight:700; color:var(--green); text-decoration:none; }
-    .hist-enlace:hover{ text-decoration:underline; }
-
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
       margin-top:20px; text-align:center; display:none;
@@ -441,9 +438,7 @@
               <select id="hist-filtro-maquina" onchange="renderHistorico()"></select>
           </div>
           <p class="hist-criterio" id="hist-criterio"></p>
-          <div id="hist-lista"></div>
-          <a class="hist-enlace" id="hist-enlace" href="/vista/historicos">Abrir en Históricos SAT &rarr;</a>
-      </div>
+          <div id="hist-lista"></div>      </div>
   </div>
 
   <div id="modal-previa-parte"style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px;">
@@ -691,7 +686,6 @@
     // ---------------- Histórico SAT (Pirineos) ----------------
     const cacheHistorico = {};
     let historicoActual = null;
-    let avisoHistorico = null;
     let tabHistorico = 'maquina';
 
     function escHtml(valor) {
@@ -737,7 +731,6 @@
         }
 
         historicoActual = cacheHistorico[clave];
-        avisoHistorico = av;
         document.getElementById('hist-subtitulo').innerHTML =
             `<strong>${escHtml(av['CLIENTE'])}</strong> — ${escHtml(av['MÁQUINA'])}` +
             (av['Nº SERIE'] ? ` (S/N ${escHtml(av['Nº SERIE'])})` : '');
@@ -770,14 +763,6 @@
         document.getElementById('hist-tab-maquina').classList.toggle('active', tab === 'maquina');
         document.getElementById('hist-tab-cliente').classList.toggle('active', tab === 'cliente');
         document.getElementById('hist-filtro-maquina').style.display = tab === 'cliente' ? '' : 'none';
-
-        // Enlace a la vista de Históricos ya filtrada por el cliente o la máquina del aviso.
-        const filtro = tab === 'cliente'
-            ? {cliente: (historicoActual.cliente.registros[0] || {}).cliente || avisoHistorico['CLIENTE'] || ''}
-            : {maquina: avisoHistorico['Nº SERIE'] || avisoHistorico['MODELO'] || ''};
-        const enlace = document.getElementById('hist-enlace');
-        enlace.href = `/vista/historicos?${new URLSearchParams(filtro)}`;
-        enlace.style.display = Object.values(filtro)[0] ? '' : 'none';
         renderHistorico();
     }
 

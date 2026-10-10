@@ -216,12 +216,8 @@ class IndiceHistorico:
                 'modelo': clave_modelo(r['modelo']),
                 # Textos normalizados para los filtros de la vista de Históricos.
                 'txt_cliente': _sin_acentos(f"{r['cliente']} {r['nombre_comercial']}"),
-                'txt_maquina': _sin_acentos(f"{r['equipo']} {r['marca']} {r['modelo']} {r['n_serie']}"),
-                'alf_maquina': _alfanum(f"{r['modelo']} {r['n_serie']}"),
-                'txt_libre': _sin_acentos(' '.join(
-                    r[c] for c in ('n_parte', 'cliente', 'nombre_comercial', 'equipo', 'marca',
-                                   'modelo', 'n_serie', 'tecnico', 'anomalia', 'solucion')
-                )),
+                'alf_modelo': _alfanum(r['modelo']),
+                'alf_serie': _alfanum(r['n_serie']),
             }
             for r in registros
         ]
@@ -232,36 +228,39 @@ class IndiceHistorico:
 
 
 def opciones(indice):
-    """Valores distintos para rellenar los desplegables de filtros."""
-    def distintos(campo):
-        conteo = {}
-        for r in indice.registros:
-            if r[campo]:
-                conteo[r[campo]] = conteo.get(r[campo], 0) + 1
-        return [{'valor': v, 'total': n} for v, n in sorted(conteo.items())]
-
+    """Combinaciones distintas cliente / modelo / nº serie para los desplegables
+    (la vista deduce de ellas qué modelos tiene un cliente y qué series un modelo)."""
+    combinaciones = {}
+    for r in indice.registros:
+        clave = (r['cliente'], r['modelo'], r['n_serie'])
+        if clave not in combinaciones:
+            combinaciones[clave] = {
+                'cliente': r['cliente'], 'comercial': r['nombre_comercial'],
+                'modelo': r['modelo'], 'n_serie': r['n_serie'],
+            }
     fechas = sorted(r['fecha'] for r in indice.registros if r['fecha'])
     return {
         'total': len(indice.registros),
-        'clientes': distintos('cliente'),
-        'tecnicos': distintos('tecnico'),
-        'equipos': distintos('equipo'),
-        'marcas': distintos('marca'),
+        'combinaciones': list(combinaciones.values()),
         'fecha_min': fechas[0] if fechas else '',
         'fecha_max': fechas[-1] if fechas else '',
     }
 
 
-def filtrar(indice, texto='', cliente='', maquina='', tecnico='', equipo='', marca='',
-            desde='', hasta='', orden='desc'):
-    """Filtro general de la vista de Históricos. Devuelve las posiciones que cumplen
-    todos los filtros, ordenadas por fecha. Los textos ignoran acentos y mayúsculas;
-    'texto' y 'cliente' exigen que aparezcan todas sus palabras."""
-    palabras = _sin_acentos(texto).split()
+def _coincide(valor, buscado, conocidos):
+    """Igualdad si lo buscado es un valor existente (elegido en el desplegable);
+    si se ha escrito a mano, basta con que esté contenido."""
+    return valor == buscado if buscado in conocidos else buscado in valor
+
+
+def filtrar(indice, cliente='', modelo='', n_serie='', desde='', hasta='', orden='desc'):
+    """Filtro de la vista de Históricos. Devuelve las posiciones que cumplen todos
+    los filtros, ordenadas por fecha. Ignora acentos, mayúsculas y signos
+    ("VG3-640" = "VG3640"); el cliente exige que aparezcan todas sus palabras."""
     palabras_cliente = _sin_acentos(cliente).split()
-    maquina_n = _sin_acentos(maquina)
-    maquina_a = _alfanum(maquina)
-    tecnico, equipo, marca = _texto(tecnico), _texto(equipo), _texto(marca)
+    modelo_a, serie_a = _alfanum(modelo), _alfanum(n_serie)
+    modelos = {k['alf_modelo'] for k in indice.claves} if modelo_a else set()
+    series = {k['alf_serie'] for k in indice.claves} if serie_a else set()
 
     posiciones = []
     for i, (r, k) in enumerate(zip(indice.registros, indice.claves)):
@@ -269,18 +268,11 @@ def filtrar(indice, texto='', cliente='', maquina='', tecnico='', equipo='', mar
             continue
         if hasta and r['fecha'] > hasta:
             continue
-        if tecnico and r['tecnico'] != tecnico:
-            continue
-        if equipo and r['equipo'] != equipo:
-            continue
-        if marca and r['marca'] != marca:
-            continue
         if palabras_cliente and not all(p in k['txt_cliente'] for p in palabras_cliente):
             continue
-        # "VG3-640" encuentra "VG3640" y viceversa.
-        if maquina_n and maquina_n not in k['txt_maquina'] and not (maquina_a and maquina_a in k['alf_maquina']):
+        if modelo_a and not _coincide(k['alf_modelo'], modelo_a, modelos):
             continue
-        if palabras and not all(p in k['txt_libre'] for p in palabras):
+        if serie_a and not _coincide(k['alf_serie'], serie_a, series):
             continue
         posiciones.append(i)
 
@@ -397,12 +389,10 @@ COLUMNAS_EXPORTAR = [
 ]
 
 
-def _cargar_y_filtrar(texto, cliente, maquina, tecnico, equipo, marca, desde, hasta, orden):
+def _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden):
     indice, _ = cargar_historico()
-    posiciones = filtrar(
-        indice, texto=texto, cliente=cliente, maquina=maquina, tecnico=tecnico,
-        equipo=equipo, marca=marca, desde=desde, hasta=hasta, orden=orden,
-    )
+    posiciones = filtrar(indice, cliente=cliente, modelo=modelo, n_serie=n_serie,
+                         desde=desde, hasta=hasta, orden=orden)
     return indice, posiciones
 
 
@@ -418,11 +408,10 @@ def get_opciones():
 
 
 @router.get("/buscar")
-def get_buscar(texto: str = '', cliente: str = '', maquina: str = '', tecnico: str = '', equipo: str = '',
-               marca: str = '', desde: str = '', hasta: str = '', orden: str = 'desc',
-               pagina: int = 1, por_pagina: int = 50):
+def get_buscar(cliente: str = '', modelo: str = '', n_serie: str = '', desde: str = '', hasta: str = '',
+               orden: str = 'desc', pagina: int = 1, por_pagina: int = 50):
     try:
-        indice, posiciones = _cargar_y_filtrar(texto, cliente, maquina, tecnico, equipo, marca, desde, hasta, orden)
+        indice, posiciones = _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden)
         por_pagina = max(1, min(por_pagina, MAX_POR_PAGINA))
         pagina = max(1, pagina)
         inicio = (pagina - 1) * por_pagina
@@ -439,10 +428,10 @@ def get_buscar(texto: str = '', cliente: str = '', maquina: str = '', tecnico: s
 
 
 @router.get("/exportar")
-def get_exportar(texto: str = '', cliente: str = '', maquina: str = '', tecnico: str = '', equipo: str = '',
-                 marca: str = '', desde: str = '', hasta: str = '', orden: str = 'desc'):
+def get_exportar(cliente: str = '', modelo: str = '', n_serie: str = '', desde: str = '', hasta: str = '',
+                  orden: str = 'desc'):
     try:
-        indice, posiciones = _cargar_y_filtrar(texto, cliente, maquina, tecnico, equipo, marca, desde, hasta, orden)
+        indice, posiciones = _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden)
         df = pd.DataFrame(
             [[indice.registros[i][campo] for campo, _ in COLUMNAS_EXPORTAR] for i in posiciones],
             columns=[titulo for _, titulo in COLUMNAS_EXPORTAR],

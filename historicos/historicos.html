@@ -62,8 +62,8 @@
       box-shadow:0 24px 60px rgba(0,0,0,0.35);
     }
     .filtros-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:12px 14px; }
-    .filtros-grid .ancho{ grid-column:1 / -1; }
     label { display:block; font-size:0.68rem; font-weight:700; color:#5c6b7d; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.08em; }
+    label .opcional{ text-transform:none; letter-spacing:0; font-weight:600; color:#94a3b8; }
     input, select {
       width:100%; padding:11px 12px; border:1px solid var(--grey); border-radius:10px;
       font-size:0.9rem; font-family:'Montserrat', sans-serif; background:#ffffff; color:var(--navy);
@@ -71,8 +71,23 @@
     }
     input::placeholder{ color:#94a3b8; }
     input:focus, select:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    input:disabled{ background:#f1f5f8; color:#94a3b8; border-style:dashed; cursor:not-allowed; }
     select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23006858" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 12px center; background-size:16px; padding-right:36px; }
-    .fechas{ display:flex; gap:8px; }
+
+    /* Desplegable con buscador (mismo estilo que el generador de avisos) */
+    .custom-select-wrapper { position: relative; }
+    .custom-select-wrapper input { width: 100%; padding-right: 30px; }
+    .custom-select-wrapper::after { content: '▼'; position: absolute; right: 12px; bottom: 13px; font-size: 0.8rem; color: var(--green); pointer-events: none; }
+    .custom-select-list { display: none; position: absolute; z-index: 1000; top: calc(100% - 2px); left: 0; right: 0; background: #ffffff; border: 1px solid var(--grey); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; max-height: 260px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .custom-select-list.show { display: block; }
+    .custom-select-item { padding: 12px 16px; font-size: 0.9rem; color: var(--navy); cursor: pointer; border-bottom: 1px solid #e6ebef; }
+    .custom-select-item:hover { background: var(--green-soft); color: var(--green); }
+    .custom-select-item small { display:block; color:#94a3b8; font-size:0.75rem; margin-top:2px; }
+    .custom-select-item.vacio { color:#94a3b8; font-style:italic; cursor:default; }
+    .custom-select-item.vacio:hover { background:#fff; color:#94a3b8; }
+
+    .fechas{ display:flex; gap:8px; grid-column:1 / -1; }
+    .fechas > div{ flex:1; }
     .filtros-acciones{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
     .btn {
       border:none; padding:11px 18px; border-radius:10px; font-size:0.85rem; font-weight:700; cursor:pointer;
@@ -104,8 +119,6 @@
     .item-txt{ font-size:0.86rem; line-height:1.45; white-space:pre-wrap; word-break:break-word; color:#e2e8f0; }
     .item-txt b{ color:var(--muted); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; }
     .item-txt + .item-txt{ margin-top:4px; }
-    mark{ background:rgba(234,179,8,0.35); color:#fff; border-radius:2px; }
-    .btn-mas-filtros{ display:none; }
 
     .empty-msg{ color:var(--muted); font-size:0.95rem; padding:24px 0; text-align:center; }
     .mas{ display:flex; justify-content:center; margin:18px 0 30px; }
@@ -123,9 +136,8 @@
       .header-title h2 { font-size:1.5rem; }
       .filtros{ padding:16px; border-radius:14px; }
       .filtros-grid{ grid-template-columns:1fr; }
-      .filtros:not(.abierto) .avanzado{ display:none; }
-      .btn-mas-filtros{ display:block; width:100%; }
       .filtros-acciones .btn{ flex:1; }
+      .custom-select-item { padding: 11px 14px; }
       .item{ padding:14px; }
     }
   </style>
@@ -147,55 +159,46 @@
   <div class="container">
     <div class="header-title">
       <h2>Históricos SAT</h2>
-      <p>Consulta los partes realizados por cliente, máquina, técnico o avería.</p>
+      <p>Consulta los partes realizados por cliente y por máquina.</p>
     </div>
 
     <div class="filtros">
       <div class="filtros-grid">
-        <div class="ancho">
-          <label for="f_texto">Buscar en anomalía / solución</label>
-          <input type="search" id="f_texto" placeholder="Ej: error 116, cabezal, fusor...">
-        </div>
         <div>
           <label for="f_cliente">Cliente</label>
-          <input type="search" id="f_cliente" list="lista-clientes" placeholder="Nombre o nombre comercial">
-          <datalist id="lista-clientes"></datalist>
+          <div class="custom-select-wrapper">
+            <input type="text" id="f_cliente" autocomplete="off" placeholder="Escribe para buscar o desplegar...">
+            <div id="lista-clientes" class="custom-select-list"></div>
+          </div>
         </div>
         <div>
-          <label for="f_maquina">Máquina (modelo o nº serie)</label>
-          <input type="search" id="f_maquina" placeholder="Ej: VG3-640, PX23000237">
+          <label for="f_modelo">Máquina (modelo)</label>
+          <div class="custom-select-wrapper">
+            <input type="text" id="f_modelo" autocomplete="off" placeholder="Escribe para buscar o desplegar...">
+            <div id="lista-modelos" class="custom-select-list"></div>
+          </div>
         </div>
-        <div class="avanzado">
-          <label for="f_tecnico">Técnico</label>
-          <select id="f_tecnico"><option value="">Todos</option></select>
+        <div>
+          <label for="f_n_serie">Nº serie <span class="opcional">(del modelo elegido)</span></label>
+          <div class="custom-select-wrapper">
+            <input type="text" id="f_n_serie" autocomplete="off" placeholder="Elige antes una máquina" disabled>
+            <div id="lista-series" class="custom-select-list"></div>
+          </div>
         </div>
-        <div class="avanzado">
-          <label for="f_equipo">Tipo de equipo</label>
-          <select id="f_equipo"><option value="">Todos</option></select>
-        </div>
-        <div class="avanzado">
-          <label for="f_marca">Marca</label>
-          <select id="f_marca"><option value="">Todas</option></select>
-        </div>
-        <div class="avanzado">
-          <label for="f_anio">Año</label>
-          <select id="f_anio"><option value="">Todos</option></select>
-        </div>
-        <div class="ancho fechas avanzado">
-          <div style="flex:1;">
+        <div class="fechas">
+          <div>
             <label for="f_desde">Desde</label>
             <input type="date" id="f_desde">
           </div>
-          <div style="flex:1;">
+          <div>
             <label for="f_hasta">Hasta</label>
             <input type="date" id="f_hasta">
           </div>
         </div>
       </div>
       <div class="filtros-acciones">
-        <button type="button" class="btn btn-light btn-mas-filtros" id="btn-mas-filtros" onclick="toggleFiltros()">Más filtros</button>
         <button type="button" class="btn btn-light" onclick="limpiarFiltros()">Limpiar filtros</button>
-        <button type="button" class="btn btn-primary" id="btn-exportar" onclick="exportarExcel()">Descargar Excel</button>
+        <button type="button" class="btn btn-primary" onclick="exportarExcel()">Descargar Excel</button>
       </div>
     </div>
 
@@ -224,7 +227,8 @@
     document.getElementById("zona-usuario").style.display = "flex";
 
     const POR_PAGINA = 50;
-    const CAMPOS = ['texto', 'cliente', 'maquina', 'tecnico', 'equipo', 'marca', 'desde', 'hasta', 'orden'];
+    const CAMPOS = ['cliente', 'modelo', 'n_serie', 'desde', 'hasta', 'orden'];
+    let combinaciones = [];   // [{cliente, comercial, modelo, n_serie}]
     let pagina = 1;
     let totalResultados = 0;
     let cargados = 0;
@@ -234,30 +238,8 @@
         return String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
-    function sinAcentos(t) {
-        return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
-    }
-
-    // Resalta las palabras buscadas sin tener en cuenta acentos ni mayúsculas.
-    function resaltar(texto, palabras) {
-        const original = String(texto || '');
-        if (!palabras.length) return escHtml(original);
-        const normal = sinAcentos(original);
-        const marcas = new Array(original.length).fill(false);
-        palabras.forEach(p => {
-            let i = normal.indexOf(p);
-            while (p && i !== -1) {
-                for (let j = i; j < i + p.length; j++) marcas[j] = true;
-                i = normal.indexOf(p, i + p.length);
-            }
-        });
-        let html = '', abierto = false;
-        for (let i = 0; i < original.length; i++) {
-            if (marcas[i] && !abierto) { html += '<mark>'; abierto = true; }
-            if (!marcas[i] && abierto) { html += '</mark>'; abierto = false; }
-            html += escHtml(original[i]);
-        }
-        return html + (abierto ? '</mark>' : '');
+    function normalizar(t) {
+        return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
     }
 
     function fechaCorta(iso) {
@@ -265,61 +247,150 @@
         return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '');
     }
 
-    function leerFiltros() {
-        const f = {};
-        CAMPOS.forEach(c => { f[c] = document.getElementById(`f_${c}`).value.trim(); });
-        return f;
+    function valor(campo) {
+        return document.getElementById(`f_${campo}`).value.trim();
     }
 
+    function distintos(lista, campo) {
+        return [...new Set(lista.map(c => c[campo]).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'es'));
+    }
+
+    // ---- Opciones de cada desplegable, encadenadas: cliente -> modelo -> nº serie ----
+    function clienteElegido() {
+        const v = normalizar(valor('cliente'));
+        return v ? combinaciones.find(c => normalizar(c.cliente) === v)?.cliente || null : null;
+    }
+
+    function modeloElegido() {
+        const v = normalizar(valor('modelo'));
+        return v ? combinaciones.find(c => normalizar(c.modelo) === v)?.modelo || null : null;
+    }
+
+    function opcionesClientes() {
+        const comercial = {};
+        combinaciones.forEach(c => { if (c.comercial) comercial[c.cliente] = c.comercial; });
+        return distintos(combinaciones, 'cliente').map(v => ({valor: v, extra: comercial[v] || ''}));
+    }
+
+    function opcionesModelos() {
+        const cliente = clienteElegido();
+        const lista = cliente ? combinaciones.filter(c => c.cliente === cliente) : combinaciones;
+        return distintos(lista, 'modelo').map(v => ({valor: v}));
+    }
+
+    function opcionesSeries() {
+        const modelo = modeloElegido();
+        if (!modelo) return [];
+        const cliente = clienteElegido();
+        const lista = combinaciones.filter(c => c.modelo === modelo && (!cliente || c.cliente === cliente));
+        return distintos(lista, 'n_serie').map(v => ({valor: v}));
+    }
+
+    function actualizarDependientes() {
+        // Si el modelo no pertenece al cliente elegido, o la serie al modelo, se vacían.
+        if (valor('modelo') && clienteElegido() && !opcionesModelos().some(o => normalizar(o.valor) === normalizar(valor('modelo')))) {
+            document.getElementById('f_modelo').value = '';
+        }
+        const serie = document.getElementById('f_n_serie');
+        const hayModelo = !!modeloElegido();
+        serie.disabled = !hayModelo;
+        serie.placeholder = hayModelo ? 'Todos (escribe para buscar)' : 'Elige antes una máquina';
+        if (!hayModelo || (serie.value && !opcionesSeries().some(o => normalizar(o.valor) === normalizar(serie.value)))) {
+            serie.value = '';
+        }
+    }
+
+    function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onChange) {
+        const input = document.getElementById(inputId);
+        const dropdown = document.getElementById(dropdownId);
+        let ultimo = input.value;
+
+        const renderOptions = (filterText = "") => {
+            const filtro = normalizar(filterText);
+            const filtered = getOptionsCallback().filter(o =>
+                normalizar(o.valor).includes(filtro) || normalizar(o.extra).includes(filtro)
+            );
+
+            dropdown.innerHTML = '';
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="custom-select-item vacio">No hay coincidencias</div>';
+                return;
+            }
+            filtered.forEach(opt => {
+                const item = document.createElement('div');
+                item.className = 'custom-select-item';
+                item.textContent = opt.valor;
+                if (opt.extra) {
+                    const extra = document.createElement('small');
+                    extra.textContent = opt.extra;
+                    item.appendChild(extra);
+                }
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    input.value = opt.valor;
+                    dropdown.classList.remove('show');
+                    input.blur();
+                });
+                dropdown.appendChild(item);
+            });
+        };
+
+        input.addEventListener('focus', () => {
+            renderOptions('');
+            dropdown.classList.add('show');
+        });
+        input.addEventListener('input', (e) => {
+            renderOptions(e.target.value);
+            dropdown.classList.add('show');
+        });
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                dropdown.classList.remove('show');
+                // Si lo escrito coincide con una opción, se normaliza a su texto exacto.
+                const exacta = getOptionsCallback().find(o => normalizar(o.valor) === normalizar(input.value));
+                if (exacta) input.value = exacta.valor;
+                if (input.value !== ultimo) {
+                    ultimo = input.value;
+                    onChange();
+                }
+            }, 150);
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        });
+        return { sincronizar: () => { ultimo = input.value; } };
+    }
+
+    let dropdowns = [];
+    function alCambiarFiltro() {
+        actualizarDependientes();
+        dropdowns.forEach(d => d.sincronizar());
+        buscar();
+    }
+
+    // ---- Búsqueda ----
     function paramsFiltros(extra = {}) {
         const p = new URLSearchParams();
-        Object.entries({...leerFiltros(), ...extra}).forEach(([k, v]) => { if (v !== '' && v != null) p.set(k, v); });
+        CAMPOS.forEach(c => { if (valor(c)) p.set(c, valor(c)); });
+        Object.entries(extra).forEach(([k, v]) => p.set(k, v));
         return p;
-    }
-
-    function rellenarSelect(id, valores) {
-        const sel = document.getElementById(id);
-        sel.innerHTML = sel.options[0].outerHTML + valores
-            .map(v => `<option value="${escHtml(v.valor)}">${escHtml(v.valor)} (${v.total})</option>`).join('');
-    }
-
-    async function cargarOpciones() {
-        const res = await fetch('/api/historicos/opciones');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
-
-        document.getElementById('lista-clientes').innerHTML = data.clientes
-            .map(c => `<option value="${escHtml(c.valor)}"></option>`).join('');
-        rellenarSelect('f_tecnico', data.tecnicos);
-        rellenarSelect('f_equipo', data.equipos);
-        rellenarSelect('f_marca', data.marcas);
-
-        const anioMin = parseInt((data.fecha_min || '').slice(0, 4)) || new Date().getFullYear();
-        const anioMax = parseInt((data.fecha_max || '').slice(0, 4)) || new Date().getFullYear();
-        let anios = '';
-        for (let a = anioMax; a >= anioMin; a--) anios += `<option value="${a}">${a}</option>`;
-        document.getElementById('f_anio').innerHTML = '<option value="">Todos</option>' + anios;
-
-        document.getElementById('fuentes').innerText =
-            `${data.total.toLocaleString('es-ES')} partes · datos hasta ${fechaCorta(data.fecha_max)} · ${data.fuentes.length} ficheros de Historico SAT`;
     }
 
     async function buscar(reiniciar = true) {
         const idPeticion = ++peticionActual;
         if (reiniciar) { pagina = 1; cargados = 0; }
-        const params = paramsFiltros({pagina, por_pagina: POR_PAGINA});
         if (reiniciar) document.getElementById('resumen-txt').innerText = 'Buscando...';
 
         try {
-            const res = await fetch(`/api/historicos/buscar?${params}`);
+            const res = await fetch(`/api/historicos/buscar?${paramsFiltros({pagina, por_pagina: POR_PAGINA})}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
             if (idPeticion !== peticionActual) return; // llegó una búsqueda más reciente
 
             totalResultados = data.total;
             cargados += data.registros.length;
-            const palabras = sinAcentos(document.getElementById('f_texto').value).split(/\s+/).filter(Boolean);
-            const html = data.registros.map(r => tarjeta(r, palabras)).join('');
+            const html = data.registros.map(tarjeta).join('');
             const lista = document.getElementById('lista');
             if (reiniciar) lista.innerHTML = html || `<p class="empty-msg">No hay partes que cumplan los filtros.</p>`;
             else lista.insertAdjacentHTML('beforeend', html);
@@ -343,46 +414,45 @@
         btn.disabled = false; btn.innerText = 'Cargar más';
     }
 
-    function tarjeta(r, palabras) {
+    function tarjeta(r) {
         const maquina = [r.equipo, r.marca, r.modelo].filter(Boolean).join(' · ');
-        const filtroMaquina = r.n_serie || r.modelo;
         return `
         <div class="item">
             <div class="item-head">
                 <span class="item-fecha">${escHtml(fechaCorta(r.fecha))}</span>
-                <button type="button" class="link" data-filtro="cliente" data-valor="${escHtml(r.cliente)}">${escHtml(r.cliente)}</button>
+                <button type="button" class="link" data-cliente="${escHtml(r.cliente)}">${escHtml(r.cliente)}</button>
                 ${r.nombre_comercial ? `<span style="color:var(--muted); font-size:0.82rem;">(${escHtml(r.nombre_comercial)})</span>` : ''}
             </div>
             <div class="item-meta">
-                ${maquina || r.n_serie ? `<button type="button" class="link" data-filtro="maquina" data-valor="${escHtml(filtroMaquina)}">${escHtml(maquina)}${r.n_serie ? ` (S/N ${escHtml(r.n_serie)})` : ''}</button>` : '<span>Sin máquina indicada</span>'}
+                ${r.modelo
+                    ? `<button type="button" class="link" data-modelo="${escHtml(r.modelo)}" data-serie="${escHtml(r.n_serie)}">${escHtml(maquina)}${r.n_serie ? ` (S/N ${escHtml(r.n_serie)})` : ''}</button>`
+                    : `<span>${escHtml(maquina) || 'Sin máquina indicada'}${r.n_serie ? ` (S/N ${escHtml(r.n_serie)})` : ''}</span>`}
                 <span>${escHtml(r.tecnico)}</span>
                 <span>Parte ${escHtml(r.n_parte)}</span>
-                ${r.fecha_entrada && r.fecha_entrada !== r.fecha ? `<span>Entrada ${escHtml(fechaCorta(r.fecha_entrada))}</span>` : ''}
             </div>
-            <div class="item-txt"><b>Anomalía:</b> ${resaltar(r.anomalia, palabras)}</div>
-            <div class="item-txt"><b>Solución:</b> ${resaltar(r.solucion, palabras)}</div>
+            <div class="item-txt"><b>Anomalía:</b> ${escHtml(r.anomalia)}</div>
+            <div class="item-txt"><b>Solución:</b> ${escHtml(r.solucion)}</div>
         </div>`;
     }
 
-    // Pulsar en un cliente o máquina de un parte filtra por ese valor.
+    // Pulsar en un cliente o en una máquina de un parte filtra por ese valor.
     document.getElementById('lista').addEventListener('click', e => {
-        const el = e.target.closest('[data-filtro]');
+        const el = e.target.closest('.link');
         if (!el) return;
-        document.getElementById(`f_${el.dataset.filtro}`).value = el.dataset.valor;
-        buscar();
+        if (el.dataset.cliente !== undefined) {
+            document.getElementById('f_cliente').value = el.dataset.cliente;
+        } else {
+            document.getElementById('f_modelo').value = el.dataset.modelo;
+            actualizarDependientes();
+            document.getElementById('f_n_serie').value = el.dataset.serie || '';
+        }
+        alCambiarFiltro();
         window.scrollTo({top: 0, behavior: 'smooth'});
     });
 
-    function toggleFiltros(abrir) {
-        const panel = document.querySelector('.filtros');
-        const abierto = panel.classList.toggle('abierto', abrir);
-        document.getElementById('btn-mas-filtros').innerText = abierto ? 'Menos filtros' : 'Más filtros';
-    }
-
     function limpiarFiltros() {
         CAMPOS.filter(c => c !== 'orden').forEach(c => { document.getElementById(`f_${c}`).value = ''; });
-        document.getElementById('f_anio').value = '';
-        buscar();
+        alCambiarFiltro();
     }
 
     function exportarExcel() {
@@ -393,34 +463,23 @@
         window.location.href = `/api/historicos/exportar?${paramsFiltros()}`;
     }
 
-    let temporizador = null;
-    function buscarConRetardo() {
-        clearTimeout(temporizador);
-        temporizador = setTimeout(() => buscar(), 350);
-    }
-
-    ['f_texto', 'f_cliente', 'f_maquina'].forEach(id => document.getElementById(id).addEventListener('input', buscarConRetardo));
-    ['f_tecnico', 'f_equipo', 'f_marca', 'f_desde', 'f_hasta', 'f_orden'].forEach(id => document.getElementById(id).addEventListener('change', () => {
-        if (id === 'f_desde' || id === 'f_hasta') document.getElementById('f_anio').value = '';
-        buscar();
-    }));
-    document.getElementById('f_anio').addEventListener('change', e => {
-        const a = e.target.value;
-        document.getElementById('f_desde').value = a ? `${a}-01-01` : '';
-        document.getElementById('f_hasta').value = a ? `${a}-12-31` : '';
-        buscar();
-    });
+    ['f_desde', 'f_hasta', 'f_orden'].forEach(id => document.getElementById(id).addEventListener('change', () => buscar()));
 
     async function iniciar() {
-        // Permite abrir la vista ya filtrada: /vista/historicos?cliente=...&maquina=...
-        const url = new URLSearchParams(window.location.search);
-        CAMPOS.forEach(c => { if (url.get(c)) document.getElementById(`f_${c}`).value = url.get(c); });
-
         showLoading();
         try {
-            await cargarOpciones();
-            CAMPOS.forEach(c => { if (url.get(c)) document.getElementById(`f_${c}`).value = url.get(c); });
-            if (['tecnico', 'equipo', 'marca', 'desde', 'hasta'].some(c => url.get(c))) toggleFiltros(true);
+            const res = await fetch('/api/historicos/opciones');
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
+            combinaciones = data.combinaciones;
+            document.getElementById('fuentes').innerText =
+                `${data.total.toLocaleString('es-ES')} partes · datos hasta ${fechaCorta(data.fecha_max)}`;
+
+            dropdowns = [
+                setupCustomDropdown('f_cliente', 'lista-clientes', opcionesClientes, alCambiarFiltro),
+                setupCustomDropdown('f_modelo', 'lista-modelos', opcionesModelos, alCambiarFiltro),
+                setupCustomDropdown('f_n_serie', 'lista-series', opcionesSeries, alCambiarFiltro),
+            ];
             await buscar();
         } catch (e) {
             document.getElementById('resumen-txt').innerText = '';
