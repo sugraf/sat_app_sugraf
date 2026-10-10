@@ -117,7 +117,8 @@
     .card-arrow span{ transition:transform 0.2s ease; }
     .card:hover .card-arrow span{ transform:translateX(4px); }
 
-    .note-icon, .nexus-icon, .person-icon, .ai-icon { width:22px; height:22px; }
+    .note-icon, .nexus-icon, .person-icon, .ai-icon, .clock-icon { width:22px; height:22px; }
+    .clock-icon path{ transition:stroke 0.2s ease; }
     .note-icon .fold{ transition:stroke 0.2s ease; }
     .card:hover .note-icon .fold{ stroke:#2fd9b8; }
     .nexus-icon .node{ transition:stroke 0.2s ease, fill 0.2s ease; }
@@ -241,6 +242,18 @@
           </div>
           <h3>Avisos Asignados</h3>
           <p>Crea los partes de los avisos asignados.</p>
+          <div class="card-arrow">Abrir <span>&rarr;</span></div>
+        </div>
+        <div class="card" id="card-historicos" onclick="irA('historicos')">
+          <div class="card-icon">
+            <svg class="clock-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M4.25 4.5v3h3" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path class="hands" d="M12 8.25V12l2.75 1.75" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3>Históricos SAT</h3>
+          <p>Consulta los partes realizados por cliente, máquina o avería.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
         <div class="card" id="card-control-ia" style="display:none;" onclick="irA('control')">

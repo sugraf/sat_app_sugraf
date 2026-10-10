@@ -210,6 +210,43 @@
     }
     .btn-archive:hover{ background:var(--green-soft); border-color:var(--green); }
 
+    .btn-hist {
+      background:rgba(59,130,246,0.14); color:#93c5fd; border:1px solid rgba(59,130,246,0.45);
+      padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.72rem;
+      text-transform:uppercase; letter-spacing:0.03em; font-family:'Montserrat', sans-serif;
+      transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-hist:hover{ background:rgba(59,130,246,0.25); border-color:#3b82f6; }
+    .btn-hist-form{ width:100%; margin:18px 0 4px; padding:11px; font-size:0.8rem; color:#1d4ed8; background:#eff6ff; border-color:#bfdbfe; }
+    .btn-hist-form:hover{ background:#dbeafe; }
+
+    #modal-historico{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9998; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px; }
+    .hist-box{ background:#fff; color:var(--navy); width:100%; max-width:860px; border-radius:14px; padding:22px; margin:auto; position:relative; }
+    .hist-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px; }
+    .hist-head h3{ font-size:1.1rem; }
+    .hist-head p{ font-size:0.8rem; color:#5c6b7d; margin-top:4px; }
+    .hist-close{ background:none; border:none; font-size:1.6rem; line-height:1; color:#94a3b8; cursor:pointer; padding:0 4px; }
+    .hist-close:hover{ color:var(--navy); }
+    .hist-tabs{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .hist-tab{ flex:1; min-width:150px; padding:10px 12px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; color:#4a5a72; font-weight:700; font-size:0.85rem; cursor:pointer; font-family:'Montserrat', sans-serif; }
+    .hist-tab.active{ background:var(--green); border-color:var(--green); color:#fff; }
+    .hist-tab span{ background:rgba(0,0,0,0.12); padding:1px 8px; border-radius:10px; font-size:0.75rem; margin-left:4px; }
+    .hist-filtros{ display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+    .hist-filtros input, .hist-filtros select{ flex:1; min-width:180px; padding:10px 12px; font-size:0.85rem; }
+    .hist-criterio{ font-size:0.72rem; color:#64748b; margin:6px 0 10px; }
+    .hist-item{ border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:8px; background:#fff; }
+    .hist-item.unidad{ border-left:4px solid var(--green); background:#f3faf8; }
+    .hist-meta{ display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; font-size:0.78rem; color:#5c6b7d; margin-bottom:6px; }
+    .hist-meta strong{ color:var(--navy); }
+    .hist-tag{ font-size:0.65rem; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:999px; letter-spacing:0.03em; }
+    .hist-tag.unidad{ background:#dcfce7; color:#15803d; }
+    .hist-tag.otro{ background:#e0e7ff; color:#4338ca; }
+    .hist-txt{ font-size:0.85rem; line-height:1.4; white-space:pre-wrap; word-break:break-word; }
+    .hist-txt b{ color:#5c6b7d; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; }
+    .hist-vacio{ color:#64748b; font-size:0.9rem; padding:18px 4px; text-align:center; }
+    .hist-enlace{ display:block; text-align:center; margin-top:12px; font-size:0.82rem; font-weight:700; color:var(--green); text-decoration:none; }
+    .hist-enlace:hover{ text-decoration:underline; }
+
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
       margin-top:20px; text-align:center; display:none;
@@ -302,6 +339,8 @@
         <input type="hidden" id="res_descripcion">
         <input type="hidden" id="res_fecha_entr">
 
+        <button type="button" class="btn-hist btn-hist-form" onclick="abrirHistorico(parseInt(document.getElementById('res_index').value))">Ver histórico de la máquina y del cliente</button>
+
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;">
           <div style="flex: 1; min-width: 140px;">
             <label>Asistencia</label>
@@ -384,7 +423,30 @@
     </div>
   </div>
 
-  <div id="modal-previa-parte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px;">
+  <div id="modal-historico" onclick="if (event.target === this) cerrarHistorico()">
+      <div class="hist-box">
+          <div class="hist-head">
+              <div>
+                  <h3>Histórico SAT</h3>
+                  <p id="hist-subtitulo"></p>
+              </div>
+              <button type="button" class="hist-close" onclick="cerrarHistorico()" aria-label="Cerrar">&times;</button>
+          </div>
+          <div class="hist-tabs">
+              <button type="button" class="hist-tab active" id="hist-tab-maquina" onclick="cambiarTabHistorico('maquina')">Esta máquina <span id="hist-count-maquina">0</span></button>
+              <button type="button" class="hist-tab" id="hist-tab-cliente" onclick="cambiarTabHistorico('cliente')">Este cliente <span id="hist-count-cliente">0</span></button>
+          </div>
+          <div class="hist-filtros">
+              <input type="search" id="hist-buscar" placeholder="Buscar en anomalía, solución, técnico..." oninput="renderHistorico()">
+              <select id="hist-filtro-maquina" onchange="renderHistorico()"></select>
+          </div>
+          <p class="hist-criterio" id="hist-criterio"></p>
+          <div id="hist-lista"></div>
+          <a class="hist-enlace" id="hist-enlace" href="/vista/historicos">Abrir en Históricos SAT &rarr;</a>
+      </div>
+  </div>
+
+  <div id="modal-previa-parte"style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; overflow-y:auto; padding:20px;">
       <div style="background:#fff; width:100%; max-width:800px; border-radius:12px; padding:24px; position:relative; margin:auto;">
           <h3 style="color:var(--navy); border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:20px; font-weight:700; font-family:'Montserrat';">Revisión y Firma del Parte</h3>
           
@@ -567,7 +629,8 @@
         if (currentUser === 'Master' && av['ESTADO'] === 'Cerrado') {
             actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
         }
-        
+        actionBtn += `<button onclick="event.stopPropagation(); abrirHistorico(${av.aviso_index})" class="btn-hist">Histórico</button>`;
+
         let fechasArr = (av['FECHA REALIZACIÓN'] || '').toString().split('\n').filter(f => f.trim() !== '');
         let fechasDisplay = fechasArr.length > 0 ? fechasArr[0] : (av['F. ENTR.'] || 'Sin fecha');
         let horasTotales = av['HORAS TOTALES'] || '00:00';
@@ -624,6 +687,153 @@
 
         box.innerHTML = finalHtml;
     }
+
+    // ---------------- Histórico SAT (Pirineos) ----------------
+    const cacheHistorico = {};
+    let historicoActual = null;
+    let avisoHistorico = null;
+    let tabHistorico = 'maquina';
+
+    function escHtml(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function fechaCorta(iso) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '');
+    }
+
+    function etiquetaMaquina(r) {
+        return [r.equipo, r.marca, r.modelo].filter(Boolean).join(' · ') + (r.n_serie ? ` (S/N ${r.n_serie})` : '');
+    }
+
+    async function abrirHistorico(index) {
+        const av = misAvisos.find(a => a.aviso_index === index);
+        if (!av) return;
+
+        const params = new URLSearchParams({
+            cliente: av['CLIENTE'] || '',
+            maquina: av['MÁQUINA'] || '',
+            marca: av['MARCA'] || '',
+            modelo: av['MODELO'] || '',
+            n_serie: av['Nº SERIE'] || ''
+        });
+        const clave = params.toString();
+
+        if (!cacheHistorico[clave]) {
+            showLoading();
+            try {
+                const res = await fetch(`/api/adjudicados/historico?${clave}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
+                cacheHistorico[clave] = data;
+            } catch (err) {
+                hideLoading();
+                await appAlert(`Error al cargar el histórico: ${err.message}`, {type: 'error'});
+                return;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        historicoActual = cacheHistorico[clave];
+        avisoHistorico = av;
+        document.getElementById('hist-subtitulo').innerHTML =
+            `<strong>${escHtml(av['CLIENTE'])}</strong> — ${escHtml(av['MÁQUINA'])}` +
+            (av['Nº SERIE'] ? ` (S/N ${escHtml(av['Nº SERIE'])})` : '');
+        document.getElementById('hist-count-maquina').innerText = historicoActual.maquina.total;
+        document.getElementById('hist-count-cliente').innerText = historicoActual.cliente.total;
+        document.getElementById('hist-buscar').value = '';
+
+        // Selector de máquinas del cliente para filtrar la pestaña "Este cliente".
+        const maquinas = {};
+        historicoActual.cliente.registros.forEach(r => {
+            const k = etiquetaMaquina(r) || 'Sin máquina indicada';
+            maquinas[k] = (maquinas[k] || 0) + 1;
+        });
+        document.getElementById('hist-filtro-maquina').innerHTML =
+            `<option value="">Todas las máquinas</option>` +
+            Object.entries(maquinas).sort((a, b) => b[1] - a[1])
+                .map(([k, n]) => `<option value="${escHtml(k)}">${escHtml(k)} (${n})</option>`).join('');
+
+        const sinMaquina = historicoActual.maquina.total === 0 && historicoActual.cliente.total > 0;
+        cambiarTabHistorico(sinMaquina ? 'cliente' : 'maquina');
+        document.getElementById('modal-historico').style.display = 'flex';
+    }
+
+    function cerrarHistorico() {
+        document.getElementById('modal-historico').style.display = 'none';
+    }
+
+    function cambiarTabHistorico(tab) {
+        tabHistorico = tab;
+        document.getElementById('hist-tab-maquina').classList.toggle('active', tab === 'maquina');
+        document.getElementById('hist-tab-cliente').classList.toggle('active', tab === 'cliente');
+        document.getElementById('hist-filtro-maquina').style.display = tab === 'cliente' ? '' : 'none';
+
+        // Enlace a la vista de Históricos ya filtrada por el cliente o la máquina del aviso.
+        const filtro = tab === 'cliente'
+            ? {cliente: (historicoActual.cliente.registros[0] || {}).cliente || avisoHistorico['CLIENTE'] || ''}
+            : {maquina: avisoHistorico['Nº SERIE'] || avisoHistorico['MODELO'] || ''};
+        const enlace = document.getElementById('hist-enlace');
+        enlace.href = `/vista/historicos?${new URLSearchParams(filtro)}`;
+        enlace.style.display = Object.values(filtro)[0] ? '' : 'none';
+        renderHistorico();
+    }
+
+    function renderHistorico() {
+        if (!historicoActual) return;
+        const seccion = historicoActual[tabHistorico];
+        const texto = document.getElementById('hist-buscar').value.trim().toLowerCase();
+        const filtroMaq = tabHistorico === 'cliente' ? document.getElementById('hist-filtro-maquina').value : '';
+
+        let registros = seccion.registros;
+        if (filtroMaq) registros = registros.filter(r => (etiquetaMaquina(r) || 'Sin máquina indicada') === filtroMaq);
+        if (texto) {
+            registros = registros.filter(r =>
+                [r.anomalia, r.solucion, r.tecnico, r.cliente, r.nombre_comercial, r.modelo, r.n_serie, r.n_parte]
+                    .some(v => String(v || '').toLowerCase().includes(texto)));
+        }
+
+        let criterio = '';
+        if (tabHistorico === 'maquina') {
+            criterio = seccion.criterio
+                ? `Búsqueda por ${seccion.criterio}. ${seccion.otros_clientes} parte(s) en otros clientes.`
+                : 'El aviso no tiene nº de serie ni modelo reconocible en el histórico.';
+        } else {
+            criterio = seccion.criterio ? `Cliente encontrado por ${seccion.criterio}.` : '';
+        }
+        if (seccion.total > seccion.registros.length) criterio += ` Se muestran los ${seccion.registros.length} más recientes.`;
+        document.getElementById('hist-criterio').innerText = criterio;
+
+        const lista = document.getElementById('hist-lista');
+        if (registros.length === 0) {
+            lista.innerHTML = `<p class="hist-vacio">${seccion.total === 0 ? 'No hay partes en el histórico.' : 'Ningún parte coincide con el filtro.'}</p>`;
+            return;
+        }
+
+        lista.innerHTML = registros.map(r => {
+            let tags = '';
+            if (r.misma_unidad) tags += `<span class="hist-tag unidad">Esta unidad</span>`;
+            if (tabHistorico === 'maquina' && !r.mismo_cliente) tags += `<span class="hist-tag otro">Otro cliente</span>`;
+            const cliente = r.nombre_comercial ? `${r.cliente} (${r.nombre_comercial})` : r.cliente;
+            return `
+            <div class="hist-item ${r.misma_unidad ? 'unidad' : ''}">
+                <div class="hist-meta">
+                    <strong>${escHtml(fechaCorta(r.fecha))}</strong>
+                    ${tabHistorico === 'maquina' ? `<span>${escHtml(cliente)}</span>` : ''}
+                    <span>${escHtml(etiquetaMaquina(r))}</span>
+                    <span>${escHtml(r.tecnico)}</span>
+                    <span>Parte ${escHtml(r.n_parte)}</span>
+                    ${tags}
+                </div>
+                <div class="hist-txt"><b>Anomalía:</b> ${escHtml(r.anomalia)}</div>
+                <div class="hist-txt"><b>Solución:</b> ${escHtml(r.solucion)}</div>
+            </div>`;
+        }).join('');
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarHistorico(); });
 
     async function archivarPirineos(index) {
         const ok = await appConfirm("¿Confirmas que este aviso ya está introducido en Pirineos? Desaparecerá de la aplicación y se guardará en Partes Finalizados.");

@@ -7,6 +7,7 @@ from generador.api_generador import router as generador_router
 from gestor.api_gestor import router as gestor_router
 from adjudicados.api_adjudicados import router as adjudicados_router
 from control.api_control import router as control_router
+from historicos.api_historicos import router as historicos_router
 
 app = FastAPI()
 
@@ -22,6 +23,7 @@ app.include_router(generador_router, prefix="/api/generador")
 app.include_router(gestor_router, prefix="/api/gestor")
 app.include_router(adjudicados_router, prefix="/api/adjudicados")
 app.include_router(control_router, prefix="/api/control")
+app.include_router(historicos_router, prefix="/api/historicos")
 
 def get_html(path):
     if os.path.exists(path):
@@ -48,6 +50,10 @@ def view_adjudicados():
 @app.get("/vista/control", response_class=HTMLResponse)
 def view_control():
     return get_html(os.path.join(os.path.dirname(__file__), "control", "control.html"))
+
+@app.get("/vista/historicos", response_class=HTMLResponse)
+def view_historicos():
+    return get_html(os.path.join(os.path.dirname(__file__), "historicos", "historicos.html"))
 
 @app.get("/{filename}.png")
 def get_png(filename: str):

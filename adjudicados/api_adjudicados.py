@@ -24,6 +24,7 @@ if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 from logger_movimientos import registrar_movimiento
 from aviso_matcher import resolver_indice_aviso
+from historicos.api_historicos import cargar_historico, buscar_por_aviso
 
 router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
@@ -605,6 +606,18 @@ def get_mis_avisos(tecnico: str):
         return {"avisos": avisos_mios}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/historico")
+def get_historico(cliente: str = '', maquina: str = '', marca: str = '', modelo: str = '', n_serie: str = ''):
+    """Histórico de Pirineos de la máquina (misma unidad y mismo modelo en otros
+    clientes) y del cliente (todas sus máquinas)."""
+    try:
+        indice, fuentes = cargar_historico()
+        resultado = buscar_por_aviso(indice, cliente, maquina, marca, modelo, n_serie)
+        resultado['fuentes'] = fuentes
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo leer el histórico de SAT: {e}")
 
 @router.post("/piezas-recibidas")
 def marcar_piezas(data: MarcarPiezas):
