@@ -244,6 +244,15 @@
     .hist-txt{ font-size:0.85rem; line-height:1.4; white-space:pre-wrap; word-break:break-word; }
     .hist-txt b{ color:#5c6b7d; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; }
     .hist-vacio{ color:#64748b; font-size:0.9rem; padding:18px 4px; text-align:center; }
+    .fecha-parte{ position:relative; min-width:0; }
+    /* Es readonly para que no salga el teclado, pero debe verse como un campo editable. */
+    .fecha-parte #ses_fecha_txt:not(:disabled){
+      background:#ffffff; color:var(--navy); border-style:solid; cursor:pointer;
+      box-shadow:0 3px 10px rgba(0,104,88,0.07), 0 4px 14px rgba(59,130,246,0.06);
+    }
+    /* Invisible pero "renderizado", para que showPicker() abra el calendario en su sitio. */
+    .fecha-parte #ses_fecha{ position:absolute; left:0; bottom:0; width:100%; height:100%; opacity:0; pointer-events:none; }
+
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
       margin-top:20px; text-align:center; display:none;
@@ -282,7 +291,7 @@
       #botones-resolucion { flex-wrap: wrap; }
       
       .sesion-row { flex-wrap: wrap; gap: 5px; }
-      .sesion-row > input { flex: 1 1 30% !important; min-width: 80px; }
+      .sesion-row > input, .sesion-row > .fecha-parte { flex: 1 1 30% !important; min-width: 80px; }
     }
 
     @media (max-width: 380px) {
@@ -374,7 +383,11 @@
 
         <label style="margin-bottom:8px;">Fecha y Horas de Trabajo</label>
         <div class="sesion-row" style="display:flex; gap:8px; margin-bottom:18px; align-items:center;">
-            <input type="date" id="ses_fecha" style="flex:2; padding:10px;" title="Fecha">
+            <!-- Se ve dd/mm/aa; el input date (oculto debajo) guarda AAAA-MM-DD y da el calendario. -->
+            <div class="fecha-parte" style="flex:2;">
+              <input type="text" id="ses_fecha_txt" readonly placeholder="dd/mm/aa" style="padding:10px;" title="Fecha" onclick="abrirCalendarioParte()">
+              <input type="date" id="ses_fecha" tabindex="-1" aria-hidden="true" onchange="mostrarFechaParte()">
+            </div>
             <input type="time" id="ses_hora_ent" style="flex:1; padding:10px;" title="Hora Entrada">
             <input type="time" id="ses_hora_sal" style="flex:1; padding:10px;" title="Hora Salida">
         </div>
@@ -605,6 +618,28 @@
         document.getElementById('div_detalle_venta').style.display = val === 'SI' ? 'block' : 'none';
     }
 
+    // Fecha del parte: se guarda como AAAA-MM-DD y se muestra como dd/mm/aa (10/10/26).
+    function fechaParte(valor) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(valor || '').trim());
+        return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : String(valor || '').trim();
+    }
+
+    function hoyISO() {
+        const d = new Date(); // fecha local, no UTC (con toISOString de madrugada salía el día anterior)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function mostrarFechaParte() {
+        document.getElementById('ses_fecha_txt').value = fechaParte(document.getElementById('ses_fecha').value);
+    }
+
+    function abrirCalendarioParte() {
+        const fecha = document.getElementById('ses_fecha');
+        if (fecha.disabled) return;
+        try { fecha.showPicker(); }
+        catch (e) { fecha.focus(); fecha.click(); }
+    }
+
     function generateCard(av) {
         let badgesHtml = "";
         if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
@@ -628,7 +663,7 @@
         actionBtn += `<button onclick="event.stopPropagation(); abrirHistorico(${av.aviso_index})" class="btn-hist">Histórico</button>`;
 
         let fechasArr = (av['FECHA REALIZACIÓN'] || '').toString().split('\n').filter(f => f.trim() !== '');
-        let fechasDisplay = fechasArr.length > 0 ? fechasArr[0] : (av['F. ENTR.'] || 'Sin fecha');
+        let fechasDisplay = fechaParte(fechasArr.length > 0 ? fechasArr[0] : av['F. ENTR.']) || 'Sin fecha';
         let horasTotales = av['HORAS TOTALES'] || '00:00';
 
         return `
@@ -960,14 +995,16 @@
       let he_arr = (av['HORA ENTRADA'] || "").toString().split('\n');
       let hs_arr = (av['HORA SALIDA'] || "").toString().split('\n');
 
-      let dateVal = f_arr[0] || new Date().toISOString().split('T')[0];
+      let dateVal = f_arr[0] || hoyISO();
       if(dateVal.includes(' ')) dateVal = dateVal.split(' ')[0];
-      
+
       document.getElementById('ses_fecha').value = dateVal;
+      mostrarFechaParte();
       document.getElementById('ses_hora_ent').value = (he_arr[0] || '').substring(0, 5);
       document.getElementById('ses_hora_sal').value = (hs_arr[0] || '').substring(0, 5);
 
       document.getElementById('ses_fecha').disabled = isCerrado;
+      document.getElementById('ses_fecha_txt').disabled = isCerrado;
       document.getElementById('ses_hora_ent').disabled = isCerrado;
       document.getElementById('ses_hora_sal').disabled = isCerrado;
 
@@ -1164,7 +1201,7 @@
     }
 
     function mostrarPreviaPDF() {
-        document.getElementById('prev_fechas').value = document.getElementById('ses_fecha').value;
+        document.getElementById('prev_fechas').value = fechaParte(document.getElementById('ses_fecha').value);
         document.getElementById('prev_horas_in').value = document.getElementById('ses_hora_ent').value;
         document.getElementById('prev_horas_out').value = document.getElementById('ses_hora_sal').value;
 
