@@ -216,7 +216,10 @@
         
         <label>Población / Dirección</label>
         <input type="text" id="ni_poblacion" required>
-        
+
+        <label>Email del cliente</label>
+        <input type="email" id="ni_email" multiple placeholder="cliente@correo.com">
+
         <label>Máquina(s)</label>
         <div class="maquina-row" style="display: flex; gap: 10px;">
           <div class="custom-select-wrapper" style="flex: 1; margin-bottom: 0;">
@@ -339,6 +342,7 @@
             document.getElementById('ni_gar').checked = false;
 
             document.getElementById('ni_poblacion').value = cliente.poblacion || '';
+            document.getElementById('ni_email').value = cliente.email || '';
           }
         );
 
@@ -551,6 +555,7 @@
         f_garan: maquinaData.f_garan,
         f_instal: maquinaData.f_instal,
         descripcion: document.getElementById('ni_desc').value,
+        email: document.getElementById('ni_email').value.trim(),
         urgente: document.getElementById('ni_urg').checked,
         garantia: document.getElementById('ni_gar').checked,
         mantenimiento: document.getElementById('ni_man').checked,

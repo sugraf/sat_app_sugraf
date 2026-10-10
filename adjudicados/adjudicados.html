@@ -473,7 +473,7 @@
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:20px;">
               <div><label>Técnico</label><input type="email" id="prev_email_tecnico"></div>
               <div><label>Laura</label><input type="email" id="prev_email_laura" value="laura@sugraf.es"></div>
-              <div><label>Cliente</label><input type="email" id="prev_email_cliente" placeholder="cliente@correo.com"></div>
+              <div><label>Cliente</label><input type="email" id="prev_email_cliente" multiple placeholder="cliente@correo.com"></div>
           </div>
 
           <h4 style="color:var(--navy); margin-bottom:10px; font-family:'Montserrat';">Firma del Técnico</h4>
@@ -1204,7 +1204,7 @@
             "Técnico 4": ""
         };
         document.getElementById('prev_email_tecnico').value = correos[tecnico] !== undefined ? correos[tecnico] : '';
-        document.getElementById('prev_email_cliente').value = "";
+        document.getElementById('prev_email_cliente').value = av ? (av['EMAIL CLIENTE'] || '') : '';
 
         document.getElementById('prev_nombre_cliente').value = document.getElementById('res_cliente').value;
 
