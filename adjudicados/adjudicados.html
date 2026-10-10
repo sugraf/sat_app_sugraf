@@ -326,7 +326,7 @@
     </div>
 
     <div id="master-panel" style="display:none;">
-      <p class="master-intro">SELECCIONA UN T&Eacute;CNICO PARA VER SUS AVISOS EN PROGRESO:</p>
+      <p class="master-intro">SELECCIONA UN T&Eacute;CNICO PARA VER SUS AVISOS (P&Uacute;LSALO OTRA VEZ PARA VOLVER A LOS PENDIENTES DE PIRINEOS DE TODOS):</p>
       <div id="botones-tecnicos" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
     </div>
 
@@ -553,7 +553,6 @@
         misAvisos = data.avisos || [];
 
         if (currentUser === "Master") {
-            if (!filtroTecnicoMaster) filtroTecnicoMaster = TECNICOS[0];
             document.getElementById('master-panel').style.display = 'block';
             renderBotonesMaster();
         }
@@ -572,11 +571,25 @@
             const count = misAvisos.filter(a => a['ASIGNADO A'] === t && a['ESTADO'] !== 'Cerrado').length;
             const isSelected = filtroTecnicoMaster === t;
             const activeClass = isSelected ? 'active' : '';
-            html += `<button class="master-tab ${activeClass}" onclick="filtroTecnicoMaster='${t}'; renderBotonesMaster(); renderAvisos();">
+            html += `<button class="master-tab ${activeClass}" onclick="seleccionarTecnicoMaster('${t}')">
                         ${t} <span>${count}</span>
                      </button>`;
         });
         document.getElementById('botones-tecnicos').innerHTML = html;
+    }
+
+    // Pulsar el técnico ya seleccionado lo deselecciona y vuelve a la vista general
+    // (cerrados de todos los técnicos pendientes de Pirineos).
+    function seleccionarTecnicoMaster(tecnico) {
+        filtroTecnicoMaster = filtroTecnicoMaster === tecnico ? null : tecnico;
+        renderBotonesMaster();
+        renderAvisos();
+    }
+
+    // Fecha del parte (o de entrada si aún no tiene) en AAAA-MM-DD, para ordenar.
+    function fechaOrden(av) {
+        const realizacion = String(av['FECHA REALIZACIÓN'] || '').split('\n').find(f => f.trim()) || '';
+        return (realizacion || String(av['F. ENTR.'] || '')).trim().slice(0, 10);
     }
 
     function verificarResolucion() {
@@ -678,6 +691,18 @@
         let abiertos = [];
         let cerrados = [];
         let noAbiertos = [];
+
+        // Master sin técnico seleccionado: solo los cerrados de todos, pendientes de pasar a Pirineos.
+        if (currentUser === 'Master' && !filtroTecnicoMaster) {
+            const pendientesPirineos = misAvisos
+                .filter(a => a['ESTADO'] === 'Cerrado')
+                .sort((a, b) => (fechaOrden(a) || '9999').localeCompare(fechaOrden(b) || '9999'));
+            box.innerHTML = pendientesPirineos.length
+                ? `<div class="section-divider"><span class="dot-status closed"></span> Avisos Cerrados de todos los técnicos (Pendientes de Pirineos)</div>`
+                  + pendientesPirineos.map(av => generateCard(av)).join('')
+                : `<p class='empty-msg'>No hay avisos cerrados pendientes de pasar a Pirineos.</p>`;
+            return;
+        }
 
         if (currentUser === 'Master') {
             const techAvisos = misAvisos.filter(a => a['ASIGNADO A'] === filtroTecnicoMaster);
@@ -1350,8 +1375,11 @@
         if (historicoVisible) av = avisoEnHistorico;
         else if (parteVisible) av = misAvisos.find(a => a.aviso_index === parseInt(document.getElementById('res_index').value));
 
-        const tecnico = currentUser === 'Master' ? filtroTecnicoMaster : currentUser;
-        const visibles = misAvisos.filter(a => currentUser !== 'Master' || a['ASIGNADO A'] === filtroTecnicoMaster);
+        const vistaGeneral = currentUser === 'Master' && !filtroTecnicoMaster;
+        const tecnico = vistaGeneral ? 'todos (solo cerrados pendientes de pasar a Pirineos)'
+            : currentUser === 'Master' ? filtroTecnicoMaster : currentUser;
+        const visibles = misAvisos.filter(a => currentUser !== 'Master'
+            || (vistaGeneral ? a['ESTADO'] === 'Cerrado' : a['ASIGNADO A'] === filtroTecnicoMaster));
         const ctx = {
             tecnico,
             vista: historicoVisible ? 'histórico del aviso' : parteVisible ? 'parte de trabajo del aviso' : 'lista de avisos',
