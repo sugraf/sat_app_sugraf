@@ -9,13 +9,16 @@ cubrir varios modelos: "SG2-640_540_300", "VS-640i-540i-340i",
 sacan todas sus variantes para poder encontrar la carpeta a partir de la
 marca, el modelo o el nombre de la máquina de un aviso o de Maquinas.xlsx.
 
-Los manuales se abren con su enlace de Drive (los PDF son demasiado grandes
-para pasar por la app). El catálogo y el Excel de máquinas se guardan en
-memoria unos minutos.
+Los manuales se abren a través de la app (/api/manuales/archivo/...), que los
+descarga de Drive con la cuenta de servicio y los envía en streaming: así no
+hace falta tener sesión en Google y cada dispositivo los abre con su
+aplicación (visor de PDF, Excel, Word...). Solo se sirven ficheros del
+catálogo. El catálogo y el Excel de máquinas se guardan en memoria unos minutos.
 
 Lo usan la vista de Manuales (rutas /api/manuales/...) y la sección de
 adjudicados (POST /api/manuales/buscar).
 """
+import io
 import json
 import os
 import re
@@ -24,11 +27,14 @@ import threading
 import time
 import unicodedata
 from typing import List
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 from pydantic import BaseModel
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,6 +48,20 @@ MIME_ACCESO_DIRECTO = 'application/vnd.google-apps.shortcut'
 SEGUNDOS_CACHE = 600
 PADRES_POR_CONSULTA = 40
 MAX_NIVELES = 6
+BYTES_POR_TROZO = 8 * 1024 * 1024
+
+# Ficheros de sistema que la sincronización de Drive puede subir y no son manuales.
+FICHEROS_IGNORADOS = {'desktop.ini', 'thumbs.db', '.ds_store'}
+
+# Documentos de Google: se descargan convertidos al formato de Office equivalente.
+EXPORTAR_GOOGLE = {
+    'application/vnd.google-apps.spreadsheet': ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx'),
+    'application/vnd.google-apps.document': ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.docx'),
+    'application/vnd.google-apps.presentation': ('application/vnd.openxmlformats-officedocument.presentationml.presentation', '.pptx'),
+    'application/vnd.google-apps.drawing': ('application/pdf', '.pdf'),
+}
+# Lo que el navegador sabe mostrar se abre en él; el resto se descarga para abrirlo con su aplicación.
+MIME_EN_NAVEGADOR = ('application/pdf', 'image/', 'video/', 'audio/', 'text/plain')
 
 # Palabras que acompañan al modelo en algunos nombres de carpeta ("PLOTER ROLAND VF2-640").
 PALABRAS_GENERICAS = {'PLOTER', 'PLOTTER', 'IMPRESORA', 'MAQUINA', 'MODELO', 'MANUAL', 'MANUALES'}
@@ -269,14 +289,28 @@ def _url_acceso_web(drive, file_id):
         return ''
 
 
-def _archivo(drive, e, ruta):
+def _ignorado(e):
+    nombre = e['name'].strip().lower()
+    return nombre in FICHEROS_IGNORADOS or nombre.startswith(('~$', '.'))
+
+
+def _archivo(drive, e, ruta, descargas):
+    """Datos públicos del fichero; en `descargas` se guarda lo necesario para servirlo."""
     nombre = e['name']
-    tipo = _tipo(nombre, e.get('mimeType', ''))
+    mime = e.get('shortcutDetails', {}).get('targetMimeType') or e.get('mimeType', '')
+    tipo = _tipo(nombre, mime)
     url = ''
     if tipo == 'web':
         url = _url_acceso_web(drive, e['id'])
     if not url:
-        url = e.get('webViewLink') or f"https://drive.google.com/file/d/{_id_real(e)}/view"
+        mime_descarga, extension = EXPORTAR_GOOGLE.get(mime, (mime or 'application/octet-stream', ''))
+        if extension and not nombre.lower().endswith(extension):
+            nombre += extension
+        descargas[e['id']] = {
+            'drive_id': _id_real(e), 'mime_drive': mime, 'mime': mime_descarga, 'nombre': nombre,
+            'tamano': 0 if extension else int(e.get('size') or 0),
+        }
+        url = f"/api/manuales/archivo/{e['id']}/{quote(nombre)}"
     titulo = re.sub(r'\.(pdf|url|webloc|website)$', '', nombre, flags=re.IGNORECASE)
     return {
         'id': e['id'],
@@ -303,6 +337,7 @@ def leer_catalogo(drive):
             f"compartida, la app no las ve. {compartir}"
         )
     marca_de = {_id_real(m): m['name'].strip() for m in marcas}
+    descargas = {}  # id del fichero -> datos para servirlo (solo se sirven los del catálogo)
 
     # Carpetas de modelo: segundo nivel. Los ficheros sueltos en la carpeta de una
     # marca se agrupan en un "modelo" General de esa marca.
@@ -310,6 +345,8 @@ def leer_catalogo(drive):
     ubicacion = {}  # id de carpeta -> (id de la carpeta de modelo, ruta de subcarpetas)
     pendientes = []
     for e in _listar_hijos(drive, marca_de):
+        if _ignorado(e):
+            continue
         marca_id = e['parents'][0] if e.get('parents') else None
         marca = marca_de.get(marca_id, '')
         if _es_carpeta(e):
@@ -319,7 +356,7 @@ def leer_catalogo(drive):
         else:
             general = f'general-{marca_id}'
             modelos.setdefault(general, {'marca': marca, 'nombre': 'General', 'archivos': []})
-            modelos[general]['archivos'].append(_archivo(drive, e, []))
+            modelos[general]['archivos'].append(_archivo(drive, e, [], descargas))
 
     # Contenido de cada modelo, incluidas sus subcarpetas (nivel a nivel).
     for _ in range(MAX_NIVELES):
@@ -328,14 +365,14 @@ def leer_catalogo(drive):
         siguientes = []
         for e in _listar_hijos(drive, pendientes):
             padre = next((p for p in e.get('parents', []) if p in ubicacion), None)
-            if padre is None:
+            if padre is None or _ignorado(e):
                 continue
             modelo_id, ruta = ubicacion[padre]
             if _es_carpeta(e):
                 ubicacion[_id_real(e)] = (modelo_id, [*ruta, e['name'].strip()])
                 siguientes.append(_id_real(e))
             else:
-                modelos[modelo_id]['archivos'].append(_archivo(drive, e, ruta))
+                modelos[modelo_id]['archivos'].append(_archivo(drive, e, ruta, descargas))
         pendientes = siguientes
 
     carpetas = []
@@ -348,7 +385,7 @@ def leer_catalogo(drive):
             'claves': variantes_modelo(m['nombre'], m['marca']) if m['nombre'] != 'General' else set(),
         })
     carpetas.sort(key=lambda c: (_orden_natural(c['publica']['marca']), _orden_natural(c['publica']['nombre'])))
-    return {'carpetas': carpetas, 'leido': time.time()}
+    return {'carpetas': carpetas, 'descargas': descargas, 'leido': time.time()}
 
 
 def cargar_catalogo(refrescar=False):
@@ -434,3 +471,60 @@ def post_buscar(peticion: PeticionBuscar):
         return {'resultados': [buscar_carpetas(catalogo, m.marca, m.modelo, m.maquina) for m in peticion.maquinas]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo leer la carpeta de manuales: {e}")
+
+
+def _trozos(peticion):
+    """Contenido del fichero de Drive en trozos, para enviarlo según llega."""
+    buffer = io.BytesIO()
+    descarga = MediaIoBaseDownload(buffer, peticion, chunksize=BYTES_POR_TROZO)
+    terminado = False
+    while not terminado:
+        _, terminado = descarga.next_chunk()
+        yield buffer.getvalue()
+        buffer.seek(0)
+        buffer.truncate()
+
+
+@router.get("/archivo/{file_id}/{nombre}")
+def get_archivo(file_id: str, nombre: str = ''):
+    """Abre un manual: lo descarga de Drive y lo envía en streaming (sin el límite
+    de tamaño de respuesta de Vercel). El nombre de la ruta solo sirve para que el
+    navegador o el móvil guarden el fichero con su nombre."""
+    try:
+        catalogo = cargar_catalogo()
+        if file_id not in catalogo['descargas'] and time.time() - catalogo['leido'] > 60:
+            catalogo = cargar_catalogo(refrescar=True)  # puede ser un manual recién subido
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo leer la carpeta de manuales: {e}")
+    datos = catalogo['descargas'].get(file_id)
+    if not datos:
+        raise HTTPException(status_code=404, detail="Este manual ya no está en la carpeta de Manuales técnicos.")
+
+    drive = _drive()
+    if datos['mime_drive'] in EXPORTAR_GOOGLE:
+        peticion = drive.files().export_media(fileId=datos['drive_id'], mimeType=datos['mime'])
+    else:
+        peticion = drive.files().get_media(fileId=datos['drive_id'], supportsAllDrives=True)
+
+    # El primer trozo se pide antes de responder para poder devolver un error claro.
+    trozos = _trozos(peticion)
+    try:
+        primero = next(trozos)
+    except HttpError as e:
+        raise HTTPException(status_code=502, detail=f"Drive no ha entregado el manual: {e.reason}")
+
+    def contenido():
+        yield primero
+        yield from trozos
+
+    en_navegador = datos['mime'].startswith(MIME_EN_NAVEGADOR)
+    nombre_ascii = re.sub(r'[^A-Za-z0-9._ -]', '_', unicodedata.normalize('NFKD', datos['nombre'])
+                          .encode('ascii', 'ignore').decode()).strip() or 'manual'
+    cabeceras = {
+        'Content-Disposition': f"{'inline' if en_navegador else 'attachment'}; filename=\"{nombre_ascii}\"; "
+                               f"filename*=UTF-8''{quote(datos['nombre'])}",
+        'Cache-Control': 'private, max-age=3600',
+    }
+    if datos['tamano']:
+        cabeceras['Content-Length'] = str(datos['tamano'])
+    return StreamingResponse(contenido(), media_type=datos['mime'], headers=cabeceras)
