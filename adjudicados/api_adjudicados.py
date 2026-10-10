@@ -129,7 +129,6 @@ class UpdateParte(BaseModel):
     maquina: str
     tecnico: str
     tipo_asistencia: str
-    pirineos: str
     opcion_venta: str
     detalle_venta: str
     estado_piezas: str
@@ -246,7 +245,6 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     horas_totales = calcular_horas(parte.hora_entrada, parte.hora_salida)
 
     df.loc[idx, 'TIPO ASISTENCIA'] = parte.tipo_asistencia
-    df.loc[idx, 'PIRINEOS'] = parte.pirineos
     df.loc[idx, 'FECHA REALIZACIÓN'] = parte.fecha_realizacion
     df.loc[idx, 'HORA ENTRADA'] = parte.hora_entrada
     df.loc[idx, 'HORA SALIDA'] = parte.hora_salida

@@ -355,13 +355,6 @@
               <option value="Telemático">Telemático</option>
             </select>
           </div>
-          <div style="flex: 1; min-width: 100px;" id="div_pirineos">
-            <label>Pirineos</label>
-            <select id="res_pirineos">
-              <option value="NO">No</option>
-              <option value="SI">Sí</option>
-            </select>
-          </div>
         </div>
 
         <div class="box-group">
@@ -936,14 +929,7 @@
           document.getElementById('titulo-estado-parte').innerText = 'Parte de Trabajo';
       }
 
-      if (currentUser !== 'Master') {
-          document.getElementById('div_pirineos').style.display = 'none';
-      } else {
-          document.getElementById('div_pirineos').style.display = 'block';
-      }
-
       document.getElementById('res_tipo_asistencia').value = av['TIPO ASISTENCIA'] || 'Presencial';
-      document.getElementById('res_pirineos').value = av['PIRINEOS'] || 'NO';
       document.getElementById('res_opcion_venta').value = av['OPCIÓN A VENTA'] || 'NO';
       document.getElementById('res_detalle_venta').value = av['DETALLE VENTA'] || '';
       verificarVenta();
@@ -1008,7 +994,7 @@
       document.getElementById('ses_hora_ent').disabled = isCerrado;
       document.getElementById('ses_hora_sal').disabled = isCerrado;
 
-      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_piezas', 'res_piezas', 'res_piezas_utilizadas', 'res_solucion', 'res_observaciones', 'res_pirineos'];
+      const camposEdicion = ['res_tipo_asistencia', 'res_opcion_venta', 'res_detalle_venta', 'res_estado_resolucion', 'res_necesita_piezas', 'res_piezas', 'res_piezas_utilizadas', 'res_solucion', 'res_observaciones'];
       camposEdicion.forEach(f => {
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado;
@@ -1048,7 +1034,6 @@
         return {
             aviso_index: parseInt(document.getElementById('res_index').value),
             tipo_asistencia: document.getElementById('res_tipo_asistencia').value,
-            pirineos: document.getElementById('res_pirineos').value,
             opcion_venta: document.getElementById('res_opcion_venta').value,
             detalle_venta: document.getElementById('res_detalle_venta').value,
             estado_piezas: estadoPiezas,
