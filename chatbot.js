@@ -184,7 +184,7 @@
       div.innerHTML = formatear(m.texto) +
         (m.partes && m.partes.length ? `<span class="sbot-fuente">Consultados ${m.partes.length} partes del histórico</span>` : '');
     } else {
-      div.textContent = (m.voz ? '🎤 ' : '') + m.texto;
+      div.textContent = m.texto;
     }
     return div;
   }
@@ -213,7 +213,8 @@
 
   // ---------- Envío ----------
   let enviando = false;
-  async function enviar(texto, voz = false) {
+  async function enviar(texto) {
+    if (texto === undefined && grabando) pararDictado(); // Enviar también corta el dictado en curso
     texto = (texto ?? $texto.value).trim();
     if (!texto || enviando) return;
     enviando = true;
@@ -223,7 +224,7 @@
 
     const historial = conversacion.filter(m => m.rol !== 'error').slice(-MAX_HISTORIAL_ENVIO)
       .map(m => ({rol: m.rol, texto: m.texto}));
-    conversacion.push({rol: 'user', texto, voz});
+    conversacion.push({rol: 'user', texto});
     guardarConversacion(conversacion);
     pintar();
 
@@ -268,19 +269,61 @@
   });
 
   // ---------- Voz (reconocimiento del navegador, sin coste) ----------
+  // El dictado se escribe en la caja de texto y NO se envía solo: se sigue
+  // escuchando aunque haya pausas hasta pulsar otra vez el micrófono, y el
+  // mensaje sale cuando el usuario pulsa Enviar (pudiendo corregirlo antes).
   const Reconocimiento = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // En Android el modo continuo repite frases; allí se usan frases sueltas
+  // que se encadenan reiniciando el reconocimiento tras cada pausa.
+  const CONTINUO = !/Android/i.test(navigator.userAgent);
   let rec = null;
-  let grabando = false;
+  let grabando = false;   // el usuario quiere seguir dictando
 
-  function mostrarEstado(texto) {
+  function mostrarEstado(texto, esError = true) {
     $estado.textContent = texto;
+    $estado.style.color = esError ? '#ef4444' : '#006858';
     $estado.style.display = texto ? 'block' : 'none';
   }
 
-  function pararMic() {
+  function estiloMic(activo) {
+    $mic.classList.toggle('grabando', activo);
+    $mic.innerHTML = ICONO_MIC(activo ? '#fff' : '#10263B');
+    $mic.title = activo ? 'Parar de dictar' : 'Dictar por voz';
+  }
+
+  function pararDictado() {
     grabando = false;
-    $mic.classList.remove('grabando');
-    $mic.innerHTML = ICONO_MIC('#10263B');
+    if (rec) { try { rec.stop(); } catch (e) {} }
+    estiloMic(false);
+    mostrarEstado('');
+  }
+
+  function escuchar() {
+    const base = $texto.value.trim();
+    rec = new Reconocimiento();
+    rec.lang = 'es-ES';
+    rec.interimResults = true;
+    rec.continuous = CONTINUO;
+    rec.onresult = e => {
+      // Se recompone todo lo oído en esta sesión para no duplicar frases.
+      let oido = '';
+      for (let i = 0; i < e.results.length; i++) oido += e.results[i][0].transcript;
+      $texto.value = `${base} ${oido.trim()}`.trim();
+      ajustarAltura();
+    };
+    rec.onerror = e => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return; // pausa: se reinicia en onend
+      grabando = false;
+      mostrarEstado(e.error === 'not-allowed' || e.error === 'service-not-allowed'
+        ? 'Permite el acceso al micrófono para poder dictar.'
+        : `Error del micrófono: ${e.error}`);
+    };
+    rec.onend = () => {
+      // El navegador corta tras un silencio: si no se ha pulsado parar, se sigue escuchando.
+      if (grabando) setTimeout(() => { if (grabando) escuchar(); }, 250);
+      else estiloMic(false);
+    };
+    rec.start();
   }
 
   $mic.addEventListener('click', () => {
@@ -288,38 +331,15 @@
       mostrarEstado('Este navegador no permite dictar por voz. Usa Chrome, Edge o Safari actualizados.');
       return;
     }
-    if (grabando) { rec.stop(); return; }
-
-    const base = $texto.value.trim();
-    let final = '';
-    rec = new Reconocimiento();
-    rec.lang = 'es-ES';
-    rec.interimResults = true;
-    rec.continuous = false;
-    rec.onresult = e => {
-      let provisional = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) final += t; else provisional += t;
-      }
-      $texto.value = `${base} ${final}${provisional}`.trim();
-      ajustarAltura();
-    };
-    rec.onerror = e => {
-      mostrarEstado(e.error === 'not-allowed' || e.error === 'service-not-allowed'
-        ? 'Permite el acceso al micrófono para poder dictar.'
-        : e.error === 'no-speech' ? 'No te he oído. Pulsa el micrófono y habla.' : `Error del micrófono: ${e.error}`);
-    };
-    rec.onend = () => {
-      pararMic();
-      // Al terminar de hablar, el audio transcrito se envía como mensaje.
-      if (final.trim()) enviar(`${base} ${final}`.trim(), true);
-    };
-    mostrarEstado('');
+    if (grabando) {
+      pararDictado();
+      $texto.focus();
+      return;
+    }
     grabando = true;
-    $mic.classList.add('grabando');
-    $mic.innerHTML = ICONO_MIC('#fff');
-    rec.start();
+    estiloMic(true);
+    mostrarEstado('Escuchando… Pulsa el micrófono para parar y luego Enviar.', false);
+    escuchar();
   });
 
   // ---------- Abrir / cerrar ----------
@@ -331,7 +351,7 @@
     setTimeout(() => $texto.focus(), 50);
   }
   function cerrar() {
-    if (grabando && rec) rec.stop();
+    if (grabando) pararDictado();
     panel.classList.remove('abierto');
     fab.classList.remove('oculto');
   }
