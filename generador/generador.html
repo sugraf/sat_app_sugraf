@@ -217,9 +217,6 @@
         <label>Población / Dirección</label>
         <input type="text" id="ni_poblacion" required>
 
-        <label>Email del cliente</label>
-        <input type="email" id="ni_email" multiple placeholder="cliente@correo.com">
-
         <label>Máquina(s)</label>
         <div class="maquina-row" style="display: flex; gap: 10px;">
           <div class="custom-select-wrapper" style="flex: 1; margin-bottom: 0;">
@@ -308,8 +305,11 @@
         return null;
     }
 
-    document.getElementById('ni_fecha').value = new Date().toISOString().split('T')[0];
-    document.getElementById('ni_hora').value = new Date().toTimeString().substring(0, 5);
+    // Fecha local, no UTC (con toISOString de madrugada salía el día anterior).
+    const ahora = new Date();
+    document.getElementById('ni_fecha').value =
+        `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+    document.getElementById('ni_hora').value = ahora.toTimeString().substring(0, 5);
 
     async function cargarData() {
       const btn = document.getElementById('btn-save-inc');
@@ -342,7 +342,6 @@
             document.getElementById('ni_gar').checked = false;
 
             document.getElementById('ni_poblacion').value = cliente.poblacion || '';
-            document.getElementById('ni_email').value = cliente.email || '';
           }
         );
 
@@ -555,7 +554,8 @@
         f_garan: maquinaData.f_garan,
         f_instal: maquinaData.f_instal,
         descripcion: document.getElementById('ni_desc').value,
-        email: document.getElementById('ni_email').value.trim(),
+        // No se muestra al crear el aviso: se guarda el del Excel de clientes y aparece al rellenar el parte.
+        email: cliente.email || '',
         urgente: document.getElementById('ni_urg').checked,
         garantia: document.getElementById('ni_gar').checked,
         mantenimiento: document.getElementById('ni_man').checked,
@@ -637,11 +637,10 @@
     window.sugrafBotAcciones = {
         rellenar_aviso: {
             descripcion: 'Rellena el formulario de nuevo aviso (no lo crea). Solo cambia los campos que se indiquen. '
-                + 'Elegir el cliente rellena su población y email y vacía las máquinas.',
+                + 'Elegir el cliente rellena su población y vacía las máquinas.',
             parametros: {type: 'object', additionalProperties: false, properties: {
                 cliente: {type: 'string', description: 'Nombre (o parte) del cliente de la lista'},
                 poblacion: {type: 'string'},
-                email: {type: 'string'},
                 maquinas: {type: 'array', items: {type: 'string'}, description: 'Máquinas del cliente; sustituyen a las elegidas'},
                 descripcion: {type: 'string', description: 'Explicación de la incidencia'},
                 marcar: {type: 'array', items: {type: 'string', enum: Object.keys(ETIQUETAS_BOT)}},
@@ -658,13 +657,12 @@
                     const cliente = clienteBot(a.cliente);
                     const input = document.getElementById('ni_cliente');
                     await SugrafBot.escribir(input, cliente.nombre, {eventos: false});
-                    // Al salir del campo con un nombre exacto se elige el cliente (población, email...).
+                    // Al salir del campo con un nombre exacto se elige el cliente (población, máquinas...).
                     input.dispatchEvent(new Event('blur'));
                     await SugrafBot.pausa(250);
                 }
                 const cliente = buscarCliente(document.getElementById('ni_cliente').value);
                 if (a.poblacion !== undefined) await SugrafBot.escribir(document.getElementById('ni_poblacion'), a.poblacion);
-                if (a.email !== undefined) await SugrafBot.escribir(document.getElementById('ni_email'), a.email);
                 if (Array.isArray(a.maquinas)) {
                     maquinasSel = [];
                     renderMaquinas();
