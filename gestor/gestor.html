@@ -282,11 +282,15 @@
       .inc-item { padding: 14px 16px; border-radius: 14px; }
       .inc-title { font-size: 0.92rem; }
       .badge{ font-size: 0.62rem; padding: 2px 8px; }
-      .modal-content { padding: 20px 16px; border-radius: 14px; }
+      /* La ventana termina por encima del botón flotante del asistente. */
+      .modal { padding: 16px 0 104px; }
+      .modal-content { padding: 20px 16px; border-radius: 14px; max-height: 100%; }
       .modal-content::before { width: 220px; height: 220px; top: -90px; left: -80px; }
       .modal-content::after { width: 240px; height: 240px; bottom: -100px; right: -90px; }
       .modal-content h3 { font-size: 1.1rem; }
-      .vertical-table th, .vertical-table td { padding: 9px; font-size: 0.85rem; }
+      .vertical-table th, .vertical-table td { padding: 9px; }
+      .vertical-table th { width: 34%; font-size: 0.66rem; letter-spacing: 0.03em; }
+      .vertical-table td { font-size: 0.85rem; }
     }
     @media (max-width: 380px) {
       .modal-content { padding: 16px 12px; }

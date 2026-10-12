@@ -1,5 +1,40 @@
 /* ui-common.css - overlay de carga y modales de aviso/confirmación reutilizables */
 
+/* ---- Ajustes comunes para móvil (sobre todo Safari de iPhone) ---- */
+/* Que el iPhone no agrande el texto al girar el móvil (descuadraba botones y filas). */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* Safari de iPhone pinta los campos de fecha/hora con un ancho mínimo propio (no respeta
+   width:100% dentro de filas flex/grid y se salen o se pisan), con el texto centrado y,
+   si están vacíos, más bajos que el resto de campos. */
+input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value { text-align: left; min-height: 1.25em; }
+
+/* Barra superior: en pantallas estrechas "Volver" no se parte y el nombre del usuario
+   se recorta con "..." en vez de empujar al resto. */
+.topbar { gap: 10px; }
+.topbar-right, .topbar .dropdown, .topbar .dropdown-trigger { min-width: 0; }
+.topbar-left > * { flex-shrink: 0; }
+.btn-back { white-space: nowrap; }
+#user-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@media (max-width: 400px) {
+  .topbar { padding-left: 12px !important; padding-right: 12px !important; }
+  .topbar-left { gap: 10px !important; }
+  .topbar .dot { display: none; }
+  .topbar .dropdown-trigger { padding: 6px 4px; }
+}
+@media (max-width: 350px) {
+  .topbar img { height: 22px !important; }
+}
+
 #app-loading-overlay {
   position: fixed;
   inset: 0;

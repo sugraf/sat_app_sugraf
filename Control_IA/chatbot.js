@@ -141,6 +141,8 @@
   .sbot-resalte{ outline:3px solid #2fd9b8 !important; outline-offset:2px !important; box-shadow:0 0 0 7px rgba(47,217,184,.28) !important;
     transition:outline-color .2s, box-shadow .2s; }
   @media (max-width:560px){
+    /* Hueco al final de la página para que lo último no quede debajo del botón y del interruptor. */
+    body{ padding-bottom:110px; }
     .sbot-dock{ right:14px; bottom:12px; }
     .sbot-toast{ left:14px; right:14px; bottom:108px; max-width:none; }
     .sbot-fab{ width:54px; height:54px; }

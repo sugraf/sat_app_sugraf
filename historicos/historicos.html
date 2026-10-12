@@ -61,7 +61,7 @@
       background:#ffffff; color:var(--navy); border-radius:18px; padding:22px;
       box-shadow:0 24px 60px rgba(0,0,0,0.35);
     }
-    .filtros-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:12px 14px; }
+    .filtros-grid{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px 14px; }
     label { display:block; font-size:0.68rem; font-weight:700; color:#5c6b7d; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.08em; }
     label .opcional{ text-transform:none; letter-spacing:0; font-weight:600; color:#94a3b8; }
     input, select {
@@ -86,8 +86,9 @@
     .custom-select-item.vacio { color:#94a3b8; font-style:italic; cursor:default; }
     .custom-select-item.vacio:hover { background:#fff; color:#94a3b8; }
 
-    .fechas{ display:flex; gap:8px; grid-column:1 / -1; }
-    .fechas > div{ flex:1; }
+    /* Desde y Hasta en la misma fila; si no caben (móviles muy estrechos), una debajo de otra. */
+    .fechas{ display:flex; flex-wrap:wrap; gap:8px; grid-column:1 / -1; }
+    .fechas > div{ flex:1 1 130px; min-width:0; }
     .filtros-acciones{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
     .btn {
       border:none; padding:11px 18px; border-radius:10px; font-size:0.85rem; font-weight:700; cursor:pointer;
@@ -126,7 +127,7 @@
     .fuentes{ text-align:center; color:#5c7291; font-size:0.72rem; margin:10px 0 30px; }
 
     @media (max-width: 800px) {
-      .filtros-grid{ grid-template-columns:1fr 1fr; }
+      .filtros-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 560px) {
       .container { padding:12px; }
@@ -135,7 +136,7 @@
       .header-title { margin:24px 0 20px; }
       .header-title h2 { font-size:1.5rem; }
       .filtros{ padding:16px; border-radius:14px; }
-      .filtros-grid{ grid-template-columns:1fr; }
+      .filtros-grid{ grid-template-columns:minmax(0, 1fr); }
       .filtros-acciones .btn{ flex:1; }
       .custom-select-item { padding: 11px 14px; }
       .item{ padding:14px; }
