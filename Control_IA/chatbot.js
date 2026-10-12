@@ -70,13 +70,12 @@
   .sbot-fab.trabajando::after{ content:""; position:absolute; inset:-6px; border-radius:50%; border:3px solid transparent; border-top-color:#2fd9b8; border-right-color:#2fd9b8; animation:sbotGiro .9s linear infinite; }
   .sbot-fab.aviso::before{ content:""; position:absolute; top:1px; right:1px; width:13px; height:13px; border-radius:50%; background:#ef4444; border:2px solid #fff; }
   @keyframes sbotGiro{ to{ transform:rotate(360deg); } }
-  .sbot-switch{ display:flex; align-items:center; gap:7px; background:rgba(10,24,38,0.88); border:1px solid rgba(182,190,196,0.28); color:#a9bcd6;
-    padding:4px 5px 4px 10px; border-radius:999px; font-family:'Montserrat',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:.08em;
-    text-transform:uppercase; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.3); transition:border-color .2s, color .2s; }
+  .sbot-switch{ display:flex; align-items:center; background:rgba(10,24,38,0.88); border:1px solid rgba(182,190,196,0.28);
+    padding:4px; border-radius:999px; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.3); transition:border-color .2s; }
   .sbot-switch:hover{ border-color:rgba(47,217,184,.6); }
   .sbot-switch .sbot-pista{ width:28px; height:16px; border-radius:999px; background:#4a5a72; position:relative; transition:background .2s; flex-shrink:0; }
   .sbot-switch .sbot-pista::after{ content:""; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .2s; }
-  .sbot-switch[aria-checked="true"]{ color:#fff; border-color:rgba(47,217,184,.6); }
+  .sbot-switch[aria-checked="true"]{ border-color:rgba(47,217,184,.6); }
   .sbot-switch[aria-checked="true"] .sbot-pista{ background:#2fd9b8; }
   .sbot-switch[aria-checked="true"] .sbot-pista::after{ transform:translateX(12px); }
   .sbot-panel{ position:fixed; right:20px; bottom:20px; width:390px; height:600px; max-height:calc(100vh - 40px); z-index:10001;
@@ -171,8 +170,8 @@
   dock.className = 'sbot-dock';
   dock.innerHTML = `
     <button type="button" class="sbot-fab" title="Asistente Sugraf" aria-label="Abrir asistente">${ROBOT}</button>
-    <button type="button" class="sbot-switch" role="switch" title="Permite que el asistente use la aplicación por ti">
-      Control <span class="sbot-pista"></span>
+    <button type="button" class="sbot-switch" role="switch" aria-label="Control del asistente" title="Permite que el asistente use la aplicación por ti">
+      <span class="sbot-pista"></span>
     </button>`;
   const fab = dock.querySelector('.sbot-fab');
   const $switch = dock.querySelector('.sbot-switch');
