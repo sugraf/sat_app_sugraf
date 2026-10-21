@@ -306,15 +306,14 @@
     .prev-grid-3{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
 
     /* Foto del sello en el recuadro de firma (ver activarCamaraFirma).
-       La vista previa y la foto tienen la misma proporción 3:1 que la firma en el PDF. */
+       La cámara ocupa todo el lienzo y los botones van debajo del recuadro. */
     .firma-box{ position:relative; }
     .firma-box.camara{ background:var(--navy) !important; }
-    .firma-box.con-foto canvas{ object-fit:contain; }
-    .firma-video{ display:none; position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:min(100%, 600px); aspect-ratio:3 / 1; object-fit:cover; }
+    .firma-video{ display:none; position:absolute; left:50%; top:0; transform:translateX(-50%); width:min(100%, 600px); height:200px; object-fit:cover; }
     .firma-box.camara .firma-video{ display:block; }
     .firma-box.camara .firma-cam-btn{ display:none; }
-    .firma-cam-acciones{ display:none; position:absolute; left:0; right:0; bottom:8px; justify-content:center; gap:8px; }
-    .firma-box.camara .firma-cam-acciones{ display:flex; }
+    .firma-cam-acciones{ display:none; justify-content:center; gap:8px; margin-bottom:10px; }
+    .firma-box.camara + .firma-cam-acciones{ display:flex; }
     .firma-cam-acciones button{ border:none; border-radius:8px; padding:8px 14px; font-family:'Montserrat', sans-serif; font-weight:700; font-size:0.8rem; cursor:pointer; }
     .firma-cam-disparar{ background:var(--green); color:#fff; }
     .firma-cam-cancelar{ background:#eef2f6; color:var(--navy); }
@@ -1355,29 +1354,17 @@
         const canvas = document.getElementById(canvasId);
         if(!canvas) return null;
         const ctx = canvas.getContext('2d');
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        
+        estiloTrazo(ctx);
+
         let isDrawing = false;
 
         const getPos = (e) => {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            let left = rect.left, top = rect.top, w = rect.width, h = rect.height;
-            // Con una foto el lienzo se muestra con object-fit:contain: se usa solo la zona dibujada.
-            if (getComputedStyle(canvas).objectFit === 'contain') {
-                const esc = Math.min(w / canvas.width, h / canvas.height);
-                left += (w - canvas.width * esc) / 2;
-                top += (h - canvas.height * esc) / 2;
-                w = canvas.width * esc;
-                h = canvas.height * esc;
-            }
             return {
-                x: (clientX - left) * (canvas.width / w),
-                y: (clientY - top) * (canvas.height / h)
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
             };
         };
 
@@ -1416,14 +1403,18 @@
     const ICONO_CAMARA = `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="#10263B" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" stroke="#10263B" stroke-width="1.8"/></svg>`;
     let pararCamaraActiva = null; // solo una cámara abierta a la vez
 
-    // Pega la imagen en el lienzo recortada a su proporción (igual que la vista previa).
-    function pegarFotoEnFirma(pad, src, sw, sh) {
+    // Pega la imagen en el lienzo. El lienzo toma la proporción con la que se ve en
+    // pantalla para que la foto no se deforme (el PDF la coloca manteniendo la proporción).
+    // 'cubrir' recorta igual que la vista previa de la cámara; 'encajar' la muestra entera.
+    function pegarFotoEnFirma(pad, src, sw, sh, modo) {
         const { canvas, ctx } = pad;
-        const esc = Math.max(canvas.width / sw, canvas.height / sh);
+        const rect = canvas.getBoundingClientRect();
+        canvas.height = 400;
+        canvas.width = Math.round(400 * rect.width / rect.height);
+        estiloTrazo(ctx);
+        const esc = (modo === 'encajar' ? Math.min : Math.max)(canvas.width / sw, canvas.height / sh);
         const w = sw * esc, h = sh * esc;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(src, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
-        canvas.parentElement.classList.add('con-foto');
     }
 
     function activarCamaraFirma(pad) {
@@ -1453,7 +1444,8 @@
         inputFoto.setAttribute('capture', 'environment');
         inputFoto.hidden = true;
 
-        box.append(video, btnCam, acciones, inputFoto);
+        box.append(video, btnCam, inputFoto);
+        box.after(acciones);
 
         let stream = null;
         function parar() {
@@ -1485,7 +1477,7 @@
 
         acciones.querySelector('.firma-cam-disparar').addEventListener('click', () => {
             if (!video.videoWidth) return;
-            pegarFotoEnFirma(pad, video, video.videoWidth, video.videoHeight);
+            pegarFotoEnFirma(pad, video, video.videoWidth, video.videoHeight, 'cubrir');
             parar();
         });
         acciones.querySelector('.firma-cam-cancelar').addEventListener('click', parar);
@@ -1496,7 +1488,7 @@
             if (!archivo) return;
             const url = URL.createObjectURL(archivo);
             const img = new Image();
-            img.onload = () => { pegarFotoEnFirma(pad, img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+            img.onload = () => { pegarFotoEnFirma(pad, img, img.naturalWidth, img.naturalHeight, 'encajar'); URL.revokeObjectURL(url); };
             img.src = url;
         });
 
@@ -1506,10 +1498,22 @@
     let padTecnico = null;
     let padCliente = null;
 
+    function estiloTrazo(ctx) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }
+
     function limpiarPad(pad) {
         if(!pad) return;
         if(pad.pararCamara) pad.pararCamara();
-        pad.canvas.parentElement.classList.remove('con-foto');
+        // Tras una foto el lienzo cambia de tamaño: se devuelve al de la firma (600x200).
+        if(pad.canvas.width !== 600 || pad.canvas.height !== 200) {
+            pad.canvas.width = 600;
+            pad.canvas.height = 200;
+            estiloTrazo(pad.ctx);
+        }
         pad.ctx.clearRect(0, 0, pad.canvas.width, pad.canvas.height);
     }
 

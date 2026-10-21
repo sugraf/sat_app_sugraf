@@ -386,7 +386,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         try:
             img_bytes = base64.b64decode(b64_data)
             img = ImageReader(io.BytesIO(img_bytes))
-            c.drawImage(img, 50, y_firmas, width=180, height=60, mask='auto')
+            c.drawImage(img, 50, y_firmas, width=180, height=60, mask='auto', preserveAspectRatio=True, anchor='c')
         except Exception as e:
             pass
 
@@ -395,7 +395,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         try:
             img_bytes = base64.b64decode(b64_data)
             img = ImageReader(io.BytesIO(img_bytes))
-            c.drawImage(img, width/2 + 20, y_firmas, width=180, height=60, mask='auto')
+            c.drawImage(img, width/2 + 20, y_firmas, width=180, height=60, mask='auto', preserveAspectRatio=True, anchor='c')
         except Exception as e:
             pass
 
