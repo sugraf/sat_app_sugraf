@@ -1280,6 +1280,7 @@
     }
 
     function cerrarDesplegablePiezas() {
+        if (despPiezas) flechaDesplegable(despPiezas.input, false);
         despPiezas = null;
         desplegablePiezas.style.display = 'none';
     }
@@ -1293,7 +1294,9 @@
     }
 
     async function abrirDesplegablePiezas(input, campo, alElegir) {
+        if (despPiezas && despPiezas.input !== input) flechaDesplegable(despPiezas.input, false);
         despPiezas = {input, campo, alElegir, opciones: [], sel: -1};
+        flechaDesplegable(input, true);
         desplegablePiezas.style.display = 'block';
         colocarDesplegablePiezas();
         if (!articulos) {
@@ -1335,6 +1338,13 @@
         input.classList.add('pieza-combo');
         input.autocomplete = 'off';
         input.addEventListener('focus', () => abrirDesplegablePiezas(input, campo, alElegir));
+        // La flecha abre o cierra la lista sin quitar el foco de la casilla.
+        input.addEventListener('mousedown', e => {
+            if (!enZonaFlecha(input, e) || document.activeElement !== input) return;
+            e.preventDefault();
+            if (despPiezas && despPiezas.input === input) cerrarDesplegablePiezas();
+            else abrirDesplegablePiezas(input, campo, alElegir);
+        });
         input.addEventListener('input', () => abrirDesplegablePiezas(input, campo, alElegir));
         input.addEventListener('blur', () => setTimeout(() => {
             if (despPiezas && despPiezas.input === input && document.activeElement !== input) cerrarDesplegablePiezas();

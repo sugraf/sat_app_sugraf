@@ -99,6 +99,88 @@
     });
   };
 
+  // ---------- Flecha de los desplegables ----------
+  // Mientras un desplegable está abierto, su flecha (la misma, invertida) apunta hacia
+  // arriba, y pulsarla lo cierra. Los <select> y las casillas con la flecha de fondo
+  // (data:image/svg con el trazo FLECHA_ABAJO) se giran cambiando ese trazo.
+  const FLECHA_ABAJO = 'M6 9l6 6 6-6';
+  const FLECHA_ARRIBA = 'M6 15l6-6 6 6';
+  const ZONA_FLECHA = 34; // px desde el borde derecho que cuentan como "la flecha"
+
+  function flechaDesplegable(el, abierto) {
+    if (!el) return;
+    if (abierto) {
+      if (el.dataset.flechaArriba) return;
+      const fondo = getComputedStyle(el).backgroundImage;
+      if (!fondo.includes(FLECHA_ABAJO)) return;
+      el.dataset.flechaArriba = '1';
+      el.style.backgroundImage = fondo.replace(FLECHA_ABAJO, FLECHA_ARRIBA);
+    } else if (el.dataset.flechaArriba) {
+      delete el.dataset.flechaArriba;
+      el.style.backgroundImage = '';
+    }
+  }
+
+  function enZonaFlecha(el, e) {
+    return e.clientX >= el.getBoundingClientRect().right - ZONA_FLECHA;
+  }
+
+  window.flechaDesplegable = flechaDesplegable;
+  window.enZonaFlecha = enZonaFlecha;
+
+  // <select> nativos: el navegador no avisa al abrir/cerrar la lista. Donde existe :open se
+  // consulta (y se vigila mientras está abierta); si no, se deduce de los clics y del foco.
+  const SOPORTA_OPEN = (() => { try { return CSS.supports('selector(:open)'); } catch (e) { return false; } })();
+
+  function revisarSelect(sel) {
+    setTimeout(() => {
+      const abierto = sel.matches(':open');
+      flechaDesplegable(sel, abierto);
+      if (abierto && !sel._vigilaFlecha) {
+        sel._vigilaFlecha = setInterval(() => {
+          if (sel.matches(':open') && sel.isConnected) return;
+          clearInterval(sel._vigilaFlecha);
+          sel._vigilaFlecha = null;
+          flechaDesplegable(sel, false);
+        }, 150);
+      }
+    }, 60);
+  }
+
+  const selectDe = e => (e.target && e.target.closest ? e.target.closest('select') : null);
+  document.addEventListener('mousedown', e => {
+    const sel = selectDe(e);
+    if (!sel || sel.disabled) return;
+    if (SOPORTA_OPEN) revisarSelect(sel);
+    else flechaDesplegable(sel, !sel.dataset.flechaArriba);
+  }, true);
+  document.addEventListener('keydown', e => {
+    const sel = selectDe(e);
+    if (!sel) return;
+    if (SOPORTA_OPEN) revisarSelect(sel);
+    else if (['Escape', 'Enter', 'Tab'].includes(e.key)) flechaDesplegable(sel, false);
+  }, true);
+  ['change', 'focusout'].forEach(tipo => document.addEventListener(tipo, e => {
+    const sel = selectDe(e);
+    if (sel) flechaDesplegable(sel, false);
+  }, true));
+
+  // Desplegables con buscador (custom-select): pulsar la flecha abre o cierra la lista.
+  document.addEventListener('mousedown', e => {
+    const input = e.target && e.target.closest ? e.target.closest('.custom-select-wrapper input') : null;
+    if (!input || input.disabled || !enZonaFlecha(input, e)) return;
+    const lista = input.parentElement.querySelector('.custom-select-list');
+    if (!lista) return;
+    if (lista.classList.contains('show')) {
+      e.preventDefault();
+      lista.classList.remove('show');
+      input.blur(); // igual que pulsar fuera: la página hace lo de siempre al cerrar
+    } else if (document.activeElement === input) {
+      e.preventDefault();
+      input.dispatchEvent(new Event('input', { bubbles: true })); // la página la vuelve a abrir
+    }
+  }, true);
+
   // ---------- Dictado por voz en cajas de texto ----------
   // Igual que el micrófono del asistente (chatbot.js): reconocimiento del
   // navegador, sin coste. Basta con poner data-dictado en un <textarea> para

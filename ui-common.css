@@ -138,6 +138,13 @@ input[type="month"]::-webkit-date-and-time-value { text-align: left; min-height:
 .app-modal-btn-secondary { background: #eef2f5; color: #10263B; }
 .app-modal-btn-secondary:hover { background: #e2e8f0; }
 
+/* Flecha de los desplegables: mientras están abiertos apunta hacia arriba (ver ui-common.js).
+   Menú del usuario y desplegables con buscador (custom-select); los <select> los gira el JS. */
+.chev { display: inline-block; }
+.dropdown:has(.dropdown-content.show) .chev { transform: rotate(180deg); }
+.custom-select-wrapper::after { transition: rotate 0.15s; }
+.custom-select-wrapper:has(.custom-select-list.show)::after { rotate: 180deg; }
+
 /* Dictado por voz en cajas de texto (ver activarDictado en ui-common.js) */
 .dictado-wrap { position: relative; }
 .dictado-wrap textarea { padding-right: 46px; }
