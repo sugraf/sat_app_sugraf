@@ -284,86 +284,125 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
 
     y_cursor = height - 100
 
-    box1_h = 35
-    c.rect(40, y_cursor - box1_h, width - 80, box1_h)
+    # Todos los recuadros crecen con su contenido. Si algo no cabe en la página,
+    # sigue en una nueva (con el pie y el nº de orden repetidos).
+    MARGEN_INF = 50  # por encima del pie de página
+    ANCHO_CAJA = width - 80
+
+    def pie_pagina():
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(0.4, 0.4, 0.4)
+        c.drawCentredString(width/2, 30, "TECNOLOGIA Y PRODUCTOS GRAFICOS, S.A. Pol. Alcalde Caballero")
+        c.drawCentredString(width/2, 20, "C/Monasterio de las Descalzas Reales, nave 6-7 50014 Zaragoza Telf. 976 304 220 www.sugraf.es info@sugraf.es")
+        c.setFillColorRGB(0, 0, 0)
+
+    def nueva_pagina():
+        nonlocal y_cursor
+        pie_pagina()
+        c.showPage()
+        c.setStrokeColor(color_sugraf)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(width - 250, height - 50, f"ORDEN DE TRABAJO Nº: {num_parte} (cont.)")
+        y_cursor = height - 70
+
+    def asegurar_espacio(alto):
+        if y_cursor - alto < MARGEN_INF:
+            nueva_pagina()
+
+    def partir(texto, fuente, tam, ancho_max):
+        """Parte el texto en líneas que caben en ancho_max (también palabras sueltas muy largas)."""
+        texto = str(texto or '').strip()
+        if not texto:
+            return []
+        trozos = []
+        for parrafo in texto.split('\n'):
+            parrafo = parrafo.rstrip()
+            # Lo que ya cabe se deja tal cual (respeta espacios y líneas en blanco).
+            trozos += [parrafo] if c.stringWidth(parrafo, fuente, tam) <= ancho_max else simpleSplit(parrafo, fuente, tam, ancho_max)
+        lineas = []
+        for linea in trozos:
+            while c.stringWidth(linea, fuente, tam) > ancho_max and len(linea) > 1:
+                corte = len(linea) - 1
+                while corte > 1 and c.stringWidth(linea[:corte], fuente, tam) > ancho_max:
+                    corte -= 1
+                lineas.append(linea[:corte])
+                linea = linea[corte:]
+            lineas.append(linea)
+        return lineas
+
+    # --- Fecha y horas ---
+    lineas_fecha = partir(f"Fecha: {datos.pdf_fechas}    |    Hora inicio: {datos.pdf_horas_in}    |    Hora fin: {datos.pdf_horas_out}",
+                          "Helvetica", 9, ANCHO_CAJA - 10) or ['']
+    box1_h = 22 + len(lineas_fecha) * 13
+    c.rect(40, y_cursor - box1_h, ANCHO_CAJA, box1_h)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(45, y_cursor - 15, "Fecha y Horas:")
     c.setFont("Helvetica", 9)
-    line_str = f"Fecha: {datos.pdf_fechas}    |    Hora inicio: {datos.pdf_horas_in}    |    Hora fin: {datos.pdf_horas_out}"
-    c.drawString(45, y_cursor - 28, line_str)
+    for i, linea in enumerate(lineas_fecha):
+        c.drawString(45, y_cursor - 28 - i * 13, linea)
     y_cursor -= (box1_h + 10)
 
-    box2_h = 95
-    c.rect(40, y_cursor - box2_h, width - 80, box2_h)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 15, "Técnico:")
-    c.setFont("Helvetica", 9)
-    c.drawString(95, y_cursor - 15, datos.pdf_tecnico)
+    # --- Datos del aviso: cada campo pasa de línea si no cabe y la fila crece ---
+    def campo(etiqueta, valor, x, ancho_col):
+        ancho_etq = c.stringWidth(etiqueta, "Helvetica-Bold", 9) + 5
+        return (etiqueta, x, ancho_etq, partir(valor, "Helvetica", 9, ancho_col - ancho_etq) or [''])
 
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(width/2, y_cursor - 15, "Cliente:")
-    c.setFont("Helvetica", 9)
-    c.drawString(width/2 + 45, y_cursor - 15, datos.pdf_cliente)
-
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 35, "Localidad:")
-    c.setFont("Helvetica", 9)
-    c.drawString(100, y_cursor - 35, datos.pdf_poblacion)
-
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 55, "Motivo aviso:")
-    c.setFont("Helvetica", 9)
-    c.drawString(115, y_cursor - 55, datos.pdf_motivo[:80])
-
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 75, "Máquina / Equipo:")
-    c.setFont("Helvetica", 9)
-    c.drawString(135, y_cursor - 75, datos.pdf_maquina[:45])
-
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 90, f"Marca: {datos.pdf_marca}   |   Modelo: {datos.pdf_modelo}   |   Nº Serie: {datos.pdf_n_serie}")
+    col3 = (ANCHO_CAJA - 10) / 3
+    filas = [
+        [campo("Técnico:", datos.pdf_tecnico, 45, width/2 - 50), campo("Cliente:", datos.pdf_cliente, width/2, width/2 - 45)],
+        [campo("Localidad:", datos.pdf_poblacion, 45, ANCHO_CAJA - 10)],
+        [campo("Motivo aviso:", datos.pdf_motivo, 45, ANCHO_CAJA - 10)],
+        [campo("Máquina / Equipo:", datos.pdf_maquina, 45, ANCHO_CAJA - 10)],
+        [campo("Marca:", datos.pdf_marca, 45, col3 - 5), campo("Modelo:", datos.pdf_modelo, 45 + col3, col3 - 5),
+         campo("Nº Serie:", datos.pdf_n_serie, 45 + 2 * col3, col3 - 5)],
+    ]
+    extra_fila = [12 * (max(len(f[3]) for f in fila) - 1) for fila in filas]
+    box2_h = 15 + 18 * (len(filas) - 1) + sum(extra_fila) + 8
+    asegurar_espacio(box2_h)
+    c.rect(40, y_cursor - box2_h, ANCHO_CAJA, box2_h)
+    y_text = y_cursor - 15
+    for fila, extra in zip(filas, extra_fila):
+        for etiqueta, x, ancho_etq, lineas in fila:
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(x, y_text, etiqueta)
+            c.setFont("Helvetica", 9)
+            for i, linea in enumerate(lineas):
+                c.drawString(x + ancho_etq, y_text - i * 12, linea)
+        y_text -= 18 + extra
     y_cursor -= (box2_h + 10)
 
-    trabajo_txt = str(datos.pdf_trabajo or '').strip()
-    lines_trabajo = simpleSplit(trabajo_txt, "Helvetica", 9, width - 90)[:8] if trabajo_txt else []
-    box3_h = 30 + len(lines_trabajo) * 15 if lines_trabajo else 30
-    c.rect(40, y_cursor - box3_h, width - 80, box3_h)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 15, "Trabajo realizado:")
-    c.setFont("Helvetica", 9)
-    y_text = y_cursor - 30
-    for l in lines_trabajo:
-        c.drawString(45, y_text, l)
-        y_text -= 15
-    y_cursor -= (box3_h + 10)
+    # --- Recuadros de texto libre ---
+    def caja_texto(titulo, texto):
+        nonlocal y_cursor
+        lineas = partir(texto, "Helvetica", 9, ANCHO_CAJA - 10)
+        continuacion = False
+        while True:
+            caben = int((y_cursor - MARGEN_INF - 30) // 15)
+            # Se pasa de página si no cabe ni el título (o al menos 2 líneas del texto).
+            if caben < min(2, len(lineas)) or y_cursor - 30 < MARGEN_INF:
+                nueva_pagina()
+                continue
+            trozo, lineas = lineas[:caben], lineas[caben:]
+            alto = 30 + len(trozo) * 15
+            c.rect(40, y_cursor - alto, ANCHO_CAJA, alto)
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(45, y_cursor - 15, f"{titulo} (continuación)" if continuacion else titulo)
+            c.setFont("Helvetica", 9)
+            for i, linea in enumerate(trozo):
+                c.drawString(45, y_cursor - 30 - i * 15, linea)
+            y_cursor -= (alto + 10)
+            if not lineas:
+                break
+            continuacion = True
+            nueva_pagina()
 
-    piezas_utilizadas_txt = str(datos.pdf_piezas or '').strip()
-    lines_piezas = simpleSplit(piezas_utilizadas_txt, "Helvetica", 9, width - 90)[:3] if piezas_utilizadas_txt else []
-    box4_h = 30 + len(lines_piezas) * 15 if lines_piezas else 30
-    c.rect(40, y_cursor - box4_h, width - 80, box4_h)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(45, y_cursor - 15, "Piezas Utilizadas:")
-    c.setFont("Helvetica", 9)
-    y_text = y_cursor - 30
-    for l in lines_piezas:
-        c.drawString(45, y_text, l)
-        y_text -= 15
-    y_cursor -= (box4_h + 10)
+    caja_texto("Trabajo realizado:", datos.pdf_trabajo)
+    caja_texto("Piezas Utilizadas:", datos.pdf_piezas)
+    if str(datos.pdf_observaciones or '').strip():
+        caja_texto("Observaciones internas:", datos.pdf_observaciones)
 
-    observaciones = str(datos.pdf_observaciones or '').strip()
-    if observaciones:
-        lines_obs = simpleSplit(observaciones, "Helvetica", 9, width - 90)[:4]
-        box_obs_h = 30 + len(lines_obs) * 15
-        c.rect(40, y_cursor - box_obs_h, width - 80, box_obs_h)
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(45, y_cursor - 15, "Observaciones internas:")
-        c.setFont("Helvetica", 9)
-        y_text = y_cursor - 30
-        for l in lines_obs:
-            c.drawString(45, y_text, l)
-            y_text -= 15
-        y_cursor -= (box_obs_h + 10)
-
+    # El estado y las firmas van siempre juntos en la misma página.
+    asegurar_espacio(125)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(45, y_cursor - 15, f"Estado del Aviso: {datos.pdf_estado.upper()}")
     y_cursor -= 30
@@ -399,10 +438,7 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
         except Exception as e:
             pass
 
-    c.setFont("Helvetica", 8)
-    c.setFillColorRGB(0.4, 0.4, 0.4)
-    c.drawCentredString(width/2, 30, "TECNOLOGIA Y PRODUCTOS GRAFICOS, S.A. Pol. Alcalde Caballero")
-    c.drawCentredString(width/2, 20, "C/Monasterio de las Descalzas Reales, nave 6-7 50014 Zaragoza Telf. 976 304 220 www.sugraf.es info@sugraf.es")
+    pie_pagina()
 
     c.showPage()
     c.save()
