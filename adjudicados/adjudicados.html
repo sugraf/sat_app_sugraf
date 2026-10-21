@@ -305,6 +305,32 @@
     .prev-grid-2{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
     .prev-grid-3{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
 
+    /* Piezas del parte (ver crearListaPiezas): Nº Ref. y cantidad arriba, nombre debajo. */
+    .piezas-lista{ display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+    .pieza{ border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px 12px; background:#f8fafc; }
+    .box-group .pieza{ background:#ffffff; }
+    .pieza-cab{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+    .pieza-num{ font-size:0.68rem; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:0.08em; }
+    .pieza-quitar{ border:none; background:none; color:#94a3b8; font-size:1.3rem; line-height:1; padding:0 4px; cursor:pointer; }
+    .pieza-quitar:hover{ color:#ef4444; }
+    .pieza-fila{ display:flex; gap:8px; margin-bottom:8px; }
+    .pieza-fila .pieza-ref{ flex:1; min-width:0; }
+    .pieza-fila .pieza-cant{ flex:none; width:96px; text-align:center; }
+    .pieza input, .pieza textarea{ padding:10px 12px; }
+    .pieza textarea.pieza-nombre{ display:block; resize:none; overflow:hidden; line-height:1.35; }
+    .pieza .pieza-combo{ background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23006858" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 12px center; background-size:14px; padding-right:34px; }
+    .pieza .pieza-combo:disabled{ background-image:none; padding-right:12px; }
+    .piezas-anadir{ align-self:flex-start; border:1px dashed var(--green); background:#ffffff; color:var(--green); border-radius:8px; padding:8px 14px; font-family:'Montserrat', sans-serif; font-weight:700; font-size:0.82rem; cursor:pointer; }
+    .piezas-anadir:hover{ background:var(--green-soft); }
+    .pieza.pieza-error{ border-color:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,0.15); }
+    .piezas-vacia{ font-size:0.85rem; color:#94a3b8; padding:4px 2px; }
+    .piezas-desplegable{ display:none; position:fixed; z-index:10001; background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 30px rgba(16,38,59,0.18); max-height:260px; overflow-y:auto; font-family:'Montserrat', sans-serif; }
+    .piezas-desplegable .op{ padding:8px 12px; font-size:0.82rem; color:var(--navy); border-bottom:1px solid #f1f5f9; cursor:pointer; }
+    .piezas-desplegable .op:hover, .piezas-desplegable .op.activa{ background:var(--green-soft); }
+    .piezas-desplegable .op b{ color:var(--green); margin-right:6px; }
+    .piezas-desplegable .op small{ display:block; color:#94a3b8; font-size:0.7rem; margin-top:2px; }
+    .piezas-desplegable .aviso{ padding:8px 12px; font-size:0.75rem; color:#64748b; }
+
     /* Foto del sello en el recuadro de firma (ver activarCamaraFirma).
        La cámara ocupa todo el lienzo y los botones van debajo del recuadro. */
     .firma-box{ position:relative; }
@@ -486,7 +512,8 @@
 
             <div id="div_texto_piezas" style="display:none; margin-top: 15px;">
                 <label>Piezas Necesarias (para el nuevo aviso)</label>
-                <textarea id="res_piezas" rows="2" placeholder="Ej: Rodillo fusor, gomas de arrastre..."></textarea>
+                <textarea id="res_piezas" hidden></textarea>
+                <div class="piezas-lista" data-para="res_piezas"></div>
             </div>
         </div>
 
@@ -494,7 +521,8 @@
         <textarea id="res_solucion" rows="4" data-dictado placeholder="Describe los ajustes realizados..."></textarea>
 
         <label>Piezas Utilizadas</label>
-        <textarea id="res_piezas_utilizadas" rows="3" placeholder="Piezas cambiadas/utilizadas en este aviso (opcional)..."></textarea>
+        <textarea id="res_piezas_utilizadas" hidden></textarea>
+        <div class="piezas-lista" data-para="res_piezas_utilizadas"></div>
 
         <label>Observación interna</label>
         <textarea id="res_observaciones" rows="2" placeholder="Solo para gestión interna..."></textarea>
@@ -566,7 +594,7 @@
               
               <div style="grid-column: 1 / -1;"><label>Motivo llamada/aviso</label><input type="text" id="prev_motivo"></div>
               <div style="grid-column: 1 / -1;"><label>Trabajo Realizado</label><textarea id="prev_trabajo" rows="4"></textarea></div>
-              <div style="grid-column: 1 / -1;"><label>Piezas Utilizadas</label><textarea id="prev_piezas" rows="2"></textarea></div>
+              <div style="grid-column: 1 / -1;"><label>Piezas Utilizadas</label><textarea id="prev_piezas" hidden></textarea><div class="piezas-lista" data-para="prev_piezas"></div></div>
               <div><label>Estado</label><input type="text" id="prev_estado"></div>
           </div>
 
@@ -710,6 +738,7 @@
         const divTexto = document.getElementById('div_texto_piezas');
         if (nec === 'SI' || nec === 'Piezas Recibidas') {
             divTexto.style.display = 'block';
+            ajustarAltosPiezas();
         } else {
             divTexto.style.display = 'none';
         }
@@ -1156,6 +1185,342 @@
         }
     }
 
+    // ---------------- Piezas: lista de artículos de Pirineos ----------------
+    // Cada pieza se elige del maestro de artículos (Nº Ref., nombre y cantidad). Por detrás
+    // se guarda como texto en el textarea oculto: una pieza por línea, "ref | nombre | cantidad"
+    // (lo lee igual el servidor para el PDF). Las piezas antiguas de texto libre salen como nombre.
+    const MAX_OPCIONES_PIEZAS = 50;
+    let articulos = null;
+    let cargaArticulos = null;
+
+    function normalizarPieza(texto) {
+        return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
+    function cargarArticulos() {
+        if (!cargaArticulos) {
+            cargaArticulos = fetch('/api/adjudicados/articulos')
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
+                    articulos = data.articulos.map(([ref, nombre, prov]) => ({
+                        ref, nombre, prov,
+                        _ref: normalizarPieza(ref), _prov: normalizarPieza(prov), _nombre: normalizarPieza(nombre),
+                        _todo: normalizarPieza(`${ref} ${prov} ${nombre}`),
+                    }));
+                    return articulos;
+                })
+                .catch(err => { cargaArticulos = null; console.error(err); throw err; });
+        }
+        return cargaArticulos;
+    }
+
+    function leerPiezas(texto) {
+        return String(texto || '').split('\n').filter(l => l.trim()).map(l => {
+            const p = l.trim().split(/\s*\|\s*/);
+            return p.length >= 3
+                ? {ref: p[0], nombre: p.slice(1, -1).join(' | '), cantidad: p[p.length - 1]}
+                : {ref: '', nombre: l.trim(), cantidad: ''};
+        }).filter(p => p.ref || p.nombre);
+    }
+
+    function piezasATexto(piezas) {
+        return piezas.filter(p => p.ref.trim() || p.nombre.trim())
+            .map(p => [p.ref, p.nombre, p.cantidad].map(v => String(v || '').replace(/\|/g, '/').replace(/\s+/g, ' ').trim()).join(' | '))
+            .join('\n');
+    }
+
+    // Por Nº Ref. busca la referencia (o la del proveedor); por nombre, todas las palabras escritas.
+    function buscarArticulos(texto, campo) {
+        const q = normalizarPieza(texto).trim();
+        if (!q) return {lista: articulos.slice(0, MAX_OPCIONES_PIEZAS), total: articulos.length};
+        const palabras = q.split(/\s+/);
+        const primero = [], despues = [];
+        for (const a of articulos) {
+            if (campo === 'ref') {
+                if (a._ref.startsWith(q) || a._prov.startsWith(q)) primero.push(a);
+                else if (a._ref.includes(q) || a._prov.includes(q)) despues.push(a);
+            } else if (palabras.every(p => a._todo.includes(p))) {
+                (a._nombre.startsWith(palabras[0]) ? primero : despues).push(a);
+            }
+        }
+        const todos = primero.concat(despues);
+        return {lista: todos.slice(0, MAX_OPCIONES_PIEZAS), total: todos.length};
+    }
+
+    // Un único desplegable para todas las piezas, colocado bajo la casilla que se está escribiendo.
+    const desplegablePiezas = document.createElement('div');
+    desplegablePiezas.className = 'piezas-desplegable';
+    document.body.appendChild(desplegablePiezas);
+    let despPiezas = null; // {input, campo, alElegir, opciones, sel}
+
+    function colocarDesplegablePiezas() {
+        if (!despPiezas) return;
+        const caja = (despPiezas.input.closest('.pieza') || despPiezas.input).getBoundingClientRect();
+        const casilla = despPiezas.input.getBoundingClientRect();
+        const abajo = window.innerHeight - casilla.bottom, arriba = casilla.top;
+        const alto = Math.min(260, Math.max(abajo, arriba) - 12);
+        desplegablePiezas.style.left = `${Math.max(8, caja.left)}px`;
+        desplegablePiezas.style.width = `${Math.min(caja.width, window.innerWidth - 16)}px`;
+        desplegablePiezas.style.maxHeight = `${alto}px`;
+        if (abajo >= Math.min(260, arriba)) {
+            desplegablePiezas.style.top = `${casilla.bottom + 4}px`;
+            desplegablePiezas.style.bottom = '';
+        } else {
+            desplegablePiezas.style.top = '';
+            desplegablePiezas.style.bottom = `${window.innerHeight - casilla.top + 4}px`;
+        }
+    }
+
+    function cerrarDesplegablePiezas() {
+        despPiezas = null;
+        desplegablePiezas.style.display = 'none';
+    }
+
+    function marcarOpcionPieza(sel) {
+        if (!despPiezas) return;
+        despPiezas.sel = sel;
+        desplegablePiezas.querySelectorAll('.op').forEach((el, i) => el.classList.toggle('activa', i === sel));
+        const activa = desplegablePiezas.querySelector('.op.activa');
+        if (activa) activa.scrollIntoView({block: 'nearest'});
+    }
+
+    async function abrirDesplegablePiezas(input, campo, alElegir) {
+        despPiezas = {input, campo, alElegir, opciones: [], sel: -1};
+        desplegablePiezas.style.display = 'block';
+        colocarDesplegablePiezas();
+        if (!articulos) {
+            desplegablePiezas.innerHTML = '<div class="aviso">Cargando artículos…</div>';
+            try {
+                await cargarArticulos();
+            } catch (err) {
+                if (despPiezas && despPiezas.input === input) {
+                    desplegablePiezas.innerHTML = `<div class="aviso">No se pudo cargar el listado de artículos (${escHtml(err.message)}). Puedes escribir la pieza a mano.</div>`;
+                }
+                return;
+            }
+            if (!despPiezas || despPiezas.input !== input) return;
+        }
+        const {lista, total} = buscarArticulos(input.value, campo);
+        despPiezas.opciones = lista;
+        let html = lista.map((a, i) => `<div class="op" data-i="${i}"><b>${escHtml(a.ref)}</b>${escHtml(a.nombre)}`
+            + `${a.prov ? `<small>Ref. proveedor: ${escHtml(a.prov)}</small>` : ''}</div>`).join('');
+        if (!lista.length) html = '<div class="aviso">Ningún artículo coincide. Se guardará tal como lo escribas.</div>';
+        else if (total > lista.length) html += `<div class="aviso">Se muestran ${lista.length} de ${total}. Escribe para filtrar.</div>`;
+        desplegablePiezas.innerHTML = html;
+        desplegablePiezas.scrollTop = 0;
+        colocarDesplegablePiezas();
+    }
+
+    // Que pulsar una opción no quite el foco a la casilla (si no, el desplegable se cerraría antes).
+    desplegablePiezas.addEventListener('mousedown', e => e.preventDefault());
+    desplegablePiezas.addEventListener('click', e => {
+        const op = e.target.closest('.op');
+        if (!op || !despPiezas) return;
+        const {alElegir, opciones} = despPiezas;
+        cerrarDesplegablePiezas();
+        alElegir(opciones[Number(op.dataset.i)]);
+    });
+    window.addEventListener('resize', () => { colocarDesplegablePiezas(); ajustarAltosPiezas(); });
+    document.addEventListener('scroll', e => { if (e.target !== desplegablePiezas) colocarDesplegablePiezas(); }, true);
+
+    function comboPieza(input, campo, alElegir) {
+        input.classList.add('pieza-combo');
+        input.autocomplete = 'off';
+        input.addEventListener('focus', () => abrirDesplegablePiezas(input, campo, alElegir));
+        input.addEventListener('input', () => abrirDesplegablePiezas(input, campo, alElegir));
+        input.addEventListener('blur', () => setTimeout(() => {
+            if (despPiezas && despPiezas.input === input && document.activeElement !== input) cerrarDesplegablePiezas();
+        }, 150));
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') e.preventDefault(); // nunca envía el formulario del parte
+            if (!despPiezas || despPiezas.input !== input) return;
+            const n = despPiezas.opciones.length;
+            if (e.key === 'ArrowDown' && n) { e.preventDefault(); marcarOpcionPieza((despPiezas.sel + 1) % n); }
+            else if (e.key === 'ArrowUp' && n) { e.preventDefault(); marcarOpcionPieza((despPiezas.sel - 1 + n) % n); }
+            else if (e.key === 'Enter' && despPiezas.sel >= 0) {
+                const elegido = despPiezas.opciones[despPiezas.sel];
+                cerrarDesplegablePiezas();
+                alElegir(elegido);
+            }
+            else if (e.key === 'Escape') cerrarDesplegablePiezas();
+        });
+    }
+
+    function ajustarAltoNombre(el) {
+        if (!el.offsetParent) return; // oculto: se ajusta al mostrarse (ver ajustarAltosPiezas)
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight + 2}px`;
+    }
+
+    // Al mostrar una lista que estaba oculta (p. ej. la ventana de revisión) se recalcula la altura.
+    function ajustarAltosPiezas() {
+        document.querySelectorAll('.piezas-lista .pieza-nombre').forEach(ajustarAltoNombre);
+    }
+
+    const listasPiezas = {}; // id del textarea oculto -> {cargar}
+
+    function crearListaPiezas(idTextarea) {
+        const ta = document.getElementById(idTextarea);
+        const cont = document.querySelector(`.piezas-lista[data-para="${idTextarea}"]`);
+        let piezas = [];
+
+        const guardar = () => { ta.value = piezasATexto(piezas); };
+
+        function filaPieza(p, i, bloqueado) {
+            const div = document.createElement('div');
+            div.className = 'pieza';
+            div.innerHTML = `
+                <div class="pieza-cab"><span class="pieza-num">Pieza ${i + 1}</span>${bloqueado ? '' : '<button type="button" class="pieza-quitar" title="Quitar pieza">&times;</button>'}</div>
+                <div class="pieza-fila">
+                    <input type="text" class="pieza-ref" placeholder="Nº Ref.">
+                    <input type="text" class="pieza-cant" placeholder="Cant." inputmode="numeric" pattern="[0-9]*" maxlength="5">
+                </div>
+                <textarea class="pieza-nombre" rows="1" placeholder="Nombre de la pieza"></textarea>`;
+            const ref = div.querySelector('.pieza-ref'), cant = div.querySelector('.pieza-cant'), nombre = div.querySelector('.pieza-nombre');
+            ref.value = p.ref; cant.value = p.cantidad; nombre.value = p.nombre;
+            [ref, cant, nombre].forEach(el => { el.disabled = bloqueado; });
+            if (bloqueado) return div;
+
+            // p.auto = casilla que se rellenó sola ('ref' o 'nombre'); si se vuelve a cambiar
+            // la otra casilla, esa se puede actualizar. Si la escribe el técnico, ya es suya.
+            const elegir = (a, desde) => {
+                p.ref = ref.value = a.ref;
+                p.nombre = nombre.value = a.nombre;
+                p.auto = desde === 'ref' ? 'nombre' : 'ref';
+                ajustarAltoNombre(nombre);
+                if (!p.cantidad) p.cantidad = cant.value = '1';
+                guardar();
+                cant.focus();
+                cant.select();
+            };
+            comboPieza(ref, 'ref', a => elegir(a, 'ref'));
+            comboPieza(nombre, 'nombre', a => elegir(a, 'nombre'));
+
+            // Al dejar una casilla escrita a mano: si coincide con un artículo, se completa la otra.
+            // Si no existe, se borra o no se rellena nada, la pieza se guarda tal cual.
+            async function autocompletar(desde) {
+                try { await cargarArticulos(); } catch (e) { return; }
+                if (desde === 'ref') {
+                    const a = articuloExacto('ref', ref.value);
+                    if (a && (!p.nombre.trim() || p.auto === 'nombre')) {
+                        p.nombre = nombre.value = a.nombre;
+                        p.auto = 'nombre';
+                        ajustarAltoNombre(nombre);
+                    }
+                } else {
+                    const a = articuloExacto('nombre', nombre.value);
+                    if (a && (!p.ref.trim() || p.auto === 'ref')) {
+                        p.ref = ref.value = a.ref;
+                        p.auto = 'ref';
+                        p.nombre = nombre.value = a.nombre; // tal como está en el listado
+                        ajustarAltoNombre(nombre);
+                    }
+                }
+                guardar();
+            }
+            ref.addEventListener('change', () => autocompletar('ref'));
+            nombre.addEventListener('change', () => autocompletar('nombre'));
+
+            ref.addEventListener('input', () => {
+                p.ref = ref.value;
+                if (p.auto === 'ref') p.auto = null;
+                div.classList.remove('pieza-error');
+                guardar();
+            });
+            nombre.addEventListener('input', () => {
+                nombre.value = nombre.value.replace(/\n/g, ' ');
+                ajustarAltoNombre(nombre);
+                p.nombre = nombre.value;
+                if (p.auto === 'nombre') p.auto = null;
+                div.classList.remove('pieza-error');
+                guardar();
+            });
+            cant.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+            // Solo números: se quita al momento cualquier otra cosa que se escriba o pegue.
+            cant.addEventListener('input', () => {
+                cant.value = cant.value.replace(/\D/g, '').slice(0, 5);
+                p.cantidad = cant.value;
+                if (!cant.value) div.classList.remove('pieza-error');
+                guardar();
+            });
+            div.querySelector('.pieza-quitar').addEventListener('click', () => {
+                cerrarDesplegablePiezas();
+                piezas.splice(piezas.indexOf(p), 1);
+                guardar();
+                pintar();
+            });
+            return div;
+        }
+
+        function pintar() {
+            const bloqueado = ta.disabled;
+            if (!piezas.length && !bloqueado) piezas.push({ref: '', nombre: '', cantidad: ''});
+            cont.innerHTML = '';
+            if (!piezas.length) {
+                cont.innerHTML = '<div class="piezas-vacia">Sin piezas</div>';
+                return;
+            }
+            piezas.forEach((p, i) => cont.appendChild(filaPieza(p, i, bloqueado)));
+            cont.querySelectorAll('.pieza-nombre').forEach(ajustarAltoNombre);
+            if (bloqueado) return;
+            const mas = document.createElement('button');
+            mas.type = 'button';
+            mas.className = 'piezas-anadir';
+            mas.textContent = '+ Añadir pieza';
+            mas.addEventListener('click', () => {
+                piezas.push({ref: '', nombre: '', cantidad: ''});
+                pintar();
+                cont.querySelectorAll('.pieza-ref')[piezas.length - 1].focus();
+            });
+            cont.appendChild(mas);
+        }
+
+        // Vuelve a pintar la lista desde el texto guardado (al abrir un parte o si lo cambia el asistente).
+        function cargar() {
+            piezas = leerPiezas(ta.value);
+            pintar();
+        }
+
+        // Nº de la primera pieza que solo tiene cantidad (sin Nº Ref. ni nombre), o -1. Se marca en rojo.
+        function soloCantidad() {
+            const i = piezas.findIndex(p => !p.ref.trim() && !p.nombre.trim() && p.cantidad);
+            const tarjeta = cont.querySelectorAll('.pieza')[i];
+            if (tarjeta) {
+                tarjeta.classList.add('pieza-error');
+                tarjeta.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
+            return i;
+        }
+
+        ta.addEventListener('change', cargar);
+        listasPiezas[idTextarea] = {cargar, soloCantidad};
+        cargar();
+    }
+
+    ['res_piezas', 'res_piezas_utilizadas', 'prev_piezas'].forEach(crearListaPiezas);
+
+    function articuloExacto(campo, texto) {
+        const q = normalizarPieza(texto).replace(/\s+/g, ' ').trim();
+        if (!q || !articulos) return null;
+        return articulos.find(a => (campo === 'ref' ? a._ref === q : a._nombre === q)) || null;
+    }
+
+    // Una pieza puede ir solo con Nº Ref., solo con nombre o con ambos; solo con cantidad no.
+    // Devuelve el mensaje de error (o '') de las listas que se ven en pantalla.
+    async function revisarPiezas(ids) {
+        const titulos = {res_piezas: 'Piezas Necesarias', res_piezas_utilizadas: 'Piezas Utilizadas', prev_piezas: 'Piezas Utilizadas'};
+        for (const id of ids) {
+            if (!document.querySelector(`.piezas-lista[data-para="${id}"]`).offsetParent) continue;
+            const i = listasPiezas[id].soloCantidad();
+            if (i >= 0) {
+                await appAlert(`La pieza ${i + 1} de ${titulos[id]} solo tiene la cantidad. Escribe el Nº Ref. o el nombre, o quítala con la ×.`, {type: 'error'});
+                return false;
+            }
+        }
+        return true;
+    }
+
     function abrirResolucion(index) {
       const box = document.getElementById('resolucion-box');
       const currentIndex = document.getElementById('res_index').value;
@@ -1258,6 +1623,9 @@
           const el = document.getElementById(f);
           if(el) el.disabled = isCerrado;
       });
+      listasPiezas['res_piezas'].cargar();
+      listasPiezas['res_piezas_utilizadas'].cargar();
+      if (!isCerrado) cargarArticulos().catch(() => {}); // que el listado esté listo al escribir
 
       const btnProgreso = document.getElementById('btn-progreso');
       const btnCerrar = document.getElementById('btn-cerrar');
@@ -1316,6 +1684,7 @@
     async function guardarProgreso() {
       const box = document.getElementById('resolucion-box');
       if (box.dataset.estado === 'Cerrado') return;
+      if (!await revisarPiezas(['res_piezas', 'res_piezas_utilizadas'])) return;
       const endpoint = '/api/adjudicados/guardar-progreso';
 
       const btn = document.getElementById('btn-progreso');
@@ -1522,6 +1891,7 @@
     function limpiarFirmaCliente() { limpiarPad(padCliente); }
 
     async function cerrarAviso() {
+        if (!await revisarPiezas(['res_piezas', 'res_piezas_utilizadas'])) return;
         const est = document.getElementById('res_estado_resolucion').value;
         if (!est) {
             await appAlert("Debes seleccionar si el aviso está Resuelto o Pendiente.", {type: 'error'});
@@ -1583,6 +1953,7 @@
         document.getElementById('prev_motivo').value = av ? av['DESCRIPCIÓN'] : '';
 
         document.getElementById('prev_piezas').value = document.getElementById('res_piezas_utilizadas').value;
+        listasPiezas['prev_piezas'].cargar();
 
         document.getElementById('prev_trabajo').value = document.getElementById('res_solucion').value;
         document.getElementById('prev_estado').value = document.getElementById('res_estado_resolucion').value;
@@ -1600,7 +1971,8 @@
         document.getElementById('prev_nombre_cliente').value = document.getElementById('res_cliente').value;
 
         document.getElementById('modal-previa-parte').style.display = 'flex';
-        
+        ajustarAltosPiezas();
+
         if(!padTecnico) { padTecnico = initSignaturePad('canvas-firma-tecnico'); activarCamaraFirma(padTecnico); }
         if(!padCliente) { padCliente = initSignaturePad('canvas-firma-cliente'); activarCamaraFirma(padCliente); }
 
@@ -1614,6 +1986,7 @@
     }
 
     async function enviarYCerrarDefinitivo() {
+        if (!await revisarPiezas(['prev_piezas'])) return;
         const blank = document.createElement('canvas');
         blank.width = 600;
         blank.height = 200;
@@ -1800,6 +2173,9 @@
         cerrarManuales();
     }
 
+    const FORMATO_PIEZAS_BOT = 'Una pieza por línea con el formato "nº ref | nombre | cantidad" (ej. "8453 | BATERIA TINTA GTO-52 | 2"). '
+        + 'Si no se sabe la referencia, déjala vacía (" | Rodillo fusor | 1"). Sustituye a todas las piezas que haya.';
+
     const ID_AVISO_BOT = {type: 'object', properties: {id: {type: 'integer', description: 'id del aviso en el CONTEXTO'}},
                           required: ['id'], additionalProperties: false};
 
@@ -1827,9 +2203,9 @@
                 hora_salida: {type: 'string', description: 'HH:MM'},
                 estado_resolucion: {type: 'string', enum: ['Pendiente', 'Resuelto']},
                 necesita_piezas: {type: 'string', enum: ['NO', 'SI'], description: 'Solo si el estado es Pendiente'},
-                piezas_necesarias: {type: 'string'},
+                piezas_necesarias: {type: 'string', description: FORMATO_PIEZAS_BOT},
                 solucion: {type: 'string', description: 'Trabajos realizados / solución'},
-                piezas_utilizadas: {type: 'string'},
+                piezas_utilizadas: {type: 'string', description: FORMATO_PIEZAS_BOT},
                 observaciones: {type: 'string', description: 'Observación interna'},
                 opcion_venta: {type: 'string', enum: ['NO', 'SI']},
                 detalle_venta: {type: 'string'},
@@ -1850,6 +2226,14 @@
                 for (const [clave, idCampo] of campos) {
                     if (a[clave] === undefined || a[clave] === null) continue;
                     const el = document.getElementById(idCampo);
+                    if (listasPiezas[idCampo]) {
+                        // Las piezas se ven como lista: se escribe el texto oculto y se vuelve a pintar.
+                        await SugrafBot.resaltar(document.querySelector(`.piezas-lista[data-para="${idCampo}"]`));
+                        el.value = piezasATexto(leerPiezas(a[clave]));
+                        listasPiezas[idCampo].cargar();
+                        cambiados.push(clave);
+                        continue;
+                    }
                     // La fecha se ve en un campo de texto aparte (dd/mm/aa).
                     await SugrafBot.escribir(el, a[clave]);
                     if (clave === 'fecha') mostrarFechaParte();

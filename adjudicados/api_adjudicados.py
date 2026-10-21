@@ -7,6 +7,9 @@ import base64
 import sys
 from email.message import EmailMessage
 from datetime import datetime
+import re
+import threading
+import time
 import unicodedata
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import service_account
@@ -190,6 +193,32 @@ def _necesita_piezas(estado_piezas):
     }
 
 
+def leer_piezas(texto):
+    """[(nº ref, nombre, cantidad)] de las piezas guardadas como texto: una por línea,
+    'ref | nombre | cantidad' (así las escribe la lista de piezas del parte). Las líneas
+    antiguas de texto libre quedan como nombre, sin referencia ni cantidad."""
+    piezas = []
+    for linea in str(texto or '').split('\n'):
+        if not linea.strip():
+            continue
+        partes = [p.strip() for p in re.split(r'\s*\|\s*', linea.strip())]
+        if len(partes) >= 3:
+            ref, nombre, cantidad = partes[0], ' | '.join(partes[1:-1]), partes[-1]
+            if ref or nombre:
+                piezas.append((ref, nombre, cantidad))
+        else:
+            piezas.append(('', linea.strip(), ''))
+    return piezas
+
+
+def piezas_en_linea(texto):
+    """Las piezas en una sola línea, para la descripción de un aviso: '8453 RODILLO (x2); ...'."""
+    return '; '.join(
+        ' '.join(p for p in (ref, nombre, f'(x{cantidad})' if cantidad else '') if p)
+        for ref, nombre, cantidad in leer_piezas(texto)
+    )
+
+
 def _construir_aviso_regenerado(row_orig, df_sin, parte, pdf_trabajo, pdf_piezas):
     """Crea una fila de Avisos Sin Tratar manteniendo el esquema completo."""
     necesita_piezas = _necesita_piezas(parte.estado_piezas)
@@ -198,7 +227,7 @@ def _construir_aviso_regenerado(row_orig, df_sin, parte, pdf_trabajo, pdf_piezas
 
     motivo_nuevo = f'Seguimiento: {motivo_original}. Solución: {solucion}.'
     if necesita_piezas and str(pdf_piezas or '').strip():
-        motivo_nuevo += f' Piezas: {str(pdf_piezas).strip()}.'
+        motivo_nuevo += f' Piezas: {piezas_en_linea(pdf_piezas)}.'
 
     # Usamos las columnas reales del fichero destino para no perder columnas
     # adicionales (por ejemplo ESTADO PIEZAS) ni cambiar su organización.
@@ -396,8 +425,60 @@ def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
             continuacion = True
             nueva_pagina()
 
+    # --- Piezas: tabla Nº Ref | Descripción | Cant.; las filas crecen si la descripción es larga ---
+    def caja_piezas(titulo, texto):
+        nonlocal y_cursor
+        x_desc, x_cant = 125, width - 50
+        filas = [(partir(ref, "Helvetica", 9, x_desc - 50) or [''],
+                  partir(nombre, "Helvetica", 9, x_cant - 35 - x_desc - 10) or [''],
+                  cantidad)
+                 for ref, nombre, cantidad in leer_piezas(texto)]
+        if not filas:
+            caja_texto(titulo, '')
+            return
+        continuacion = False
+        while filas:
+            disponible = y_cursor - MARGEN_INF - 45
+            n, usado = 0, 0
+            for f in filas:
+                alto_fila = 15 * max(len(f[0]), len(f[1]))
+                if usado + alto_fila > disponible:
+                    break
+                usado += alto_fila
+                n += 1
+            if n == 0:
+                if y_cursor < height - 70:  # no es una página recién empezada
+                    nueva_pagina()
+                    continue
+                n, usado = 1, 15 * max(len(filas[0][0]), len(filas[0][1]))
+            trozo, filas = filas[:n], filas[n:]
+            alto = 45 + usado
+            c.rect(40, y_cursor - alto, ANCHO_CAJA, alto)
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(45, y_cursor - 15, f"{titulo} (continuación)" if continuacion else titulo)
+            c.setFont("Helvetica-Bold", 8)
+            c.drawString(45, y_cursor - 30, "Nº Ref.")
+            c.drawString(x_desc, y_cursor - 30, "Descripción")
+            c.drawRightString(x_cant, y_cursor - 30, "Cant.")
+            c.setStrokeColorRGB(0.8, 0.8, 0.8)
+            c.line(45, y_cursor - 34, width - 45, y_cursor - 34)
+            c.setStrokeColor(color_sugraf)
+            c.setFont("Helvetica", 9)
+            y_fila = y_cursor - 45
+            for lineas_ref, lineas_nombre, cantidad in trozo:
+                for i, linea in enumerate(lineas_ref):
+                    c.drawString(45, y_fila - i * 15, linea)
+                for i, linea in enumerate(lineas_nombre):
+                    c.drawString(x_desc, y_fila - i * 15, linea)
+                c.drawRightString(x_cant, y_fila, cantidad)
+                y_fila -= 15 * max(len(lineas_ref), len(lineas_nombre))
+            y_cursor -= (alto + 10)
+            if filas:
+                continuacion = True
+                nueva_pagina()
+
     caja_texto("Trabajo realizado:", datos.pdf_trabajo)
-    caja_texto("Piezas Utilizadas:", datos.pdf_piezas)
+    caja_piezas("Piezas Utilizadas:", datos.pdf_piezas)
     if str(datos.pdf_observaciones or '').strip():
         caja_texto("Observaciones internas:", datos.pdf_observaciones)
 
@@ -650,6 +731,87 @@ def get_mis_avisos(tecnico: str):
         return {"avisos": avisos_mios}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Maestro de artículos de Pirineos (Mi unidad/Pirineos/Articulos/Articulos.xlsx), para
+# elegir las piezas del parte. Se guarda en memoria y se vuelve a descargar solo si el
+# fichero ha cambiado (se comprueba como mucho cada 10 minutos).
+ARTICULOS_FOLDER_ID = "1uAaJfCxrumjT07fB6ezWHyronOokEl_r"  # Pirineos/Articulos
+ARTICULOS_NOMBRE = "Articulos.xlsx"
+SEGUNDOS_CACHE_ARTICULOS = 600
+_articulos_lock = threading.Lock()
+_articulos_cache = {'articulos': None, 'modificado': None, 'comprobado': 0.0}
+
+
+def _texto_celda(valor):
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return ''
+    if isinstance(valor, float) and valor.is_integer():
+        valor = int(valor)
+    return ' '.join(str(valor).split())
+
+
+def cargar_articulos(drive):
+    """[[nº ref, descripción, ref. proveedor]] del maestro de artículos. Si Drive falla
+    pero ya se había leído antes, se sigue usando el listado guardado."""
+    with _articulos_lock:
+        cache = _articulos_cache
+        if cache['articulos'] is not None and time.time() - cache['comprobado'] < SEGUNDOS_CACHE_ARTICULOS:
+            return cache['articulos']
+        try:
+            return _descargar_articulos(drive, cache)
+        except Exception:
+            if cache['articulos'] is None:
+                raise
+            cache['comprobado'] = time.time()
+            return cache['articulos']
+
+
+def _descargar_articulos(drive, cache):
+    """Comprueba en Drive si Articulos.xlsx ha cambiado y, si es así, lo vuelve a leer."""
+    archivos = drive.files().list(
+        q=f"'{ARTICULOS_FOLDER_ID}' in parents and name = '{ARTICULOS_NOMBRE}' and trashed = false",
+        fields='files(id, mimeType, modifiedTime)', orderBy='modifiedTime desc',
+        supportsAllDrives=True, includeItemsFromAllDrives=True,
+    ).execute().get('files', [])
+    if not archivos:
+        raise RuntimeError(f"no se encuentra '{ARTICULOS_NOMBRE}' en la carpeta Pirineos/Articulos")
+    meta = archivos[0]
+    clave = f"{meta['id']}:{meta.get('modifiedTime')}"
+    if cache['articulos'] is None or clave != cache['modificado']:
+        if meta.get('mimeType') == 'application/vnd.google-apps.spreadsheet':
+            peticion = drive.files().export_media(fileId=meta['id'], mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        else:
+            peticion = drive.files().get_media(fileId=meta['id'], supportsAllDrives=True)
+        fh = io.BytesIO()
+        descarga = MediaIoBaseDownload(fh, peticion)
+        terminado = False
+        while not terminado:
+            _, terminado = descarga.next_chunk()
+        fh.seek(0)
+        df = pd.read_excel(fh, engine='openpyxl', dtype=object, sheet_name=0)
+        articulos, vistos = [], set()
+        for ref, desc, ref_prov in zip(df.get('Referencia', []), df.get('Descripcion', []), df.get('ReferenciaProv', [])):
+            ref, desc, ref_prov = _texto_celda(ref), _texto_celda(desc), _texto_celda(ref_prov)
+            if not ref or not desc or ref in vistos:
+                continue
+            vistos.add(ref)
+            articulos.append([ref, desc, ref_prov])
+        cache['articulos'] = articulos
+        cache['modificado'] = clave
+    cache['comprobado'] = time.time()
+    return cache['articulos']
+
+
+@router.get("/articulos")
+def get_articulos():
+    try:
+        return {"articulos": cargar_articulos(get_drive_service())}
+    except Exception as e:
+        correo = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON") or '{}').get('client_email', '')
+        raise HTTPException(status_code=500, detail=(
+            f"No se pudo leer el listado de artículos (Pirineos/Articulos/Articulos.xlsx): {e}. "
+            f"Comprueba que el fichero está compartido con la cuenta de la app{f' ({correo})' if correo else ''}."
+        ))
 
 @router.get("/historico")
 def get_historico(cliente: str = '', maquina: str = '', marca: str = '', modelo: str = '', n_serie: str = ''):
