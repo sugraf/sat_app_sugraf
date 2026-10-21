@@ -305,6 +305,20 @@
     .prev-grid-2{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
     .prev-grid-3{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
 
+    /* Foto del sello en el recuadro de firma (ver activarCamaraFirma).
+       La vista previa y la foto tienen la misma proporción 3:1 que la firma en el PDF. */
+    .firma-box{ position:relative; }
+    .firma-box.camara{ background:var(--navy) !important; }
+    .firma-box.con-foto canvas{ object-fit:contain; }
+    .firma-video{ display:none; position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:min(100%, 600px); aspect-ratio:3 / 1; object-fit:cover; }
+    .firma-box.camara .firma-video{ display:block; }
+    .firma-box.camara .firma-cam-btn{ display:none; }
+    .firma-cam-acciones{ display:none; position:absolute; left:0; right:0; bottom:8px; justify-content:center; gap:8px; }
+    .firma-box.camara .firma-cam-acciones{ display:flex; }
+    .firma-cam-acciones button{ border:none; border-radius:8px; padding:8px 14px; font-family:'Montserrat', sans-serif; font-weight:700; font-size:0.8rem; cursor:pointer; }
+    .firma-cam-disparar{ background:var(--green); color:#fff; }
+    .firma-cam-cancelar{ background:#eef2f6; color:var(--navy); }
+
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
       margin-top:20px; text-align:center; display:none;
@@ -1352,9 +1366,18 @@
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let left = rect.left, top = rect.top, w = rect.width, h = rect.height;
+            // Con una foto el lienzo se muestra con object-fit:contain: se usa solo la zona dibujada.
+            if (getComputedStyle(canvas).objectFit === 'contain') {
+                const esc = Math.min(w / canvas.width, h / canvas.height);
+                left += (w - canvas.width * esc) / 2;
+                top += (h - canvas.height * esc) / 2;
+                w = canvas.width * esc;
+                h = canvas.height * esc;
+            }
             return {
-                x: (clientX - rect.left) * (canvas.width / rect.width),
-                y: (clientY - rect.top) * (canvas.height / rect.height)
+                x: (clientX - left) * (canvas.width / w),
+                y: (clientY - top) * (canvas.height / h)
             };
         };
 
@@ -1387,16 +1410,112 @@
         return { canvas, ctx };
     }
     
+    // ---------- Foto del sello en el recuadro de firma ----------
+    // Algunos clientes no pueden firmar y ponen un sello: con el botón de la
+    // cámara se le hace una foto y queda como firma en el recuadro.
+    const ICONO_CAMARA = `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="#10263B" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" stroke="#10263B" stroke-width="1.8"/></svg>`;
+    let pararCamaraActiva = null; // solo una cámara abierta a la vez
+
+    // Pega la imagen en el lienzo recortada a su proporción (igual que la vista previa).
+    function pegarFotoEnFirma(pad, src, sw, sh) {
+        const { canvas, ctx } = pad;
+        const esc = Math.max(canvas.width / sw, canvas.height / sh);
+        const w = sw * esc, h = sh * esc;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(src, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+        canvas.parentElement.classList.add('con-foto');
+    }
+
+    function activarCamaraFirma(pad) {
+        const box = pad.canvas.parentElement;
+        box.classList.add('firma-box');
+
+        const video = document.createElement('video');
+        video.className = 'firma-video';
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+
+        const btnCam = document.createElement('button');
+        btnCam.type = 'button';
+        btnCam.className = 'dictado-btn firma-cam-btn';
+        btnCam.title = 'Hacer foto del sello';
+        btnCam.innerHTML = ICONO_CAMARA;
+
+        const acciones = document.createElement('div');
+        acciones.className = 'firma-cam-acciones';
+        acciones.innerHTML = '<button type="button" class="firma-cam-cancelar">Cancelar</button><button type="button" class="firma-cam-disparar">Hacer foto</button>';
+
+        // Si el navegador no deja usar la cámara (p. ej. sin HTTPS), se abre la cámara del móvil o el selector de archivos.
+        const inputFoto = document.createElement('input');
+        inputFoto.type = 'file';
+        inputFoto.accept = 'image/*';
+        inputFoto.setAttribute('capture', 'environment');
+        inputFoto.hidden = true;
+
+        box.append(video, btnCam, acciones, inputFoto);
+
+        let stream = null;
+        function parar() {
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            stream = null;
+            video.srcObject = null;
+            box.classList.remove('camara');
+            if (pararCamaraActiva === parar) pararCamaraActiva = null;
+        }
+
+        btnCam.addEventListener('click', async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { inputFoto.click(); return; }
+            if (pararCamaraActiva) pararCamaraActiva();
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+                });
+            } catch (e) {
+                if (e.name === 'NotAllowedError') await appAlert('Permite el acceso a la cámara para poder hacer la foto del sello.', {type: 'error'});
+                else inputFoto.click();
+                return;
+            }
+            pararCamaraActiva = parar;
+            video.srcObject = stream;
+            box.classList.add('camara');
+            try { await video.play(); } catch (e) {}
+        });
+
+        acciones.querySelector('.firma-cam-disparar').addEventListener('click', () => {
+            if (!video.videoWidth) return;
+            pegarFotoEnFirma(pad, video, video.videoWidth, video.videoHeight);
+            parar();
+        });
+        acciones.querySelector('.firma-cam-cancelar').addEventListener('click', parar);
+
+        inputFoto.addEventListener('change', () => {
+            const archivo = inputFoto.files[0];
+            inputFoto.value = '';
+            if (!archivo) return;
+            const url = URL.createObjectURL(archivo);
+            const img = new Image();
+            img.onload = () => { pegarFotoEnFirma(pad, img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+            img.src = url;
+        });
+
+        pad.pararCamara = parar;
+    }
+
     let padTecnico = null;
     let padCliente = null;
 
-    function limpiarFirmaTecnico() {
-        if(padTecnico) padTecnico.ctx.clearRect(0, 0, padTecnico.canvas.width, padTecnico.canvas.height);
+    function limpiarPad(pad) {
+        if(!pad) return;
+        if(pad.pararCamara) pad.pararCamara();
+        pad.canvas.parentElement.classList.remove('con-foto');
+        pad.ctx.clearRect(0, 0, pad.canvas.width, pad.canvas.height);
     }
-    
-    function limpiarFirmaCliente() {
-        if(padCliente) padCliente.ctx.clearRect(0, 0, padCliente.canvas.width, padCliente.canvas.height);
-    }
+
+    function limpiarFirmaTecnico() { limpiarPad(padTecnico); }
+
+    function limpiarFirmaCliente() { limpiarPad(padCliente); }
 
     async function cerrarAviso() {
         const est = document.getElementById('res_estado_resolucion').value;
@@ -1478,14 +1597,15 @@
 
         document.getElementById('modal-previa-parte').style.display = 'flex';
         
-        if(!padTecnico) padTecnico = initSignaturePad('canvas-firma-tecnico');
-        if(!padCliente) padCliente = initSignaturePad('canvas-firma-cliente');
-        
+        if(!padTecnico) { padTecnico = initSignaturePad('canvas-firma-tecnico'); activarCamaraFirma(padTecnico); }
+        if(!padCliente) { padCliente = initSignaturePad('canvas-firma-cliente'); activarCamaraFirma(padCliente); }
+
         limpiarFirmaTecnico();
         limpiarFirmaCliente();
     }
 
     function cerrarPreviaPDF() {
+        if (pararCamaraActiva) pararCamaraActiva();
         document.getElementById('modal-previa-parte').style.display = 'none';
     }
 
