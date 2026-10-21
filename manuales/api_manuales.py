@@ -66,7 +66,10 @@ MIME_EN_NAVEGADOR = ('application/pdf', 'image/', 'video/', 'audio/', 'text/plai
 
 # Palabras que acompañan al modelo en algunos nombres de carpeta ("PLOTER ROLAND VF2-640").
 PALABRAS_GENERICAS = {'PLOTER', 'PLOTTER', 'IMPRESORA', 'MAQUINA', 'MODELO', 'MANUAL', 'MANUALES'}
-ALIAS_MARCA = {'HEWLETTPACKARD': 'HP', 'KONICA': 'KONICAMINOLTA', 'MINOLTA': 'KONICAMINOLTA', 'FUJI': 'FUJIFILM'}
+ALIAS_MARCA = {'HEWLETTPACKARD': 'HP', 'KONICA': 'KONICAMINOLTA', 'MINOLTA': 'KONICAMINOLTA', 'FUJI': 'FUJIFILM',
+               # Widi: en Maquinas.xlsx la marca va por línea de producto; en Drive todo está en "WIDinovations".
+               'WIDI': 'WIDINOVATIONS', 'WIDILASER': 'WIDINOVATIONS', 'WIDICNC': 'WIDINOVATIONS',
+               'WIDILAMINATOR': 'WIDINOVATIONS', 'WIDLASER': 'WIDINOVATIONS', 'WIDCNC': 'WIDINOVATIONS'}
 
 router = APIRouter()
 
