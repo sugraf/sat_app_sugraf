@@ -315,7 +315,14 @@
     .pieza-quitar:hover{ color:#ef4444; }
     .pieza-fila{ display:flex; gap:8px; margin-bottom:8px; }
     .pieza-fila .pieza-ref{ flex:1; min-width:0; }
-    .pieza-fila .pieza-cant{ flex:none; width:96px; text-align:center; }
+    .pieza-cant-caja{ flex:none; display:flex; width:138px; }
+    .pieza-cant-caja.sin-botones{ width:96px; }
+    .pieza-cant-caja button{ flex:none; width:38px; padding:0; border:1px solid var(--grey); background:#ffffff; color:var(--green); font-size:1.2rem; font-weight:700; line-height:1; cursor:pointer; font-family:'Montserrat', sans-serif; }
+    .pieza-cant-caja button:hover{ background:var(--green-soft); }
+    .pieza-cant-caja .pieza-menos{ border-radius:10px 0 0 10px; border-right:none; }
+    .pieza-cant-caja .pieza-mas{ border-radius:0 10px 10px 0; border-left:none; }
+    .pieza-cant-caja .pieza-cant{ min-width:0; text-align:center; padding:10px 4px; border-radius:0; box-shadow:none; }
+    .pieza-cant-caja.sin-botones .pieza-cant{ border-radius:10px; }
     .pieza input, .pieza textarea{ padding:10px 12px; }
     .pieza textarea.pieza-nombre{ display:block; resize:none; overflow:hidden; line-height:1.35; }
     .pieza .pieza-combo{ background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23006858" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 12px center; background-size:14px; padding-right:34px; }
@@ -1374,7 +1381,11 @@
                 <div class="pieza-cab"><span class="pieza-num">Pieza ${i + 1}</span>${bloqueado ? '' : '<button type="button" class="pieza-quitar" title="Quitar pieza">&times;</button>'}</div>
                 <div class="pieza-fila">
                     <input type="text" class="pieza-ref" placeholder="Nº Ref.">
-                    <input type="text" class="pieza-cant" placeholder="Cant." inputmode="numeric" pattern="[0-9]*" maxlength="5">
+                    <div class="pieza-cant-caja${bloqueado ? ' sin-botones' : ''}">
+                        ${bloqueado ? '' : '<button type="button" class="pieza-menos" title="Quitar una" aria-label="Quitar una">&minus;</button>'}
+                        <input type="text" class="pieza-cant" placeholder="Cant." inputmode="numeric" pattern="[0-9]*" maxlength="5">
+                        ${bloqueado ? '' : '<button type="button" class="pieza-mas" title="Añadir una" aria-label="Añadir una">+</button>'}
+                    </div>
                 </div>
                 <textarea class="pieza-nombre" rows="1" placeholder="Nombre de la pieza"></textarea>`;
             const ref = div.querySelector('.pieza-ref'), cant = div.querySelector('.pieza-cant'), nombre = div.querySelector('.pieza-nombre');
@@ -1422,9 +1433,17 @@
             ref.addEventListener('change', () => autocompletar('ref'));
             nombre.addEventListener('change', () => autocompletar('nombre'));
 
+            // Si la pieza tiene Nº Ref. o nombre, la cantidad es obligatoria y como mínimo 1.
+            const cantidadMinima = () => {
+                if ((p.ref.trim() || p.nombre.trim()) && !(parseInt(cant.value, 10) >= 1)) {
+                    p.cantidad = cant.value = '1';
+                }
+            };
+
             ref.addEventListener('input', () => {
                 p.ref = ref.value;
                 if (p.auto === 'ref') p.auto = null;
+                cantidadMinima();
                 div.classList.remove('pieza-error');
                 guardar();
             });
@@ -1433,6 +1452,7 @@
                 ajustarAltoNombre(nombre);
                 p.nombre = nombre.value;
                 if (p.auto === 'nombre') p.auto = null;
+                cantidadMinima();
                 div.classList.remove('pieza-error');
                 guardar();
             });
@@ -1441,9 +1461,26 @@
             cant.addEventListener('input', () => {
                 cant.value = cant.value.replace(/\D/g, '').slice(0, 5);
                 p.cantidad = cant.value;
-                if (!cant.value) div.classList.remove('pieza-error');
+                if (!cant.value || parseInt(cant.value, 10) >= 1) div.classList.remove('pieza-error');
                 guardar();
             });
+            // Al salir: sin ceros delante, y vacía o 0 vuelve a 1 si la pieza tiene algo escrito.
+            cant.addEventListener('change', () => {
+                if (parseInt(cant.value, 10) >= 1) cant.value = String(parseInt(cant.value, 10));
+                else cant.value = '';
+                p.cantidad = cant.value;
+                cantidadMinima();
+                guardar();
+            });
+            // − y + suman o restan una unidad; nunca baja de 1.
+            const sumar = paso => {
+                const actual = parseInt(cant.value, 10) || 0;
+                cant.value = String(Math.min(99999, Math.max(1, actual + paso)));
+                p.cantidad = cant.value;
+                guardar();
+            };
+            div.querySelector('.pieza-menos').addEventListener('click', () => sumar(-1));
+            div.querySelector('.pieza-mas').addEventListener('click', () => sumar(1));
             div.querySelector('.pieza-quitar').addEventListener('click', () => {
                 cerrarDesplegablePiezas();
                 piezas.splice(piezas.indexOf(p), 1);
@@ -1482,19 +1519,28 @@
             pintar();
         }
 
-        // Nº de la primera pieza que solo tiene cantidad (sin Nº Ref. ni nombre), o -1. Se marca en rojo.
-        function soloCantidad() {
-            const i = piezas.findIndex(p => !p.ref.trim() && !p.nombre.trim() && p.cantidad);
+        // Primera pieza mal rellenada, {i, motivo} o null, y se marca en rojo:
+        // solo con cantidad, o con Nº Ref./nombre pero sin cantidad (mínimo 1).
+        function piezaIncompleta() {
+            let motivo = '';
+            const i = piezas.findIndex(p => {
+                const tiene = p.ref.trim() || p.nombre.trim();
+                const cantidadOk = parseInt(p.cantidad, 10) >= 1;
+                if (tiene && !cantidadOk) motivo = 'no tiene cantidad (mínimo 1)';
+                else if (!tiene && p.cantidad) motivo = 'solo tiene la cantidad. Escribe el Nº Ref. o el nombre, o quítala con la ×';
+                return !!motivo;
+            });
+            if (i < 0) return null;
             const tarjeta = cont.querySelectorAll('.pieza')[i];
             if (tarjeta) {
                 tarjeta.classList.add('pieza-error');
                 tarjeta.scrollIntoView({behavior: 'smooth', block: 'center'});
             }
-            return i;
+            return {i, motivo};
         }
 
         ta.addEventListener('change', cargar);
-        listasPiezas[idTextarea] = {cargar, soloCantidad};
+        listasPiezas[idTextarea] = {cargar, piezaIncompleta};
         cargar();
     }
 
@@ -1506,15 +1552,15 @@
         return articulos.find(a => (campo === 'ref' ? a._ref === q : a._nombre === q)) || null;
     }
 
-    // Una pieza puede ir solo con Nº Ref., solo con nombre o con ambos; solo con cantidad no.
-    // Devuelve el mensaje de error (o '') de las listas que se ven en pantalla.
+    // Una pieza puede ir solo con Nº Ref., solo con nombre o con ambos, siempre con cantidad
+    // (mínimo 1); solo con cantidad no. Revisa las listas que se ven en pantalla y avisa.
     async function revisarPiezas(ids) {
         const titulos = {res_piezas: 'Piezas Necesarias', res_piezas_utilizadas: 'Piezas Utilizadas', prev_piezas: 'Piezas Utilizadas'};
         for (const id of ids) {
             if (!document.querySelector(`.piezas-lista[data-para="${id}"]`).offsetParent) continue;
-            const i = listasPiezas[id].soloCantidad();
-            if (i >= 0) {
-                await appAlert(`La pieza ${i + 1} de ${titulos[id]} solo tiene la cantidad. Escribe el Nº Ref. o el nombre, o quítala con la ×.`, {type: 'error'});
+            const mal = listasPiezas[id].piezaIncompleta();
+            if (mal) {
+                await appAlert(`La pieza ${mal.i + 1} de ${titulos[id]} ${mal.motivo}.`, {type: 'error'});
                 return false;
             }
         }
@@ -2174,7 +2220,8 @@
     }
 
     const FORMATO_PIEZAS_BOT = 'Una pieza por línea con el formato "nº ref | nombre | cantidad" (ej. "8453 | BATERIA TINTA GTO-52 | 2"). '
-        + 'Si no se sabe la referencia, déjala vacía (" | Rodillo fusor | 1"). Sustituye a todas las piezas que haya.';
+        + 'Si no se sabe la referencia, déjala vacía (" | Rodillo fusor | 1"). La cantidad es obligatoria, mínimo 1 (si no se indica se pone 1). '
+        + 'Sustituye a todas las piezas que haya.';
 
     const ID_AVISO_BOT = {type: 'object', properties: {id: {type: 'integer', description: 'id del aviso en el CONTEXTO'}},
                           required: ['id'], additionalProperties: false};
@@ -2229,7 +2276,7 @@
                     if (listasPiezas[idCampo]) {
                         // Las piezas se ven como lista: se escribe el texto oculto y se vuelve a pintar.
                         await SugrafBot.resaltar(document.querySelector(`.piezas-lista[data-para="${idCampo}"]`));
-                        el.value = piezasATexto(leerPiezas(a[clave]));
+                        el.value = piezasATexto(leerPiezas(a[clave]).map(p => ({...p, cantidad: parseInt(p.cantidad, 10) >= 1 ? String(parseInt(p.cantidad, 10)) : '1'})));
                         listasPiezas[idCampo].cargar();
                         cambiados.push(clave);
                         continue;
