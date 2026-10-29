@@ -297,8 +297,10 @@
       background:#ffffff; color:var(--navy); border-style:solid; cursor:pointer;
       box-shadow:0 3px 10px rgba(0,104,88,0.07), 0 4px 14px rgba(59,130,246,0.06);
     }
-    /* Invisible pero "renderizado", para que showPicker() abra el calendario en su sitio. */
-    .fecha-parte #ses_fecha{ position:absolute; left:0; bottom:0; width:100%; height:100%; opacity:0; pointer-events:none; }
+    /* Invisible y encima del texto: el toque llega directamente al calendario del móvil
+       (con showPicker() desde el campo de texto, en algunos móviles no se abría). */
+    .fecha-parte #ses_fecha{ position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; opacity:0; z-index:2; cursor:pointer; font-size:16px; }
+    .fecha-parte #ses_fecha:disabled{ cursor:not-allowed; }
 
     /* Ventana de revisión y firma del parte */
     .prev-grid{ display:grid; gap:14px; margin-bottom:20px; }
@@ -347,9 +349,23 @@
     .firma-box.camara .firma-cam-btn{ display:none; }
     .firma-cam-acciones{ display:none; justify-content:center; gap:8px; margin-bottom:10px; }
     .firma-box.camara + .firma-cam-acciones{ display:flex; }
-    .firma-cam-acciones button{ border:none; border-radius:8px; padding:8px 14px; font-family:'Montserrat', sans-serif; font-weight:700; font-size:0.8rem; cursor:pointer; }
+    .firma-cam-acciones button, .firma-ajuste-acciones button{ border:none; border-radius:8px; padding:8px 14px; font-family:'Montserrat', sans-serif; font-weight:700; font-size:0.8rem; cursor:pointer; }
     .firma-cam-disparar{ background:var(--green); color:#fff; }
     .firma-cam-cancelar{ background:#eef2f6; color:var(--navy); }
+    .firma-box .firma-galeria-btn{ right:48px; }
+
+    /* Ajuste de la foto elegida de la galería (ver abrirAjusteFirma). */
+    #firma-ajuste{ display:none; position:fixed; inset:0; z-index:10050; background:rgba(16,38,59,0.88); flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:16px; }
+    #firma-ajuste.show{ display:flex; }
+    .firma-ajuste-titulo{ color:#ffffff; font-family:'Montserrat', sans-serif; font-weight:700; font-size:1rem; text-align:center; }
+    .firma-ajuste-ayuda{ color:#cbd5e1; font-family:'Montserrat', sans-serif; font-size:0.75rem; text-align:center; margin-top:-8px; max-width:600px; }
+    .firma-ajuste-marco{ position:relative; width:min(92vw, 600px); background:#f8fafc; outline:2px dashed var(--green); outline-offset:2px; border-radius:6px; overflow:hidden; touch-action:none; cursor:grab; }
+    .firma-ajuste-marco:active{ cursor:grabbing; }
+    .firma-ajuste-marco canvas{ display:block; width:100%; height:100%; }
+    .firma-ajuste-zoom{ display:flex; align-items:center; gap:10px; width:min(92vw, 600px); }
+    .firma-ajuste-zoom button{ flex:none; width:36px; height:36px; border:none; border-radius:50%; background:#ffffff; color:var(--navy); font-size:1.3rem; font-weight:700; line-height:1; cursor:pointer; }
+    .firma-ajuste-zoom input[type="range"]{ flex:1; min-width:0; padding:0; margin:0; border:none; box-shadow:none; background:transparent; accent-color:var(--green); }
+    .firma-ajuste-acciones{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
 
     .horas-summary {
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;
@@ -493,7 +509,7 @@
             <!-- Se ve dd/mm/aa; el input date (oculto debajo) guarda AAAA-MM-DD y da el calendario. -->
             <div class="fecha-parte" style="flex:2;">
               <input type="text" id="ses_fecha_txt" readonly placeholder="dd/mm/aa" style="padding:10px;" title="Fecha" onclick="abrirCalendarioParte()">
-              <input type="date" id="ses_fecha" tabindex="-1" aria-hidden="true" onchange="mostrarFechaParte()">
+              <input type="date" id="ses_fecha" title="Fecha" onclick="abrirCalendarioParte(event)" onchange="mostrarFechaParte()" oninput="mostrarFechaParte()">
             </div>
             <input type="time" id="ses_hora_ent" style="flex:1; padding:10px;" title="Hora Entrada">
             <input type="time" id="ses_hora_sal" style="flex:1; padding:10px;" title="Hora Salida">
@@ -771,11 +787,14 @@
         document.getElementById('ses_fecha_txt').value = fechaParte(document.getElementById('ses_fecha').value);
     }
 
-    function abrirCalendarioParte() {
+    // En el móvil el toque sobre el input date ya abre el calendario; en el ordenador
+    // hay que pedirlo (si no, solo se abre pulsando el icono).
+    function abrirCalendarioParte(ev) {
         const fecha = document.getElementById('ses_fecha');
         if (fecha.disabled) return;
-        try { fecha.showPicker(); }
-        catch (e) { fecha.focus(); fecha.click(); }
+        if (!ev || window.matchMedia('(pointer: fine)').matches) {
+            try { fecha.showPicker(); } catch (e) {}
+        }
     }
 
     function generateCard(av) {
@@ -1826,7 +1845,183 @@
     // Algunos clientes no pueden firmar y ponen un sello: con el botón de la
     // cámara se le hace una foto y queda como firma en el recuadro.
     const ICONO_CAMARA = `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="#10263B" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" stroke="#10263B" stroke-width="1.8"/></svg>`;
+    const ICONO_GALERIA = `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#10263B" stroke-width="1.8"/><circle cx="8.5" cy="10" r="1.6" stroke="#10263B" stroke-width="1.6"/><path d="M4 17l5-5 4 4 2.5-2.5L20 17" stroke="#10263B" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
     let pararCamaraActiva = null; // solo una cámara abierta a la vez
+
+    // ---------- Ajuste de una foto de la galería ----------
+    // La foto se ve dentro de un marco con la misma forma que el recuadro de firma.
+    // Se acerca/aleja con pellizco, rueda del ratón o la barra, y se mueve arrastrando.
+    // No hace falta llenar el marco entero: lo que quede vacío sale en blanco.
+    let ajusteFirma = null;
+
+    function crearAjusteFirma() {
+        const el = document.createElement('div');
+        el.id = 'firma-ajuste';
+        el.innerHTML = `
+            <div class="firma-ajuste-titulo">Ajusta la foto del sello</div>
+            <div class="firma-ajuste-ayuda">Pellizca o usa la barra para acercar o alejar y arrastra para moverla. Así se verá en el parte.</div>
+            <div class="firma-ajuste-marco"><canvas></canvas></div>
+            <div class="firma-ajuste-zoom">
+                <button type="button" class="firma-ajuste-menos" title="Alejar">&minus;</button>
+                <input type="range" min="0" max="1000" step="1" aria-label="Zoom">
+                <button type="button" class="firma-ajuste-mas" title="Acercar">+</button>
+            </div>
+            <div class="firma-ajuste-acciones">
+                <button type="button" class="firma-cam-cancelar firma-ajuste-cancelar">Cancelar</button>
+                <button type="button" class="firma-cam-cancelar firma-ajuste-centrar">Centrar</button>
+                <button type="button" class="firma-cam-disparar firma-ajuste-usar">Usar foto</button>
+            </div>`;
+        document.body.appendChild(el);
+
+        const marco = el.querySelector('.firma-ajuste-marco');
+        const lienzo = marco.querySelector('canvas');
+        const ctx = lienzo.getContext('2d');
+        const barra = el.querySelector('input[type="range"]');
+        // s = escala de la foto, (x, y) = centro de la foto, en píxeles CSS del marco.
+        const st = { pad: null, img: null, iw: 0, ih: 0, W: 0, H: 0, s: 1, x: 0, y: 0, ajuste: 1, minS: 1, maxS: 1 };
+
+        function medir() {
+            const r = marco.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const W0 = st.W;
+            st.W = r.width; st.H = r.height;
+            lienzo.width = Math.round(r.width * dpr);
+            lienzo.height = Math.round(r.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            st.ajuste = Math.min(st.W / st.iw, st.H / st.ih);
+            st.minS = st.ajuste * 0.2;
+            st.maxS = st.ajuste * 8;
+            if (W0 && st.W !== W0) { const k = st.W / W0; st.s *= k; st.x *= k; st.y *= k; }
+        }
+
+        function dibujar() {
+            ctx.clearRect(0, 0, st.W, st.H);
+            const w = st.iw * st.s, h = st.ih * st.s;
+            ctx.drawImage(st.img, st.x - w / 2, st.y - h / 2, w, h);
+            barra.value = Math.round(1000 * Math.log(st.s / st.minS) / Math.log(st.maxS / st.minS));
+        }
+
+        // El centro de la foto no puede salir del marco, para no perderla.
+        function limitar() {
+            st.x = Math.min(Math.max(st.x, 0), st.W);
+            st.y = Math.min(Math.max(st.y, 0), st.H);
+        }
+
+        function zoomEn(factor, px, py) {
+            const nueva = Math.min(Math.max(st.s * factor, st.minS), st.maxS);
+            const f = nueva / st.s;
+            st.x = px + (st.x - px) * f;
+            st.y = py + (st.y - py) * f;
+            st.s = nueva;
+            limitar(); dibujar();
+        }
+
+        function centrar() {
+            st.s = st.ajuste; st.x = st.W / 2; st.y = st.H / 2;
+            dibujar();
+        }
+
+        // Arrastre con un dedo/ratón y pellizco con dos dedos.
+        const punteros = new Map();
+        const posEnMarco = e => { const r = marco.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+        marco.addEventListener('pointerdown', e => {
+            marco.setPointerCapture(e.pointerId);
+            punteros.set(e.pointerId, posEnMarco(e));
+        });
+        marco.addEventListener('pointermove', e => {
+            if (!punteros.has(e.pointerId)) return;
+            const antes = [...punteros.values()];
+            const ahora = posEnMarco(e);
+            if (punteros.size === 1) {
+                const prev = punteros.get(e.pointerId);
+                st.x += ahora.x - prev.x; st.y += ahora.y - prev.y;
+                punteros.set(e.pointerId, ahora);
+                limitar(); dibujar();
+                return;
+            }
+            punteros.set(e.pointerId, ahora);
+            const desp = [...punteros.values()];
+            if (antes.length < 2 || desp.length < 2) return;
+            const dist = p => Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+            const medio = p => ({ x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 });
+            const m0 = medio(antes), m1 = medio(desp);
+            st.x += m1.x - m0.x; st.y += m1.y - m0.y;
+            if (dist(antes) > 0) zoomEn(dist(desp) / dist(antes), m1.x, m1.y);
+            else { limitar(); dibujar(); }
+        });
+        const soltar = e => punteros.delete(e.pointerId);
+        marco.addEventListener('pointerup', soltar);
+        marco.addEventListener('pointercancel', soltar);
+        marco.addEventListener('wheel', e => {
+            e.preventDefault();
+            const p = posEnMarco(e);
+            zoomEn(Math.exp(-e.deltaY * 0.0015), p.x, p.y);
+        }, { passive: false });
+
+        barra.addEventListener('input', () => {
+            const objetivo = st.minS * Math.pow(st.maxS / st.minS, barra.value / 1000);
+            zoomEn(objetivo / st.s, st.W / 2, st.H / 2);
+        });
+        el.querySelector('.firma-ajuste-mas').addEventListener('click', () => zoomEn(1.25, st.W / 2, st.H / 2));
+        el.querySelector('.firma-ajuste-menos').addEventListener('click', () => zoomEn(0.8, st.W / 2, st.H / 2));
+        el.querySelector('.firma-ajuste-centrar').addEventListener('click', centrar);
+
+        function cerrar() {
+            el.classList.remove('show');
+            punteros.clear();
+            st.img = null; st.pad = null;
+        }
+        el.querySelector('.firma-ajuste-cancelar').addEventListener('click', cerrar);
+
+        // Se pasa al recuadro de firma tal cual se ve en el marco (mismo formato que pegarFotoEnFirma).
+        el.querySelector('.firma-ajuste-usar').addEventListener('click', () => {
+            const { canvas, ctx: c } = st.pad;
+            canvas.height = 400;
+            canvas.width = Math.round(400 * st.W / st.H);
+            estiloTrazo(c);
+            const k = canvas.width / st.W;
+            const w = st.iw * st.s, h = st.ih * st.s;
+            c.drawImage(st.img, (st.x - w / 2) * k, (st.y - h / 2) * k, w * k, h * k);
+            cerrar();
+        });
+
+        window.addEventListener('resize', () => { if (el.classList.contains('show')) { medir(); limitar(); dibujar(); } });
+
+        return {
+            abrir(pad, img) {
+                // El marco tiene la misma proporción con la que se ve el recuadro de firma.
+                const r = pad.canvas.getBoundingClientRect();
+                marco.style.aspectRatio = `${r.width || 600} / ${r.height || 200}`;
+                st.pad = pad; st.img = img; st.iw = img.width; st.ih = img.height; st.W = 0;
+                el.classList.add('show');
+                medir();
+                centrar();
+            }
+        };
+    }
+
+    // Abre el ajuste con una foto (de la galería o de la cámara del móvil).
+    // Las fotos grandes se reducen antes para que el ajuste vaya fluido.
+    function abrirAjusteFirma(pad, archivo) {
+        const url = URL.createObjectURL(archivo);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const MAX = 2000;
+            const esc = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+            const fuente = document.createElement('canvas');
+            fuente.width = Math.max(1, Math.round(img.naturalWidth * esc));
+            fuente.height = Math.max(1, Math.round(img.naturalHeight * esc));
+            fuente.getContext('2d').drawImage(img, 0, 0, fuente.width, fuente.height);
+            if (!ajusteFirma) ajusteFirma = crearAjusteFirma();
+            ajusteFirma.abrir(pad, fuente);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            appAlert('No se ha podido abrir esa imagen. Prueba con otra foto (JPG o PNG).', {type: 'error'});
+        };
+        img.src = url;
+    }
 
     // Pega la imagen en el lienzo. El lienzo toma la proporción con la que se ve en
     // pantalla para que la foto no se deforme (el PDF la coloca manteniendo la proporción).
@@ -1869,7 +2064,19 @@
         inputFoto.setAttribute('capture', 'environment');
         inputFoto.hidden = true;
 
-        box.append(video, btnCam, inputFoto);
+        // Botón de galería: elegir una foto ya hecha del sello y ajustarla al recuadro.
+        const btnGaleria = document.createElement('button');
+        btnGaleria.type = 'button';
+        btnGaleria.className = 'dictado-btn firma-cam-btn firma-galeria-btn';
+        btnGaleria.title = 'Elegir foto del sello de la galería';
+        btnGaleria.innerHTML = ICONO_GALERIA;
+
+        const inputGaleria = document.createElement('input');
+        inputGaleria.type = 'file';
+        inputGaleria.accept = 'image/*';
+        inputGaleria.hidden = true;
+
+        box.append(video, btnGaleria, btnCam, inputFoto, inputGaleria);
         box.after(acciones);
 
         let stream = null;
@@ -1910,11 +2117,17 @@
         inputFoto.addEventListener('change', () => {
             const archivo = inputFoto.files[0];
             inputFoto.value = '';
-            if (!archivo) return;
-            const url = URL.createObjectURL(archivo);
-            const img = new Image();
-            img.onload = () => { pegarFotoEnFirma(pad, img, img.naturalWidth, img.naturalHeight, 'encajar'); URL.revokeObjectURL(url); };
-            img.src = url;
+            if (archivo) abrirAjusteFirma(pad, archivo);
+        });
+
+        btnGaleria.addEventListener('click', () => {
+            if (pararCamaraActiva) pararCamaraActiva();
+            inputGaleria.click();
+        });
+        inputGaleria.addEventListener('change', () => {
+            const archivo = inputGaleria.files[0];
+            inputGaleria.value = '';
+            if (archivo) abrirAjusteFirma(pad, archivo);
         });
 
         pad.pararCamara = parar;
