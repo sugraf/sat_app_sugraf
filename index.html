@@ -315,6 +315,13 @@
         }
     }
 
+    // En iPhone tocar fuera (en una zona que no es un botón) no llega como click a window.
+    document.addEventListener('touchstart', function(event) {
+        if (event.target.closest(".dropdown")) return;
+        var dropdowns = document.getElementsByClassName("dropdown-content");
+        for (var i = 0; i < dropdowns.length; i++) dropdowns[i].classList.remove("show");
+    }, {passive: true});
+
     async function iniciarSesion() {
       const u = document.getElementById("login-user").value;
       const p = document.getElementById("login-pass").value;

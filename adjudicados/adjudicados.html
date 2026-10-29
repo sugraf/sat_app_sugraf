@@ -784,7 +784,12 @@
     }
 
     function mostrarFechaParte() {
-        document.getElementById('ses_fecha_txt').value = fechaParte(document.getElementById('ses_fecha').value);
+        const fecha = document.getElementById('ses_fecha');
+        // El calendario del iPhone tiene un botón "Borrar": el parte siempre lleva fecha,
+        // así que si se borra se mantiene la que había.
+        if (!fecha.value && fecha.dataset.ultima) fecha.value = fecha.dataset.ultima;
+        if (fecha.value) fecha.dataset.ultima = fecha.value;
+        document.getElementById('ses_fecha_txt').value = fechaParte(fecha.value);
     }
 
     // En el móvil el toque sobre el input date ya abre el calendario; en el ordenador
@@ -1949,6 +1954,9 @@
             if (dist(antes) > 0) zoomEn(dist(desp) / dist(antes), m1.x, m1.y);
             else { limitar(); dibujar(); }
         });
+        // En iPhone, que el pellizco amplíe la foto y no la página.
+        marco.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        marco.addEventListener('gesturestart', e => e.preventDefault());
         const soltar = e => punteros.delete(e.pointerId);
         marco.addEventListener('pointerup', soltar);
         marco.addEventListener('pointercancel', soltar);

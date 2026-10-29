@@ -359,7 +359,7 @@
     </div>
   </div>
 
-  <div id="aviso-modal" class="modal">
+  <div id="aviso-modal" class="modal" onclick="if (event.target === this) cerrarModal()">
     <div class="modal-content">
       <span class="close-btn" onclick="cerrarModal()">&times;</span>
       <h3>Detalles del Aviso</h3>
@@ -647,6 +647,13 @@
     }
 
     function cerrarModal() { document.getElementById('aviso-modal').style.display = 'none'; }
+
+    // En iPhone tocar fuera (en una zona que no es un botón) no llega como click a window.
+    document.addEventListener('touchstart', function(event) {
+        if (event.target.closest(".dropdown")) return;
+        var dropdowns = document.getElementsByClassName("dropdown-content");
+        for (var i = 0; i < dropdowns.length; i++) dropdowns[i].classList.remove("show");
+    }, {passive: true});
     window.onclick = function(event) {
         if (event.target === document.getElementById('aviso-modal')) cerrarModal();
         if (!event.target.closest(".dropdown")) {
