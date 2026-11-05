@@ -75,7 +75,16 @@ def get_excel(drive, name, cols):
     else:
         return None, pd.DataFrame(columns=cols, dtype=object)
 
-def save_excel(drive, file_id, name, df):
+def save_excel(drive, file_id, name, df, filas_antes=None, quitadas=0):
+    """Guarda df en Drive. Si se indica filas_antes (filas leídas del fichero antes de
+    modificarlo), se niega a guardar cuando el resultado tiene menos filas de las
+    esperables (filas_antes - quitadas): evita machacar el Excel con una tabla vacía
+    o recortada. 'quitadas' = nº de filas que la operación quita a propósito."""
+    if filas_antes is not None and file_id and len(df) < filas_antes - quitadas:
+        raise RuntimeError(
+            f"Guardado cancelado: '{name}' pasaría de {filas_antes} a {len(df)} filas "
+            f"(se esperaban al menos {filas_antes - quitadas}). No se ha modificado nada."
+        )
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
@@ -266,6 +275,7 @@ def calcular_horas(h_in, h_out):
 
 def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     file_id, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+    n0 = len(df)
 
     idx = resolver_indice_aviso(df, parte.aviso_index, parte.cliente, parte.maquina, parte.descripcion, parte.fecha_entr)
     if idx is None:
@@ -288,7 +298,7 @@ def procesar_actualizacion_tratados(drive, parte: UpdateParte, estado: str):
     df.loc[idx, 'ESTADO PIEZAS'] = parte.estado_piezas
     df.loc[idx, 'OBSERVACIONES'] = parte.observaciones
 
-    save_excel(drive, file_id, 'Avisos Tratados.xlsx', df)
+    save_excel(drive, file_id, 'Avisos Tratados.xlsx', df, n0)
     return horas_totales, idx
 
 def generar_pdf_parte(datos: CerrarYEnviarParte, num_parte: int):
@@ -830,11 +840,12 @@ def marcar_piezas(data: MarcarPiezas):
     try:
         drive = get_drive_service()
         fid_tra, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+        n0 = len(df)
         idx = resolver_indice_aviso(df, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
 
         if idx is not None:
             df.loc[idx, 'ESTADO PIEZAS'] = 'Piezas Recibidas'
-            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df)
+            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df, n0)
             return {"status": "ok"}
         else:
             raise Exception("El aviso ya no existe o ha cambiado. Refresca la vista.")
@@ -900,6 +911,7 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
                 row_orig = df_tra.loc[idx_regenerar].to_dict()
 
                 fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+                n_sin = len(df_sin)
 
                 nueva_fila = _construir_aviso_regenerado(
                     row_orig,
@@ -910,7 +922,7 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
                 )
 
                 df_sin = pd.concat([df_sin, pd.DataFrame([nueva_fila])], ignore_index=True)
-                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin, n_sin)
             except Exception:
                 raise HTTPException(
                     status_code=500,
@@ -953,6 +965,7 @@ def archivar_aviso(parte: ArchivarParte):
     try:
         drive = get_drive_service()
         fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+        n_tra = len(df_tra)
         idx = resolver_indice_aviso(df_tra, parte.aviso_index, parte.cliente, parte.maquina, parte.descripcion, parte.fecha_entr)
 
         if idx is not None:
@@ -960,12 +973,13 @@ def archivar_aviso(parte: ArchivarParte):
             attempted, sent, err = enviar_email_venta(row_to_archive)
 
             fid_fin, df_fin = get_excel(drive, 'Partes Finalizados.xlsx', COLS_TRA)
+            n_fin = len(df_fin)
             df_fin = pd.concat([df_fin, pd.DataFrame([row_to_archive])], ignore_index=True)
 
             df_tra = df_tra.drop(index=idx).reset_index(drop=True)
 
-            save_excel(drive, fid_fin, 'Partes Finalizados.xlsx', df_fin)
-            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
+            save_excel(drive, fid_fin, 'Partes Finalizados.xlsx', df_fin, n_fin)
+            save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra, n_tra, quitadas=1)
 
             return {
                 "status": "ok",

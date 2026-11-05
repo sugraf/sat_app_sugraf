@@ -41,28 +41,39 @@ def get_excel(drive, name, cols):
         file_id = file_info['id']
         mime_type = file_info.get('mimeType', '')
         
+        # Si falla la descarga o la lectura NO se devuelve una tabla vacía: se lanza el
+        # error, para que nunca se guarde encima del Excel real un fichero vacío o parcial.
         try:
             if mime_type == 'application/vnd.google-apps.spreadsheet':
                 req = drive.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             else:
                 req = drive.files().get_media(fileId=file_id)
-            
+
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, req)
             done = False
             while not done: _, done = downloader.next_chunk()
             fh.seek(0)
             df = pd.read_excel(fh, dtype=object)
-        except Exception:
-            df = pd.DataFrame(columns=cols, dtype=object)
-            
+        except Exception as e:
+            raise RuntimeError(f"No se pudo leer '{name}' de Drive ({e}). No se ha modificado nada; inténtalo de nuevo.") from e
+
         for c in cols:
             if c not in df.columns: df[c] = ''
         return file_id, df
     else:
         return None, pd.DataFrame(columns=cols, dtype=object)
 
-def save_excel(drive, file_id, name, df):
+def save_excel(drive, file_id, name, df, filas_antes=None, quitadas=0):
+    """Guarda df en Drive. Si se indica filas_antes (filas leídas del fichero antes de
+    modificarlo), se niega a guardar cuando el resultado tiene menos filas de las
+    esperables (filas_antes - quitadas): evita machacar el Excel con una tabla vacía
+    o recortada. 'quitadas' = nº de filas que la operación quita a propósito."""
+    if filas_antes is not None and file_id and len(df) < filas_antes - quitadas:
+        raise RuntimeError(
+            f"Guardado cancelado: '{name}' pasaría de {filas_antes} a {len(df)} filas "
+            f"(se esperaban al menos {filas_antes - quitadas}). No se ha modificado nada."
+        )
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
     media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -117,10 +128,11 @@ def update_pirineos(data: UpdateIndex):
         cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
         
         fid, df = get_excel(drive, filename, cols)
+        n0 = len(df)
         idx = resolver_indice_aviso(df, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
         if idx is not None:
             df.loc[idx, 'PIRINEOS'] = data.valor
-            save_excel(drive, fid, filename, df)
+            save_excel(drive, fid, filename, df, n0)
         return {"status": "ok"}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -130,6 +142,7 @@ def update_tecnico(data: UpdateIndex):
         drive = get_drive_service()
         if data.fuente == 'sin_tratar':
             fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+            n_sin = len(df_sin)
 
             idx = resolver_indice_aviso(df_sin, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
             if idx is None:
@@ -138,15 +151,13 @@ def update_tecnico(data: UpdateIndex):
             if data.valor != 'Pendiente':
                 row = df_sin.iloc[idx].copy()
                 fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+                n_tra = len(df_tra)
 
-                is_dup = False
-                c = str(row.get('CLIENTE', ''))
-                m = str(row.get('MÁQUINA', ''))
-                f = str(row.get('F. ENTR.', ''))
-                for _, t_row in df_tra.iterrows():
-                    if str(t_row.get('CLIENTE', '')) == c and str(t_row.get('MÁQUINA', '')) == m and str(t_row.get('F. ENTR.', '')) == f:
-                        is_dup = True
-                        break
+                # Mismo criterio que usa aviso_matcher para identificar un aviso:
+                # cliente + máquina + descripción + fecha de entrada.
+                is_dup = existe_aviso_duplicado(
+                    [df_tra], row.get('CLIENTE', ''), row.get('MÁQUINA', ''),
+                    row.get('DESCRIPCIÓN', ''), row.get('F. ENTR.', ''))
 
                 if not is_dup:
                     row_dict = row.to_dict()
@@ -155,16 +166,17 @@ def update_tecnico(data: UpdateIndex):
                     row_dict['ASIGNADO A'] = data.valor
                     row_dict['ESTADO'] = 'Vacío'
                     df_tra = pd.concat([df_tra, pd.DataFrame([row_dict])], ignore_index=True)
-                    save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
+                    save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra, n_tra)
 
                 df_sin = df_sin.drop(index=idx).reset_index(drop=True)
-                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin, n_sin, quitadas=1)
             else:
                 df_sin.loc[idx, 'ASIGNADO A'] = data.valor
-                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+                save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin, n_sin)
 
         else:
             fid_tra, df_tra = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+            n_tra = len(df_tra)
 
             idx = resolver_indice_aviso(df_tra, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
             if idx is None:
@@ -178,27 +190,23 @@ def update_tecnico(data: UpdateIndex):
 
             if data.valor == 'Pendiente':
                 fid_sin, df_sin = get_excel(drive, 'Avisos Sin Tratar.xlsx', COLS_SIN)
+                n_sin = len(df_sin)
                 row_sin = {k: row.get(k, '') for k in COLS_SIN}
                 row_sin['ASIGNADO A'] = 'Pendiente'
 
-                is_dup = False
-                c = str(row_sin.get('CLIENTE', ''))
-                m = str(row_sin.get('MÁQUINA', ''))
-                f = str(row_sin.get('F. ENTR.', ''))
-                for _, s_row in df_sin.iterrows():
-                    if str(s_row.get('CLIENTE', '')) == c and str(s_row.get('MÁQUINA', '')) == m and str(s_row.get('F. ENTR.', '')) == f:
-                        is_dup = True
-                        break
+                is_dup = existe_aviso_duplicado(
+                    [df_sin], row_sin.get('CLIENTE', ''), row_sin.get('MÁQUINA', ''),
+                    row_sin.get('DESCRIPCIÓN', ''), row_sin.get('F. ENTR.', ''))
 
                 if not is_dup:
                     df_sin = pd.concat([df_sin, pd.DataFrame([row_sin])], ignore_index=True)
-                    save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin)
+                    save_excel(drive, fid_sin, 'Avisos Sin Tratar.xlsx', df_sin, n_sin)
 
                 df_tra = df_tra.drop(index=idx).reset_index(drop=True)
-                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
+                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra, n_tra, quitadas=1)
             else:
                 df_tra.loc[idx, 'ASIGNADO A'] = data.valor
-                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra)
+                save_excel(drive, fid_tra, 'Avisos Tratados.xlsx', df_tra, n_tra)
 
         return {"status": "ok"}
     except HTTPException as he:
@@ -214,10 +222,11 @@ def update_estado_piezas(data: UpdateIndex):
         cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
         
         fid, df = get_excel(drive, filename, cols)
+        n0 = len(df)
         idx = resolver_indice_aviso(df, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
         if idx is not None:
             df.loc[idx, 'ESTADO PIEZAS'] = data.valor
-            save_excel(drive, fid, filename, df)
+            save_excel(drive, fid, filename, df, n0)
         return {"status": "ok"}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -229,6 +238,7 @@ def editar_aviso(data: EditarAviso):
         cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
 
         fid, df = get_excel(drive, filename, cols)
+        n0 = len(df)
         idx = resolver_indice_aviso(df, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
         if idx is not None:
             if data.fuente == 'tratados':
@@ -262,7 +272,7 @@ def editar_aviso(data: EditarAviso):
                 if k in df.columns:
                     df.loc[idx, k] = v
 
-            save_excel(drive, fid, filename, df)
+            save_excel(drive, fid, filename, df, n0)
         return {"status": "ok"}
     except HTTPException as he:
         raise he
@@ -277,6 +287,7 @@ def eliminar_aviso(data: UpdateIndex):
         cols = COLS_SIN if data.fuente == 'sin_tratar' else COLS_TRA
 
         fid, df = get_excel(drive, filename, cols)
+        n0 = len(df)
         idx = resolver_indice_aviso(df, data.aviso_index, data.cliente, data.maquina, data.descripcion, data.fecha_entr)
         if idx is not None:
             if data.fuente == 'tratados':
@@ -289,8 +300,8 @@ def eliminar_aviso(data: UpdateIndex):
             row_borrada['fuente_borrado'] = data.fuente
 
             df = df.drop(index=idx).reset_index(drop=True)
-            save_excel(drive, fid, filename, df)
-            
+            save_excel(drive, fid, filename, df, n0, quitadas=1)
+
             registrar_movimiento("borrado", row_borrada)
 
         return {"status": "ok"}

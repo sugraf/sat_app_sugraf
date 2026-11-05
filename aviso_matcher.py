@@ -13,7 +13,11 @@ se busca la fila que sí coincide con esos datos.
 
 
 def _norm(valor):
-    return str(valor if valor is not None else '').strip().casefold()
+    # Una celda vacía de Excel llega como NaN (float): se trata como texto vacío, igual
+    # que la ve el frontend (fillna("")), y no como la cadena 'nan'.
+    if valor is None or valor != valor:
+        return ''
+    return str(valor).strip().casefold()
 
 
 def _coincide(row, cliente, maquina, descripcion, fecha_entr):
