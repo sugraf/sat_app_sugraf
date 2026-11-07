@@ -9,6 +9,7 @@ from adjudicados.api_adjudicados import router as adjudicados_router
 from Control_IA.api_control import router as control_ia_router
 from historicos.api_historicos import router as historicos_router
 from manuales.api_manuales import router as manuales_router
+from comercial.api_comercial import router as comercial_router
 
 app = FastAPI()
 
@@ -26,6 +27,7 @@ app.include_router(adjudicados_router, prefix="/api/adjudicados")
 app.include_router(control_ia_router, prefix="/api/control")
 app.include_router(historicos_router, prefix="/api/historicos")
 app.include_router(manuales_router, prefix="/api/manuales")
+app.include_router(comercial_router, prefix="/api/comercial")
 
 def get_html(path):
     if os.path.exists(path):
@@ -56,6 +58,10 @@ def view_historicos():
 @app.get("/vista/manuales", response_class=HTMLResponse)
 def view_manuales():
     return get_html(os.path.join(os.path.dirname(__file__), "manuales", "manuales.html"))
+
+@app.get("/vista/comercial", response_class=HTMLResponse)
+def view_comercial():
+    return get_html(os.path.join(os.path.dirname(__file__), "comercial", "comercial.html"))
 
 @app.get("/{filename}.png")
 def get_png(filename: str):

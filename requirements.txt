@@ -9,3 +9,4 @@ reportlab
 Pillow
 pypdf
 cryptography
+tzdata
