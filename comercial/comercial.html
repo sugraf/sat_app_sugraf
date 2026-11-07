@@ -58,7 +58,7 @@
     .t-txt{ font-size:0.85rem; color:#e2e8f0; line-height:1.45; white-space:pre-wrap; word-break:break-word; margin-top:6px; }
     .badge{ display:inline-flex; align-items:center; gap:4px; font-size:0.66rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:var(--muted); white-space:nowrap; }
     .badge.visita{ background:rgba(143,196,236,.16); color:#bfe0f7; } .badge.llamada{ background:rgba(59,130,246,.18); color:#93c5fd; }
-    .badge.hito{ background:rgba(245,158,11,.18); color:#fcd34d; } .badge.curso{ background:rgba(239,68,68,.18); color:#fca5a5; }
+    .badge.precio{ background:rgba(168,85,247,.18); color:#d8b4fe; }
     .badge.ok{ background:rgba(34,197,94,.16); color:#86efac; } .badge.warn{ background:rgba(245,158,11,.18); color:#fcd34d; } .badge.bad{ background:rgba(239,68,68,.18); color:#fca5a5; }
     .empty{ color:var(--muted); font-size:0.88rem; text-align:center; padding:22px 8px; }
     .stats{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
@@ -149,10 +149,6 @@
     .sheet-pie{ padding:10px 14px calc(10px + env(safe-area-inset-bottom)); background:var(--navy-dark); border-top:1px solid var(--line); display:flex; gap:10px; }
     .sheet-pie .btn{ flex:1; }
     .x{ background:rgba(255,255,255,.08); border:none; color:#fff; width:38px; height:38px; border-radius:50%; font-size:1.2rem; cursor:pointer; }
-    .crono{ font-size:2.3rem; font-weight:800; letter-spacing:.02em; font-variant-numeric:tabular-nums; color:#fff; }
-    .card.curso{ border-color:rgba(239,68,68,.45); background:linear-gradient(160deg, #3a1d2a 0%, var(--navy) 100%); }
-    .pulso{ width:10px; height:10px; border-radius:50%; background:var(--red); animation:pulso 1.4s infinite; }
-    @keyframes pulso{ 0%{ box-shadow:0 0 0 0 rgba(239,68,68,.6);} 70%{ box-shadow:0 0 0 10px rgba(239,68,68,0);} 100%{ box-shadow:0 0 0 0 rgba(239,68,68,0);} }
     .cuenta{ display:inline-block; min-width:20px; padding:1px 7px; border-radius:999px; background:rgba(255,255,255,.1); color:#fff; font-size:0.66rem; margin-left:4px; letter-spacing:0; }
     .card.borde-rojo{ border-left:3px solid var(--red); } .card.borde-gris{ border-left:3px solid rgba(182,190,196,.4); }
     .card.borde-verde{ border-left:3px solid var(--accent); } .card.borde-ambar{ border-left:3px solid var(--amber); }
@@ -175,6 +171,12 @@
     .ruta-pie .btn{ max-width:640px; margin:0 auto; display:flex; }
     .chk{ width:22px; height:22px; accent-color:var(--green); flex:0 0 auto; margin-top:2px; }
     .tramo{ font-size:0.72rem; color:var(--muted); padding:2px 0 6px 34px; }
+    /* Avisos y carga (ui-common.css, compartido con el SAT) en el azul de esta app */
+    .app-modal-btn-primary{ background:#2f6fb0 !important; } .app-modal-btn-primary:hover{ background:#24588c !important; }
+    .app-modal-icon.info, .app-modal-icon.success, .app-modal-icon.question{ background:rgba(47,111,176,.14) !important; color:#2f6fb0 !important; }
+    .app-spinner{ border-top-color:#8fc4ec !important; }
+    .link-ahora{ background:none; border:none; color:var(--accent); font-family:inherit; font-size:0.72rem; font-weight:600; padding:6px 2px 0; cursor:pointer; }
+    .estado-toca{ border-left:3px solid var(--red); } .estado-demasiado{ border-left:3px solid var(--amber); } .estado-pronto{ border-left:3px solid #8fc4ec; }
     .hist{ font-size:0.75rem; color:var(--muted); border-left:2px solid var(--line); padding:4px 0 4px 10px; margin:6px 0; }
   </style>
 </head>
@@ -209,16 +211,14 @@
       <div><h2>Hoy</h2><div class="t-small" id="hoy-fecha"></div></div>
       <select id="hoy-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="cargarHoy()"></select>
     </div>
-    <div id="hoy-curso"></div>
-    <div class="acciones" id="hoy-acciones">
-      <button class="btn btn-primary grande" onclick="iniciarVisita()">&#9654;&nbsp; Iniciar visita</button>
-      <button class="btn btn-ghost" onclick="nuevaActividad('VISITA')">Visita con horas a mano</button>
+    <div class="acciones">
+      <button class="btn btn-primary grande" onclick="nuevaActividad('VISITA')">&#43;&nbsp; Nueva visita</button>
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA')">Llamada</button>
-      <button class="btn btn-ghost" onclick="nuevaActividad('HITO')">Hito / venta</button>
       <button class="btn btn-ghost" onclick="irA('precios')">Consultar precio</button>
       <button class="btn btn-ghost" style="grid-column:1/-1" onclick="rutaDesdeAqui()">&#9906;&nbsp; ¿Qué clientes tengo cerca? · Ruta</button>
     </div>
-    <div id="hoy-oportunidades"></div>
+    <div id="hoy-sin-terminar"></div>
+    <div id="hoy-control"></div>
     <div id="hoy-recuperar"></div>
     <h3>Resumen del día</h3>
     <div class="stats" id="hoy-stats"></div>
@@ -226,21 +226,19 @@
     <div id="hoy-lista"></div>
     <h3>Seguimientos pendientes</h3>
     <div id="hoy-seguimientos"></div>
-    <button class="discreto solo-master" onclick="abrirResumenSemana()">resumen semanal &rsaquo;</button>
   </div>
 
   <!-- ============ CLIENTES ============ -->
   <div class="container view" id="view-clientes">
-    <h2 style="margin:8px 0 12px;">Clientes</h2>
+    <div class="row between" style="margin:8px 0 12px;">
+      <h2>Clientes</h2>
+      <select id="cli-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="CONTROL=null; RECUPERAR=null; pintarClientes()"></select>
+    </div>
     <div class="buscador">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input type="search" id="cli-q" placeholder="Nombre, población, código, NIF..." oninput="pintarClientes()">
     </div>
-    <div class="filtros-chips">
-      <button class="chip on" id="cli-f-todos" onclick="filtroClientes='todos'; pintarClientes()">Todos</button>
-      <button class="chip" id="cli-f-recuperar" onclick="filtroClientes='recuperar'; pintarClientes()">A recuperar</button>
-    </div>
-    <label class="toggle"><input type="checkbox" id="cli-mios" onchange="pintarClientes()"> Solo mis clientes</label>
+    <div class="filtros-chips" id="cli-filtros"></div>
     <div id="cli-lista"><div class="empty">Cargando clientes...</div></div>
   </div>
 
@@ -273,8 +271,8 @@
       <select id="ag-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="cargarAgenda()"></select>
     </div>
     <div class="seg" style="margin-bottom:10px;">
-      <button id="ag-dia" class="on" onclick="modoAgenda('dia')">Día</button>
-      <button id="ag-semana" onclick="modoAgenda('semana')">Semana</button>
+      <button id="ag-dia" onclick="modoAgenda('dia')">Día</button>
+      <button id="ag-semana" class="on" onclick="modoAgenda('semana')">Semana</button>
       <button id="ag-mes" onclick="modoAgenda('mes')">Mes</button>
     </div>
     <div class="navfecha">
@@ -335,10 +333,7 @@
   <div class="sheet" id="sh-form">
     <div class="sheet-cab"><b id="f-titulo">Registrar</b><button class="x" onclick="cerrarFormulario()">&times;</button></div>
     <div class="sheet-cuerpo"><div class="interior" id="f-cuerpo"></div></div>
-    <div class="sheet-pie">
-      <button class="btn btn-ghost" onclick="cerrarFormulario()">Cancelar</button>
-      <button class="btn btn-primary" id="f-guardar" onclick="guardarFormulario()">Guardar</button>
-    </div>
+    <div class="sheet-pie" id="f-pie"></div>
   </div>
 
   <!-- ============ HOJA: ASISTENTE ============ -->
@@ -348,12 +343,6 @@
     <div class="sheet-cuerpo"><div class="interior"><div class="chat" id="chat"></div></div></div>
     <div class="sheet-pie chat-pie"><textarea id="chat-txt" placeholder="Pregunta lo que necesites..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); enviarChat();}"></textarea>
       <button class="btn btn-primary" style="flex:0 0 auto;" onclick="enviarChat()">Enviar</button></div>
-  </div>
-
-  <!-- ============ HOJA: RESUMEN SEMANAL (Master) ============ -->
-  <div class="sheet" id="sh-semana">
-    <div class="sheet-cab"><b id="sem-titulo">Resumen semanal</b><button class="x" onclick="cerrarHoja('sh-semana')">&times;</button></div>
-    <div class="sheet-cuerpo"><div class="interior" id="sem-cuerpo"></div></div>
   </div>
 
   <!-- ============ HOJA: DETALLE ACTIVIDAD ============ -->
@@ -436,9 +425,9 @@ async function conCarga(fn) {
 }
 
 function badgeTipo(r) {
-  if (r.ESTADO === 'EN CURSO') return '<span class="badge curso">En curso</span>';
+  if (r.ESTADO === 'SIN TERMINAR') return '<span class="badge warn">Sin terminar</span>';
   const t = r.TIPO.toLowerCase();
-  return `<span class="badge ${t}">${t === 'hito' ? (r.SUBTIPO === 'Venta de maquinaria' ? 'Venta maq.' : 'Hito') : t}</span>`;
+  return `<span class="badge ${t}">${t === 'precio' ? 'Precio dado' : t}</span>`;
 }
 
 function colorClase(clase){ return (YO && YO.colores[clase]) ? YO.colores[clase].color : '#94a3b8'; }
@@ -456,7 +445,7 @@ function mostrarVista() {
   document.querySelectorAll('.nav button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v === 'ficha' && b.dataset.v === 'clientes')));
   window.scrollTo(0, 0);
   if (v === 'hoy') cargarHoy();
-  if (v === 'clientes') cargarClientes().then(pintarClientes);
+  if (v === 'clientes') pintarClientes();
   if (v === 'ficha') cargarFicha(decodeURIComponent(arg || ''));
   if (v === 'agenda') cargarAgenda();
   if (v === 'precios') setTimeout(() => document.getElementById('pre-q').focus(), 50);
@@ -465,14 +454,11 @@ function mostrarVista() {
 }
 window.addEventListener('hashchange', mostrarVista);
 
-function abrirHoja(id){ document.getElementById(id).classList.add('show'); document.body.style.overflow = 'hidden'; }
+// Cada hoja que se abre queda encima de las que ya estaban abiertas (p. ej. el buscador de clientes sobre el formulario).
+function abrirHoja(id){ const el = document.getElementById(id); el.style.zIndex = 300 + document.querySelectorAll('.sheet.show').length * 10; el.classList.add('show'); document.body.style.overflow = 'hidden'; }
 function cerrarHoja(id){ document.getElementById(id).classList.remove('show'); if(!document.querySelector('.sheet.show')) document.body.style.overflow = ''; }
 
-async function menuNuevo() {
-  const curso = await visitaEnCurso();
-  if (curso) { completarVisita(curso); return; }
-  nuevaActividad('VISITA');
-}
+function menuNuevo() { nuevaActividad('VISITA'); }
 
 // ===================================================================== clientes
 function cargarClientes() {
@@ -506,17 +492,45 @@ function filaCliente(c, accion) {
   </div>`;
 }
 
-let filtroClientes = 'todos', RECUPERAR = null;
+// Filtros de la pantalla Clientes: control de visitas de la cartera, a recuperar y búsqueda en todos.
+let filtroClientes = 'toca', RECUPERAR = null, CONTROL = null;
+const FILTROS_CLIENTES = [['toca', 'Toca visitar'], ['demasiado', 'Visitados de más'], ['cartera', 'Mi cartera'], ['recuperar', 'A recuperar'], ['todos', 'Buscar en todos']];
 async function pintarClientes() {
-  document.getElementById('cli-f-todos').classList.toggle('on', filtroClientes === 'todos');
-  document.getElementById('cli-f-recuperar').classList.toggle('on', filtroClientes === 'recuperar');
+  document.getElementById('cli-filtros').innerHTML = FILTROS_CLIENTES.map(([k, t]) =>
+    `<button class="chip ${filtroClientes === k ? 'on' : ''}" onclick="filtroClientes='${k}'; pintarClientes()">${YO.rol === 'master' && k === 'cartera' ? 'Carteras' : t}</button>`).join('');
   if (filtroClientes === 'recuperar') return pintarRecuperar();
-  if (!CLIENTES) return;
-  const lista = filtrarClientes(document.getElementById('cli-q').value, document.getElementById('cli-mios').checked);
-  const max = 60;
-  document.getElementById('cli-lista').innerHTML = lista.length
-    ? lista.slice(0, max).map(c => filaCliente(c, 'abrirFicha')).join('') + (lista.length > max ? `<div class="empty">${lista.length - max} más: afina la búsqueda.</div>` : '')
-    : '<div class="empty">No hay clientes con esa búsqueda.</div>';
+  if (filtroClientes === 'todos') {
+    if (!CLIENTES) { document.getElementById('cli-lista').innerHTML = '<div class="empty">Cargando clientes...</div>'; await cargarClientes(); }
+    const lista = filtrarClientes(document.getElementById('cli-q').value, false), max = 60;
+    document.getElementById('cli-lista').innerHTML = lista.length
+      ? lista.slice(0, max).map(c => filaCliente(c, 'abrirFicha')).join('') + (lista.length > max ? `<div class="empty">${lista.length - max} más: afina la búsqueda.</div>` : '')
+      : '<div class="empty">No hay clientes con esa búsqueda.</div>';
+    return;
+  }
+  return pintarControl();
+}
+
+async function pintarControl() {
+  const cont = document.getElementById('cli-lista'), com = filtroComercial('cli-comercial');
+  if (!CONTROL || CONTROL.com !== com) {
+    cont.innerHTML = '<div class="empty">Calculando...</div>';
+    try { CONTROL = {com, ...(await api('/control' + (com ? '?comercial=' + encodeURIComponent(com) : '')))}; }
+    catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
+  }
+  const palabras = norm(document.getElementById('cli-q').value).split(/\s+/).filter(Boolean);
+  let lista = CONTROL.clientes.filter(c => palabras.every(p => norm(c.nombre + ' ' + c.poblacion + ' ' + c.codigo).includes(p)));
+  if (filtroClientes === 'toca') lista = lista.filter(c => c.estado === 'toca' || c.estado === 'pronto');
+  if (filtroClientes === 'demasiado') lista = lista.filter(c => c.estado === 'demasiado');
+  const textos = {toca: 'No hay clientes a los que toque visitar.', demasiado: 'Ningún cliente se está visitando de más.', cartera: 'No hay clientes en la cartera.'};
+  const etiqueta = {toca: ['bad', 'Toca visitar'], pronto: ['', 'Pronto'], demasiado: ['warn', 'De más'], ok: ['ok', 'Al día']};
+  cont.innerHTML = `<div class="aviso info">${esc(CONTROL.criterio)}</div>` + (lista.length ? lista.slice(0, 120).map(c => `
+    <div class="card click estado-${c.estado}" onclick="abrirFicha('${esc(c.codigo)}')">
+      <div class="row between"><span class="t-strong">${esc(c.nombre)}</span><span class="badge ${etiqueta[c.estado][0]}">${etiqueta[c.estado][1]}</span></div>
+      <div class="t-small">${esc(c.poblacion)}${YO.permisos.ver_todos ? ' · ' + esc(c.usuario) : ''} · ${esc(c.frecuencia)}${c.fijada ? '' : ' (propuesta)'}</div>
+      <div class="t-small">Última visita: ${c.ultima_visita ? fechaCorta(c.ultima_visita) + ` (hace ${c.dias_sin_visita} días)` : 'ninguna registrada'} · ${c.visitas_90d} en 90 días</div>
+      ${c.texto ? `<div class="t-small" style="margin-top:4px; color:${c.estado === 'toca' ? '#fca5a5' : c.estado === 'demasiado' ? '#fde68a' : 'var(--accent)'}">${esc(c.texto)}</div>` : ''}
+    </div>`).join('') + (lista.length > 120 ? `<div class="empty">${lista.length - 120} más: usa el buscador.</div>` : '')
+    : `<div class="empty">${textos[filtroClientes] || 'Sin resultados.'}</div>`);
 }
 function abrirFicha(codigo){ location.hash = 'ficha/' + encodeURIComponent(codigo); }
 
@@ -524,13 +538,11 @@ async function pintarRecuperar() {
   const cont = document.getElementById('cli-lista');
   if (!RECUPERAR) {
     cont.innerHTML = '<div class="empty">Calculando...</div>';
-    try { RECUPERAR = await api('/recuperar'); } catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
+    const com = filtroComercial('cli-comercial');
+    try { RECUPERAR = await api('/recuperar' + (com ? '?comercial=' + encodeURIComponent(com) : '')); } catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
   }
   const palabras = norm(document.getElementById('cli-q').value).split(/\s+/).filter(Boolean);
-  const soloMios = document.getElementById('cli-mios').checked;
-  const mios = new Set((CLIENTES || []).filter(c => c.mio).map(c => c.codigo));
-  const lista = RECUPERAR.clientes.filter(c => (!soloMios || !YO.permisos.ver_todos || mios.has(c.codigo)) &&
-    palabras.every(p => norm(c.nombre + ' ' + c.poblacion).includes(p)));
+  const lista = RECUPERAR.clientes.filter(c => palabras.every(p => norm(c.nombre + ' ' + c.poblacion).includes(p)));
   cont.innerHTML = `<div class="aviso info">${esc(RECUPERAR.criterio)} Ordenados por lo que compraban.</div>` + (lista.length ? lista.slice(0, 80).map(c => `
     <div class="card click borde-${c.estado === 'dormido' ? 'rojo' : 'ambar'}" onclick="abrirFicha('${esc(c.codigo)}')">
       <div class="row between"><span class="t-strong">${esc(c.nombre)}</span>${c.estado === 'dormido' ? '<span class="badge bad">Dormido</span>' : '<span class="badge warn">En riesgo</span>'}</div>
@@ -596,11 +608,11 @@ async function cargarFicha(codigo) {
       ${dir ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}">&#9906; Mapa</a>` : ''}
     </div>
     <div class="acciones" style="margin-top:12px;">
-      <button class="btn btn-primary" onclick="iniciarVisita(clienteFicha())">&#9654; Iniciar visita</button>
+      <button class="btn btn-primary grande" onclick="nuevaActividad('VISITA', clienteFicha())">&#43;&nbsp; Nueva visita</button>
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA', clienteFicha())">Llamada</button>
-      <button class="btn btn-ghost" onclick="nuevaActividad('VISITA', clienteFicha())">Visita a mano</button>
       <button class="btn btn-ghost" onclick="preciosDeFicha()">Precios cliente</button>
     </div>
+    ${htmlControlFicha()}
     <div class="stats" style="margin-top:14px;">
       <div class="stat"><b>${r.ultima_compra ? fechaCorta(r.ultima_compra) : '—'}</b><span>Últ. compra</span></div>
       <div class="stat"><b>${r.ultima_visita ? fechaCorta(r.ultima_visita) : '—'}</b><span>Últ. visita</span></div>
@@ -612,6 +624,7 @@ async function cargarFicha(codigo) {
       <button onclick="tabFicha('datos', this)">Datos</button>
       <button onclick="tabFicha('actividad', this)">Actividad (${FICHA.actividad.length})</button>
       <button onclick="tabFicha('compras', this)">Compras</button>
+      <button onclick="tabFicha('precios_dados', this)">Precios dados (${FICHA.precios_dados.length})</button>
       <button onclick="tabFicha('maquinas', this)">Máquinas (${FICHA.maquinas.filter(m => !m.baja).length})</button>
       <button onclick="tabFicha('pedidos', this)">Pedidos (${FICHA.preparar.pedidos.length})</button>
       <button onclick="tabFicha('sat', this)">SAT (${FICHA.preparar.avisos_sat.length})</button>
@@ -652,9 +665,23 @@ function htmlMaquina(m) {
 
 function htmlPreparar() {
   const P = FICHA.preparar, pf = P.perfil;
+  // Comparativa explicada con fechas: el último año (hasta hoy) frente al año anterior.
+  const hoy = new Date(), dia = n => { const d = new Date(hoy); d.setDate(d.getDate() + n); return d.toLocaleDateString('es-ES', {day: 'numeric', month: 'short', year: 'numeric'}); };
+  const haceUnAnio = new Date(hoy); haceUnAnio.setFullYear(hoy.getFullYear() - 1);
+  const diasAnio = Math.round((hoy - haceUnAnio) / 864e5);
+  let frase = '';
+  if (pf.prev12 > 0) {
+    const pct = Math.round((pf.ult12 - pf.prev12) / pf.prev12 * 100);
+    frase = pct === 0 ? 'Compra lo mismo que el año anterior.'
+      : `<b style="color:${pct > 0 ? '#86efac' : '#fca5a5'}">Ha comprado un ${Math.abs(pct)} % ${pct > 0 ? 'más' : 'menos'}</b> que el año anterior.`;
+  } else if (pf.ult12 > 0) frase = 'El año anterior no compró nada: es un cliente nuevo o recuperado.';
+  else frase = 'No ha comprado nada en los dos últimos años.';
   let h = `<div class="card"><div class="row between"><span class="t-strong">Cómo compra</span>${badgeEstado(pf.estado)}</div>
-    <div class="t-small" style="margin-top:6px;">${pf.motivo ? esc(pf.motivo) + '<br>' : ''}${pf.intervalo ? 'Compra cada ~' + pf.intervalo + ' días · ' : ''}Últimos 12 meses ${eur(pf.ult12)} · 12 anteriores ${eur(pf.prev12)}
-    ${pf.prev12 > 0 ? ` (<b style="color:${pf.ult12 >= pf.prev12 ? '#86efac' : '#fca5a5'}">${pf.ult12 >= pf.prev12 ? '+' : ''}${Math.round((pf.ult12 - pf.prev12) / pf.prev12 * 100)} %</b>)` : ''}</div></div>`;
+    ${pf.motivo ? `<div class="t-small" style="margin-top:6px;">${esc(pf.motivo)}</div>` : ''}
+    <div class="dato"><span>Último año<br><small style="text-transform:none; letter-spacing:0; font-weight:600;">${dia(-diasAnio + 1)} – hoy</small></span><span><b>${eur(pf.ult12)}</b></span></div>
+    <div class="dato"><span>Año anterior<br><small style="text-transform:none; letter-spacing:0; font-weight:600;">${dia(-2 * diasAnio + 1)} – ${dia(-diasAnio)}</small></span><span>${eur(pf.prev12)}</span></div>
+    <div class="t-small" style="margin-top:8px; color:#fff;">${frase}${pf.intervalo && !pf.motivo ? ` Suele comprar cada ~${pf.intervalo} días.` : ''}</div>
+    <div class="t-small" style="margin-top:4px;">Material y consumibles facturados; no cuenta maquinaria ni servicio técnico.</div></div>`;
   const u = P.ultimo_contacto;
   h += seccion('Último contacto', u ? `<div class="card click" onclick="verActividad('${esc(u.ID)}')">${badgeTipo(u)} <span class="t-small">${fechaCorta(u.FECHA)} · ${esc(u.COMERCIAL)}</span>
       ${u.DESCRIPCION || u.TEMAS ? `<div class="t-txt">${esc([u.TEMAS, u.DESCRIPCION].filter(Boolean).join(' — ').slice(0, 260))}</div>` : ''}
@@ -682,6 +709,25 @@ function htmlPreparar() {
   return h;
 }
 function buscarEnPrecios(ref) { precioCliente = clienteFicha(); pintarClientePrecios(); document.getElementById('pre-q').value = ref; irA('precios'); buscarPrecios(); }
+function htmlControlFicha() {
+  const k = FICHA.control, color = {toca: 'rojo', demasiado: 'ambar', pronto: 'gris', ok: 'verde'}[k.estado];
+  return `<div class="card borde-${color}" style="margin-top:14px;">
+    <div class="row between"><span class="t-strong">Visitas</span>${{toca: '<span class="badge bad">Toca visitar</span>', demasiado: '<span class="badge warn">Visitado de más</span>', pronto: '<span class="badge">Pronto</span>', ok: '<span class="badge ok">Al día</span>'}[k.estado]}</div>
+    <div class="dato"><span>Frecuencia</span><span>${esc(k.frecuencia)}<br><small class="t-small">${esc(k.frecuencia_origen)}</small></span></div>
+    <div class="dato"><span>Última visita</span><span>${k.ultima_visita ? fechaCorta(k.ultima_visita) + ` (hace ${k.dias_sin_visita} días)` : 'Ninguna registrada'}</span></div>
+    <div class="dato"><span>Últimos 90 días</span><span>${k.visitas_90d} visita${k.visitas_90d === 1 ? '' : 's'}</span></div>
+    ${k.texto ? `<div class="t-small" style="margin-top:8px; color:#fff;">${esc(k.texto)}</div>` : ''}
+    ${YO.rol === 'master' ? `<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="cambiarFrecuencia()">Cambiar frecuencia</button>` : ''}</div>`;
+}
+async function cambiarFrecuencia() {
+  const opciones = ['Automática (según lo que compra)', ...FICHA.frecuencias.map(f => f[1])];
+  const actual = FICHA.control.fijada ? (FICHA.frecuencias.find(f => f[0] === FICHA.control.frecuencia_dias) || [0, ''])[1] : opciones[0];
+  const r = await pedirTexto(`¿Cada cuánto hay que visitar a ${FICHA.cliente.nombre}?`, {opciones, valor: actual, sinTexto: true});
+  if (!r) return;
+  const elegida = FICHA.frecuencias.find(f => f[1] === r.opcion);
+  const ok = await conCarga(() => api('/frecuencia/' + encodeURIComponent(FICHA.cliente.codigo), {method: 'PUT', body: JSON.stringify({dias: elegida ? elegida[0] : null})}));
+  if (ok) { CONTROL = null; cargarFicha(FICHA.cliente.codigo); }
+}
 function clienteFicha(){ const c = FICHA.cliente; return {codigo: c.codigo, nombre: c.nombre, poblacion: c.poblacion}; }
 function preciosDeFicha(){ precioCliente = clienteFicha(); pintarClientePrecios(); irA('precios'); }
 
@@ -706,6 +752,12 @@ function tabFicha(tab, boton) {
       ['Grupo', c.grupo], ['Actividad', c.actividad], ['Comercial', c.comercial], ['Forma de pago', [c.forma_pago, c.vencimiento].filter(Boolean).join(' · ')]];
     el.innerHTML = '<div class="card">' + filas.filter(f => f[1]).map(f => `<div class="dato"><span>${f[0]}</span><span>${
       f[0].startsWith('Tel') || f[0] === 'Móvil' ? `<a href="tel:${esc(String(f[1]).replace(/\s/g,''))}">${esc(f[1])}</a>` : f[0] === 'Email' ? `<a href="mailto:${esc(f[1])}">${esc(f[1])}</a>` : esc(f[1])}</span></div>`).join('') + '</div>';
+  } else if (tab === 'precios_dados') {
+    el.innerHTML = `<button class="btn btn-ghost btn-sm" style="margin-bottom:10px;" onclick="preciosDeFicha()">+ Apuntar un precio dado (en Precios)</button>` +
+      (FICHA.precios_dados.length ? FICHA.precios_dados.map(r => `<div class="card click" onclick="verActividad('${esc(r.ID)}')">
+        <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(r.DESCRIPCION || 'Ref. ' + r.PRODUCTOS)}</span><span class="t-strong">${eur(r.IMPORTE)}</span></div>
+        <div class="t-small">Ref. ${esc(r.PRODUCTOS)} · ${fechaCorta(r.FECHA)} · ${esc(r.COMERCIAL)}${r.OBSERVACIONES ? ' · ' + esc(r.OBSERVACIONES) : ''}</div></div>`).join('')
+      : '<div class="empty">Todavía no se ha apuntado ningún precio dado a este cliente.</div>');
   } else if (tab === 'actividad') {
     el.innerHTML = FICHA.actividad.length ? FICHA.actividad.map(itemActividad).join('')
       : `<div class="empty">Sin actividad registrada en la app${YO.permisos.ver_todos ? '' : ' por ti'} con este cliente.</div>`;
@@ -773,10 +825,23 @@ async function buscarPrecios() {
       <div class="t-strong">${esc(a.descripcion)}</div>
       <div class="t-small">Ref. ${esc(a.referencia)}${a.ref_proveedor ? ' · ' + esc(a.ref_proveedor) : ''} · ${esc([a.familia, a.marca].filter(Boolean).join(' · '))}
         ${a.hay_stock ? '<span class="badge ok">Stock</span>' : '<span class="badge">Sin stock</span>'}</div>
-      ${a.aplicable ? `<div style="margin-top:10px;">${chipPrecio(a.aplicable, 'grande')}${a.aplicable.hasta ? `<span class="t-small"> &nbsp;hasta ${fechaCorta(a.aplicable.hasta)}</span>` : ''}</div>` : ''}
-      <div class="row wrap" style="gap:6px; margin-top:10px;">${a.tarifas.length ? a.tarifas.map(t => chipPrecio(t, 'peq')).join('') : '<span class="t-small">Sin precio de tarifa</span>'}</div>
+      ${a.aplicable ? `<div class="t-small" style="margin-top:10px;">Precio para ${esc(precioCliente.nombre)}:</div>
+        <div style="margin-top:4px;">${chipPrecio(a.aplicable, 'grande')}${a.aplicable.hasta ? `<span class="t-small"> &nbsp;precio especial hasta ${fechaCorta(a.aplicable.hasta)}</span>` : ''}</div>` : ''}
+      <div class="row wrap" style="gap:6px; margin-top:10px;">${a.tarifas.length ? (precioCliente ? '<span class="t-small">Tarifas:</span>' : '') + a.tarifas.map(t => chipPrecio(t, 'peq')).join('') : '<span class="t-small">Sin precio de tarifa</span>'}</div>
+      ${precioCliente && precioCliente.codigo ? `<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick='apuntarPrecio(${JSON.stringify({ref: a.referencia, desc: a.descripcion, precio: a.aplicable ? a.aplicable.precio : ''}).replace(/'/g, "&#39;")})'>Apuntar precio dado</button>` : ''}
       ${interno}</div>`;
   }).join('') + (d.total > d.articulos.length ? `<div class="empty">${d.total - d.articulos.length} artículos más: afina la búsqueda.</div>` : '');
+}
+// Seguimiento de precios: el comercial apunta el precio que le ha dado al cliente.
+async function apuntarPrecio(a) {
+  const r = await pedirTexto(`Precio dado a ${precioCliente.nombre}\n${a.desc} (ref. ${a.ref})`,
+    {numero: true, valorNumero: a.precio ? String(Math.round(a.precio * 100) / 100).replace('.', ',') : '', texto: '', placeholder: 'Nota (opcional): cantidad, condiciones...'});
+  if (!r) return;
+  const precio = parseFloat(String(r.numero).replace(/\./g, '').replace(',', '.'));
+  if (!(precio > 0)) { await appAlert('Escribe un precio válido.', {type: 'error'}); return; }
+  const ok = await conCarga(() => api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
+    referencia: a.ref, descripcion: a.desc, precio, nota: r.texto})}));
+  if (ok) await appAlert('Precio apuntado. Lo verás en la ficha del cliente, pestaña «Precios dados».', {type: 'success'});
 }
 function pintarLeyenda() {
   document.getElementById('leyenda').innerHTML = '<div class="t-small" style="margin-bottom:8px;">Leyenda interna (no la enseñes al cliente)</div>' +
@@ -788,11 +853,11 @@ function pintarLeyenda() {
 function itemActividad(r) {
   const horas = r.HORA_INICIO ? `${r.HORA_INICIO}${r.HORA_FIN ? '–' + r.HORA_FIN : ''}` : '';
   const quien = YO.permisos.ver_todos ? ` · ${esc(r.COMERCIAL)}` : '';
-  const texto = r.TIPO === 'HITO' ? r.DESCRIPCION : [r.TEMAS, r.DESCRIPCION].filter(Boolean).join(' — ');
+  const texto = r.TIPO === 'PRECIO' ? `${r.PRODUCTOS} ${r.DESCRIPCION} · ${eur(r.IMPORTE)}` : [r.TEMAS, r.DESCRIPCION].filter(Boolean).join(' — ');
   return `<div class="card click" onclick="verActividad('${esc(r.ID)}')">
     <div class="row between"><div class="row" style="gap:8px; min-width:0;">${badgeTipo(r)}<span class="t-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.CLIENTE)}</span></div>
       <span class="t-small" style="white-space:nowrap;">${fechaCorta(r.FECHA)}</span></div>
-    <div class="t-small" style="margin-top:4px;">${/^-?\d/.test(r.UBI_INICIO || '') ? '&#9906; ' : ''}${horas}${r.DURACION_MIN ? ' · ' + dur(r.DURACION_MIN) : ''}${r.SUBTIPO ? ' · ' + esc(r.SUBTIPO) : ''}${r.RESULTADO ? ' · ' + esc(r.RESULTADO) : ''}${quien}</div>
+    <div class="t-small" style="margin-top:4px;">${horas}${r.DURACION_MIN ? ' · ' + dur(r.DURACION_MIN) : ''}${r.SUBTIPO ? ' · ' + esc(r.SUBTIPO) : ''}${r.RESULTADO ? ' · ' + esc(r.RESULTADO) : ''}${quien}</div>
     ${texto ? `<div class="t-txt">${esc(texto.length > 180 ? texto.slice(0,180) + '…' : texto)}</div>` : ''}
     ${r.PROXIMA_ACCION ? `<div class="t-small" style="margin-top:6px;">&rarr; ${esc(r.PROXIMA_ACCION)}${r.FECHA_SEGUIMIENTO ? ' (' + fechaCorta(r.FECHA_SEGUIMIENTO) + ')' : ''}</div>` : ''}
   </div>`;
@@ -800,19 +865,15 @@ function itemActividad(r) {
 
 function resumenJornada(regs) {
   const val = regs.filter(r => r.ESTADO === 'REGISTRADA');
-  const v = val.filter(r => r.TIPO === 'VISITA'), l = val.filter(r => r.TIPO === 'LLAMADA'), h = val.filter(r => r.TIPO === 'HITO');
-  const demos = v.filter(r => (r.TEMAS || '').includes('Demostración')).length;
-  const tv = v.reduce((s, r) => s + (+r.DURACION_MIN || 0), 0), tl = l.reduce((s, r) => s + (+r.DURACION_MIN || 0), 0);
+  const v = val.filter(r => r.TIPO === 'VISITA'), l = val.filter(r => r.TIPO === 'LLAMADA');
+  const tv = v.reduce((s, r) => s + (+r.DURACION_MIN || 0), 0);
   const clientes = new Set(v.map(r => r.COD_CLIENTE || r.CLIENTE)).size;
-  const seg = val.filter(r => r.FECHA_SEGUIMIENTO && r.SEGUIMIENTO_HECHO !== 'SI').length;
-  return `<div class="stat"><b>${v.length}</b><span>Visitas</span></div><div class="stat"><b>${l.length}</b><span>Llamadas</span></div>
-    <div class="stat"><b>${h.length}</b><span>Hitos</span></div><div class="stat"><b>${clientes}</b><span>Clientes</span></div>
-    <div class="stat"><b>${dur(tv) || '0'}</b><span>En visitas</span></div><div class="stat"><b>${dur(tl) || '0'}</b><span>En llamadas</span></div>
-    <div class="stat"><b>${demos}</b><span>Demos</span></div><div class="stat"><b>${seg}</b><span>Seguimientos</span></div>`;
+  return `<div class="stat"><b>${v.length}</b><span>Visitas</span></div><div class="stat"><b>${clientes}</b><span>Clientes</span></div>
+    <div class="stat"><b>${dur(tv) || '0'}</b><span>En visitas</span></div><div class="stat"><b>${v.length ? dur(Math.round(tv / v.length)) : '—'}</b><span>Media / visita</span></div>
+    <div class="stat"><b>${l.length}</b><span>Llamadas</span></div>`;
 }
 
 // ===================================================================== HOY
-let relojCurso = null;
 function filtroComercial(id){ const el = document.getElementById(id); return el && YO.permisos.ver_todos ? el.value : ''; }
 
 async function cargarHoy() {
@@ -827,10 +888,15 @@ async function cargarHoy() {
       api(`/actividad/pendientes${com ? '?comercial=' + encodeURIComponent(com) : ''}`),
     ]);
   } catch (e) { document.getElementById('hoy-lista').innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
-  pintarCurso(pend.en_curso);
-  const hoyRegs = act.registros.filter(r => r.FECHA === hoy);
+  const st = pend.sin_terminar;
+  document.getElementById('hoy-sin-terminar').innerHTML = st.length ? seccion('Visitas sin terminar', '<div class="t-small" style="margin:-4px 2px 8px;">Complétalas y pulsa «Cerrar visita».</div>' +
+    st.map(r => `<div class="card click borde-ambar" onclick="abrirVisita('${esc(r.ID)}')">
+      <div class="row between"><span class="t-strong">${esc(r.CLIENTE)}</span><span class="t-small">${fechaCorta(r.FECHA)}</span></div>
+      <div class="t-small">${r.HORA_INICIO ? 'Entrada ' + esc(r.HORA_INICIO) : 'Sin hora de entrada'}${r.HORA_FIN ? ' · salida ' + esc(r.HORA_FIN) : ' · falta la salida'}${YO.permisos.ver_todos ? ' · ' + esc(r.COMERCIAL) : ''}</div>
+      <div class="t-small" style="color:var(--accent); margin-top:4px;">Completar &rsaquo;</div></div>`).join(''), st.length) : '';
+  const hoyRegs = act.registros.filter(r => r.FECHA === hoy && r.TIPO !== 'PRECIO');
   document.getElementById('hoy-stats').innerHTML = resumenJornada(hoyRegs);
-  document.getElementById('hoy-lista').innerHTML = hoyRegs.filter(r => r.ESTADO !== 'EN CURSO').map(itemActividad).join('') || '<div class="empty">Todavía no hay actividad registrada hoy.</div>';
+  document.getElementById('hoy-lista').innerHTML = hoyRegs.filter(r => r.ESTADO === 'REGISTRADA').map(itemActividad).join('') || '<div class="empty">Todavía no hay visitas cerradas hoy.</div>';
   const seg = pend.seguimientos.filter(r => r.FECHA_SEGUIMIENTO <= isoDe(new Date(Date.now() + 7*864e5)));
   document.getElementById('hoy-seguimientos').innerHTML = seg.map(r => {
     const vencido = r.FECHA_SEGUIMIENTO < hoy;
@@ -844,12 +910,23 @@ async function cargarHoy() {
         <button class="btn btn-primary btn-sm" onclick="marcarSeguimiento('${esc(r.ID)}')">Hecho</button>` : ''}
       </div></div>`;
   }).join('') || '<div class="empty">Nada pendiente en los próximos 7 días.</div>';
-  cargarOportunidadesHoy(com);
+  cargarControlHoy(com);
   cargarRecuperarHoy(com);
 }
 
+async function cargarControlHoy(com) {
+  const el = document.getElementById('hoy-control');
+  try {
+    const d = await api('/control' + (com ? '?comercial=' + encodeURIComponent(com) : ''));
+    const toca = d.clientes.filter(c => c.estado === 'toca'), demas = d.clientes.filter(c => c.estado === 'demasiado'), pronto = d.clientes.filter(c => c.estado === 'pronto');
+    el.innerHTML = (toca.length || demas.length || pronto.length) ? `<div class="card click borde-rojo" style="margin-top:14px;" onclick="filtroClientes='toca'; irA('clientes')">
+      <div class="row between"><span class="t-strong">Control de visitas</span><span class="t-small">ver &rsaquo;</span></div>
+      <div class="t-small">${toca.length} toca visitar · ${pronto.length} pronto · ${demas.length} visitados de más</div>
+      ${toca.slice(0, 3).map(c => `<div class="t-small" style="color:#fca5a5">• ${esc(c.nombre)} — ${esc(c.texto)}</div>`).join('')}</div>` : '';
+  } catch (e) { el.innerHTML = ''; }
+}
+
 // ---- oportunidades del SAT (las marcan los técnicos en el parte)
-let OPORTUNIDADES = [];
 function htmlOportunidad(o) {
   const cerrada = ['GANADA', 'PERDIDA', 'DESCARTADA'].includes(o.estado);
   return `<div class="card borde-${cerrada ? 'gris' : 'verde'}">
@@ -864,19 +941,10 @@ function htmlOportunidad(o) {
       ${o.codigo ? `<button class="btn btn-ghost btn-sm" onclick="nuevaActividad('LLAMADA', {codigo:'${esc(o.codigo)}', nombre:${esc(JSON.stringify(o.cliente_nombre))}, poblacion:${esc(JSON.stringify(o.poblacion))}})">Registrar llamada</button>` : ''}
     </div></div>`;
 }
-async function cargarOportunidadesHoy(com) {
-  const el = document.getElementById('hoy-oportunidades');
-  try {
-    const d = await api('/oportunidades_sat' + (com ? '?comercial=' + encodeURIComponent(com) : ''));
-    OPORTUNIDADES = d.oportunidades; YO.estados_oportunidad = d.estados;
-    const abiertas = d.oportunidades.filter(o => ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA'].includes(o.estado));
-    el.innerHTML = abiertas.length ? seccion('Oportunidades del SAT', abiertas.map(htmlOportunidad).join(''), abiertas.length) : '';
-  } catch (e) { el.innerHTML = ''; }
-}
 async function gestionarOportunidad(id) {
-  const o = OPORTUNIDADES.find(x => x.id === id) || (FICHA && FICHA.preparar.oportunidades_sat.find(x => x.id === id));
+  const o = FICHA && FICHA.preparar.oportunidades_sat.find(x => x.id === id);
   if (!o) return;
-  const estados = YO.estados_oportunidad || ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA', 'GANADA', 'PERDIDA', 'DESCARTADA'];
+  const estados = ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA', 'GANADA', 'PERDIDA', 'DESCARTADA'];
   const r = await pedirTexto(`Oportunidad: ${o.detalle}\nEstado y nota:`, {opciones: estados, valor: o.estado, texto: o.nota});
   if (!r) return;
   const ok = await conCarga(() => api('/oportunidades_sat/' + encodeURIComponent(id), {method:'POST', body: JSON.stringify({estado: r.opcion, nota: r.texto})}));
@@ -898,62 +966,6 @@ function verRecuperar() { filtroClientes = 'recuperar'; irA('clientes'); }
 
 function puedeEditar(r){ return YO.permisos.editar_otros || r.COMERCIAL === YO.nombre; }
 
-let CURSO = null;
-function pintarCurso(lista) {
-  clearInterval(relojCurso);
-  const mia = lista.find(r => r.COMERCIAL === YO.nombre);
-  CURSO = mia || null;
-  const otras = lista.filter(r => r !== mia);
-  let html = '';
-  if (mia) {
-    html += `<div class="card curso">
-      <div class="row between"><div class="row" style="gap:8px;"><span class="pulso"></span><span class="badge curso">${mia.HORA_FIN ? 'Pendiente de completar' : 'Visita en curso'}</span></div><span class="t-small">desde ${esc(mia.HORA_INICIO)}</span></div>
-      <div class="t-strong" style="font-size:1.1rem; margin-top:8px;">${esc(mia.CLIENTE)}</div>
-      <div class="crono" id="crono">${mia.HORA_FIN ? dur(minutos(mia.HORA_FIN) - minutos(mia.HORA_INICIO)) : '--:--'}</div>
-      <div class="acciones" style="margin-top:10px;">
-        ${mia.HORA_FIN ? `<button class="btn btn-primary" style="grid-column:1/-1" onclick="completarVisita(CURSO)">Completar datos de la visita</button>`
-          : `<button class="btn btn-danger" onclick="finalizarVisita()">&#9632; Finalizar ahora</button><button class="btn btn-ghost" onclick="completarVisita(CURSO, true)">Poner hora de salida a mano</button>`}
-      </div>
-      ${mia.HORA_FIN ? '' : '<div class="t-small" style="margin-top:10px;">¿Se te olvidó finalizarla al salir? Pulsa «Poner hora de salida a mano» y escribe la hora real.</div>'}</div>`;
-    if (!mia.HORA_FIN) {
-      const [y,m,d] = mia.FECHA.split('-').map(Number), [hh,mm] = mia.HORA_INICIO.split(':').map(Number);
-      const inicio = new Date(y, m-1, d, hh, mm).getTime();
-      const tick = () => { const s = Math.max(0, Math.floor((Date.now() - inicio)/1000));
-        const el = document.getElementById('crono'); if (el) el.textContent = `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; };
-      tick(); relojCurso = setInterval(tick, 1000);
-    }
-  }
-  if (otras.length) html += otras.map(r => `<div class="card"><div class="row" style="gap:8px;"><span class="pulso"></span><span class="t-strong">${esc(r.COMERCIAL)}</span></div>
-    <div class="t-small">En ${esc(r.CLIENTE)} desde ${esc(r.HORA_INICIO)}${r.FECHA !== YO.hoy ? ' del ' + fechaCorta(r.FECHA) : ''}</div></div>`).join('');
-  document.getElementById('hoy-curso').innerHTML = html;
-  document.getElementById('hoy-acciones').querySelector('.grande').style.display = mia ? 'none' : '';
-}
-
-async function visitaEnCurso() {
-  try { const p = await api('/actividad/pendientes'); return p.en_curso.find(r => r.COMERCIAL === YO.nombre) || null; }
-  catch (e) { return null; }
-}
-
-async function iniciarVisita(cliente) {
-  const arrancar = async c => {
-    const ok = await appConfirm(`¿Empezar ahora la visita a ${c.nombre}? Se guardará la hora y la ubicación de entrada.`, {okText:'Empezar'});
-    if (!ok) return;
-    const ubicacion = await ubicacionParaRegistro();
-    const d = await conCarga(() => api('/actividad/iniciar', {method:'POST', body: JSON.stringify({cod_cliente: c.codigo, cliente: c.nombre, poblacion: c.poblacion, ubicacion})}));
-    if (d) { if (location.hash !== '#hoy') irA('hoy'); else cargarHoy(); }
-  };
-  if (cliente) arrancar(cliente); else elegirCliente(arrancar);
-}
-
-async function finalizarVisita() {
-  if (!CURSO) return;
-  const ok = await appConfirm(`¿Finalizar la visita a ${CURSO.CLIENTE}? Se guardará la hora y la ubicación de salida, y después rellenas los temas y el resultado.`, {okText:'Finalizar'});
-  if (!ok) return;
-  const ubicacion = await ubicacionParaRegistro();
-  const d = await conCarga(() => api(`/actividad/${encodeURIComponent(CURSO.ID)}/finalizar`, {method:'POST', body: JSON.stringify(ubicacion)}));
-  if (d) { CURSO = d.registro; completarVisita(d.registro); cargarHoy(); }
-}
-
 async function marcarSeguimiento(id) {
   const d = await conCarga(() => api(`/actividad/${encodeURIComponent(id)}/seguimiento_hecho`, {method:'POST'}));
   if (d) cargarHoy();
@@ -963,15 +975,16 @@ async function marcarSeguimiento(id) {
 let FORM = null; // {modo:'nuevo'|'editar', id, tipo, cliente:{codigo,nombre,poblacion}, registro}
 
 function nuevaActividad(tipo, cliente) {
-  const ahora = new Date();
-  const hh = String(ahora.getHours()).padStart(2,'0') + ':' + String(ahora.getMinutes()).padStart(2,'0');
-  FORM = {modo:'nuevo', tipo, cliente: cliente || null, registro: {FECHA: hoyISO(), HORA_INICIO: tipo === 'HITO' ? hh : '', HORA_FIN: ''}};
+  FORM = {modo:'nuevo', tipo, cliente: cliente || null, registro: {FECHA: hoyISO(), HORA_INICIO: '', HORA_FIN: ''}};
   abrirFormulario();
 }
-function completarVisita(r, horaAMano = false) {
-  FORM = {modo:'editar', id: r.ID, tipo: r.TIPO, cliente: {codigo: r.COD_CLIENTE, nombre: r.CLIENTE, poblacion: r.POBLACION}, registro: r, curso: r.ESTADO === 'EN CURSO', horaAMano};
+function completarVisita(r) {
+  FORM = {modo:'editar', id: r.ID, tipo: r.TIPO, cliente: {codigo: r.COD_CLIENTE, nombre: r.CLIENTE, poblacion: r.POBLACION}, registro: r};
   abrirFormulario();
-  if (horaAMano) setTimeout(() => { const el = document.getElementById('f-HORA_FIN'); if (el) { el.scrollIntoView({block:'center'}); el.focus(); } }, 150);
+}
+async function abrirVisita(id) {
+  const d = await conCarga(() => api('/actividad/' + encodeURIComponent(id)));
+  if (d) completarVisita(d.registro);
 }
 function editarActividad(r) { cerrarHoja('sh-detalle'); completarVisita(r); }
 
@@ -979,64 +992,49 @@ function opcionesSelect(lista, valor, vacio = '— Elegir —') {
   return `<option value="">${vacio}</option>` + lista.map(o => `<option ${o === valor ? 'selected' : ''}>${esc(o)}</option>`).join('') +
     (valor && !lista.includes(valor) ? `<option selected>${esc(valor)}</option>` : '');
 }
+function horaActual() { const a = new Date(); return String(a.getHours()).padStart(2,'0') + ':' + String(a.getMinutes()).padStart(2,'0'); }
+function ponerAhora(id) { document.getElementById(id).value = horaActual(); verDuracion(); }
+// Campos que hacen falta para cerrar una visita (los marca con * en el formulario).
+function obligatorio(campo) { return FORM.tipo === 'VISITA' && (YO.para_cerrar || []).includes(campo) ? ' <span style="color:#fca5a5">*</span>' : ''; }
 
 function abrirFormulario() {
   const r = FORM.registro, t = FORM.tipo, O = YO.opciones;
   const temas = (r.TEMAS || '').split(';').map(s => s.trim()).filter(Boolean);
-  const titulo = {VISITA:'Visita', LLAMADA:'Llamada', HITO:'Hito comercial'}[t];
-  document.getElementById('f-titulo').textContent = (FORM.modo === 'nuevo' ? 'Registrar ' : FORM.curso ? 'Completar ' : 'Editar ') + titulo.toLowerCase();
-  const segTipo = FORM.modo === 'nuevo' ? `<div class="seg" style="margin-top:10px;">${['VISITA','LLAMADA','HITO'].map(x =>
-    `<button class="${x === t ? 'on' : ''}" onclick="cambiarTipo('${x}')">${{VISITA:'Visita', LLAMADA:'Llamada', HITO:'Hito / venta'}[x]}</button>`).join('')}</div>` : '';
+  const cerrada = r.ESTADO === 'REGISTRADA';
+  document.getElementById('f-titulo').textContent = t === 'VISITA'
+    ? (FORM.modo === 'nuevo' ? 'Nueva visita' : cerrada ? 'Editar visita' : 'Completar visita')
+    : (FORM.modo === 'nuevo' ? 'Nueva llamada' : 'Editar llamada');
+  const segTipo = FORM.modo === 'nuevo' ? `<div class="seg" style="margin-top:10px;">${['VISITA','LLAMADA'].map(x =>
+    `<button class="${x === t ? 'on' : ''}" onclick="cambiarTipo('${x}')">${{VISITA:'Visita', LLAMADA:'Llamada'}[x]}</button>`).join('')}</div>` : '';
   const chipsTemas = `<div class="chips" id="f-temas">${O.temas.map(x => `<button type="button" class="chip ${temas.includes(x) ? 'on' : ''}" onclick="this.classList.toggle('on')">${esc(x)}</button>`).join('')}</div>`;
-  const cronoBloqueado = FORM.curso && r.REGISTRO === 'CRONÓMETRO';
-  let html = segTipo + `
-    <label>Cliente</label>
-    <div class="campo-cliente" onclick="${FORM.curso ? '' : 'cambiarClienteForm()'}"><span id="f-cliente" class="${FORM.cliente ? '' : 'vacio'}">${FORM.cliente ? esc(FORM.cliente.nombre) : 'Elegir cliente...'}</span>${FORM.curso ? '' : '<span class="t-small">cambiar</span>'}</div>
+  const ayuda = t === 'VISITA' && !cerrada
+    ? '<div class="aviso info">Puedes ir guardando la visita (por ejemplo, al entrar, con la hora de entrada) y completarla después. Cuando esté todo, pulsa «Cerrar visita». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '';
+  let html = segTipo + ayuda + `
+    <label>Cliente${obligatorio('CLIENTE')}</label>
+    <div class="campo-cliente" onclick="cambiarClienteForm()"><span id="f-cliente" class="${FORM.cliente ? '' : 'vacio'}">${FORM.cliente ? esc(FORM.cliente.nombre) : 'Elegir cliente...'}</span><span class="t-small">cambiar</span></div>
+    <label>Fecha${obligatorio('FECHA')}</label><input type="date" id="f-FECHA" value="${esc(r.FECHA)}" max="${hoyISO()}">
     <div class="grid2">
-      <div style="grid-column:1 / -1;"><label>Fecha</label><input type="date" id="f-FECHA" value="${esc(r.FECHA)}" max="${t === 'HITO' ? '' : hoyISO()}"></div>
-      <div><label>${t === 'HITO' ? 'Hora' : 'Hora inicio'}</label><input type="time" id="f-HORA_INICIO" value="${esc(r.HORA_INICIO)}" oninput="verDuracion()"></div>
-      ${t === 'HITO' ? '<div></div>' : `<div><label>Hora fin</label><input type="time" id="f-HORA_FIN" value="${esc(r.HORA_FIN)}" oninput="verDuracion()"></div>`}
+      <div><label>${t === 'VISITA' ? 'Hora de entrada' : 'Hora inicio'}${obligatorio('HORA_INICIO')}</label><input type="time" id="f-HORA_INICIO" value="${esc(r.HORA_INICIO)}" oninput="verDuracion()">
+        <button type="button" class="link-ahora" onclick="ponerAhora('f-HORA_INICIO')">poner hora actual</button></div>
+      <div><label>${t === 'VISITA' ? 'Hora de salida' : 'Hora fin'}${obligatorio('HORA_FIN')}</label><input type="time" id="f-HORA_FIN" value="${esc(r.HORA_FIN)}" oninput="verDuracion()">
+        <button type="button" class="link-ahora" onclick="ponerAhora('f-HORA_FIN')">poner hora actual</button></div>
     </div>
     <div class="duracion" id="f-duracion"></div>
-    ${cronoBloqueado ? `<div class="aviso info">${FORM.horaAMano || !r.HORA_FIN
-        ? 'Escribe la hora real de salida (y corrige la de entrada si hace falta). Al guardar, la visita queda cerrada y la corrección queda anotada en el registro.'
-        : 'Horas tomadas con el cronómetro. Si no son correctas, cámbialas a mano: quedará anotado en el registro.'}</div>` : ''}
-    ${FORM.modo === 'nuevo' && t === 'VISITA' ? '<div class="aviso info">Visita con horas a mano: para cuando no usaste el cronómetro o la registras más tarde.</div>' : ''}`;
-
-  if (t === 'VISITA' || t === 'LLAMADA') {
-    html += `
-      ${t === 'LLAMADA' ? `<label>Tipo de llamada</label><select id="f-SUBTIPO">${opcionesSelect(O.tipos_llamada, r.SUBTIPO)}</select>` : ''}
-      <label>Persona de contacto</label><input id="f-CONTACTO" value="${esc(r.CONTACTO)}" placeholder="Con quién has hablado">
-      <label>Motivo</label><input id="f-MOTIVO" value="${esc(r.MOTIVO)}" placeholder="Motivo de la ${t === 'VISITA' ? 'visita' : 'llamada'}">
-      <label>Temas tratados</label>${chipsTemas}
-      <label>Descripción</label><textarea id="f-DESCRIPCION" data-dictado placeholder="Qué se ha hablado">${esc(r.DESCRIPCION)}</textarea>
-      <label>Resultado</label><select id="f-RESULTADO" onchange="avisoResultado()">${opcionesSelect(O.resultados, r.RESULTADO)}</select>
-      <div id="f-aviso-resultado"></div>
-      ${t === 'VISITA' ? `<label>Productos tratados</label><input id="f-PRODUCTOS" value="${esc(r.PRODUCTOS)}">
-      <label>Necesidades detectadas</label><textarea id="f-NECESIDADES" data-dictado style="min-height:60px;">${esc(r.NECESIDADES)}</textarea>` : ''}
-      <label>Oferta relacionada <span style="text-transform:none;letter-spacing:0;font-weight:600;">(nº, si hay)</span></label><input id="f-OFERTA" value="${esc(r.OFERTA)}">
-      <div class="grid2"><div><label>Próxima acción</label><input id="f-PROXIMA_ACCION" value="${esc(r.PROXIMA_ACCION)}"></div>
-        <div><label>Fecha seguimiento</label><input type="date" id="f-FECHA_SEGUIMIENTO" value="${esc(r.FECHA_SEGUIMIENTO)}"></div></div>
-      <label>Observaciones</label><textarea id="f-OBSERVACIONES" data-dictado style="min-height:60px;">${esc(r.OBSERVACIONES)}</textarea>`;
-  } else {
-    html += `
-      <label>Tipo de hito</label><select id="f-SUBTIPO" onchange="verCamposMaquinaria()">${opcionesSelect(O.tipos_hito, r.SUBTIPO)}</select>
-      <label>Descripción</label><textarea id="f-DESCRIPCION" data-dictado>${esc(r.DESCRIPCION)}</textarea>
-      <div id="f-maquinaria">
-        <div class="grid2"><div><label>Marca</label><input id="f-MARCA" value="${esc(r.MARCA)}"></div><div><label>Modelo</label><input id="f-MODELO" value="${esc(r.MODELO)}"></div></div>
-        <label>Estado de la operación</label><select id="f-ESTADO_OPERACION">${opcionesSelect(O.estados_venta_maquinaria, r.ESTADO_OPERACION)}</select>
-      </div>
-      <label>Producto o máquina</label><input id="f-PRODUCTOS" value="${esc(r.PRODUCTOS)}">
-      <div class="grid2"><div><label>Importe (€)</label><input id="f-IMPORTE" inputmode="decimal" value="${esc(r.IMPORTE)}"></div>
-        <div><label>Nº de oferta</label><input id="f-OFERTA" value="${esc(r.OFERTA)}"></div></div>
-      <label>Resultado</label><input id="f-RESULTADO" value="${esc(r.RESULTADO)}">
-      <div class="grid2"><div><label>Próxima acción</label><input id="f-PROXIMA_ACCION" value="${esc(r.PROXIMA_ACCION)}"></div>
-        <div><label>Fecha seguimiento</label><input type="date" id="f-FECHA_SEGUIMIENTO" value="${esc(r.FECHA_SEGUIMIENTO)}"></div></div>
-      <label>Observaciones</label><textarea id="f-OBSERVACIONES" data-dictado style="min-height:60px;">${esc(r.OBSERVACIONES)}</textarea>`;
-  }
+    ${t === 'LLAMADA' ? `<label>Tipo de llamada</label><select id="f-SUBTIPO">${opcionesSelect(O.tipos_llamada, r.SUBTIPO)}</select>` : ''}
+    <label>Persona de contacto</label><input id="f-CONTACTO" value="${esc(r.CONTACTO)}" placeholder="Con quién has hablado">
+    <label>Temas tratados${obligatorio('TEMAS')}</label>${chipsTemas}
+    <label>Qué se ha hablado${obligatorio('DESCRIPCION')}</label><textarea id="f-DESCRIPCION" data-dictado placeholder="Resumen de la conversación">${esc(r.DESCRIPCION)}</textarea>
+    <label>Resultado${obligatorio('RESULTADO')}</label><select id="f-RESULTADO">${opcionesSelect(O.resultados, r.RESULTADO)}</select>
+    <div class="grid2"><div><label>Próxima acción</label><input id="f-PROXIMA_ACCION" value="${esc(r.PROXIMA_ACCION)}" placeholder="Opcional"></div>
+      <div><label>Fecha de seguimiento</label><input type="date" id="f-FECHA_SEGUIMIENTO" value="${esc(r.FECHA_SEGUIMIENTO)}"></div></div>
+    <label>Observaciones</label><textarea id="f-OBSERVACIONES" style="min-height:56px;" placeholder="Opcional">${esc(r.OBSERVACIONES)}</textarea>`;
   document.getElementById('f-cuerpo').innerHTML = html;
-  document.querySelectorAll('#f-cuerpo textarea[data-dictado]').forEach(t => window.activarDictado && activarDictado(t));
-  verDuracion(); verCamposMaquinaria(); avisoResultado();
+  document.querySelectorAll('#f-cuerpo textarea[data-dictado]').forEach(x => window.activarDictado && activarDictado(x));
+  // Botones: una visita abierta tiene «Guardar» y «Cerrar visita»; una ya cerrada o una llamada, solo «Guardar».
+  document.getElementById('f-pie').innerHTML = t === 'VISITA' && !cerrada
+    ? `<button class="btn btn-ghost" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button><button class="btn btn-primary" id="f-cerrar" onclick="guardarFormulario(true)">&#10003; Cerrar visita</button>`
+    : `<button class="btn btn-ghost" onclick="cerrarFormulario()">Cancelar</button><button class="btn btn-primary" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button>`;
+  verDuracion();
   abrirHoja('sh-form');
 }
 
@@ -1044,10 +1042,8 @@ function leerFormulario() {
   const val = id => { const el = document.getElementById('f-' + id); return el ? el.value.trim() : ''; };
   const d = {TIPO: FORM.tipo, COD_CLIENTE: FORM.cliente ? FORM.cliente.codigo : '', CLIENTE: FORM.cliente ? FORM.cliente.nombre : '',
              POBLACION: FORM.cliente ? FORM.cliente.poblacion : ''};
-  ['FECHA','HORA_INICIO','HORA_FIN','SUBTIPO','CONTACTO','MOTIVO','DESCRIPCION','RESULTADO','PRODUCTOS','NECESIDADES','OFERTA',
-   'PROXIMA_ACCION','FECHA_SEGUIMIENTO','OBSERVACIONES','MARCA','MODELO','ESTADO_OPERACION','IMPORTE'].forEach(k => d[k] = val(k));
-  const chips = document.querySelectorAll('#f-temas .chip.on');
-  d.TEMAS = [...chips].map(c => c.textContent).join('; ');
+  ['FECHA','HORA_INICIO','HORA_FIN','SUBTIPO','CONTACTO','DESCRIPCION','RESULTADO','PROXIMA_ACCION','FECHA_SEGUIMIENTO','OBSERVACIONES'].forEach(k => d[k] = val(k));
+  d.TEMAS = [...document.querySelectorAll('#f-temas .chip.on')].map(c => c.textContent).join('; ');
   if (FORM.registro.SEGUIMIENTO_HECHO) d.SEGUIMIENTO_HECHO = FORM.registro.SEGUIMIENTO_HECHO;
   if (d.FECHA_SEGUIMIENTO !== (FORM.registro.FECHA_SEGUIMIENTO || '')) d.SEGUIMIENTO_HECHO = '';
   return d;
@@ -1060,54 +1056,41 @@ function verDuracion() {
   const el = document.getElementById('f-duracion'); if (!el) return;
   if (a == null || b == null) { el.textContent = ''; return; }
   el.style.color = b > a ? '' : 'var(--red)';
-  el.textContent = b > a ? 'Duración: ' + dur(b - a) : 'La hora de fin debe ser posterior a la de inicio.';
+  el.textContent = b > a ? 'Duración: ' + dur(b - a) : 'La hora de salida debe ser posterior a la de entrada.';
 }
-function verCamposMaquinaria() {
-  const el = document.getElementById('f-maquinaria'); if (!el) return;
-  el.style.display = (document.getElementById('f-SUBTIPO')?.value || '').includes('maquinaria') ? '' : 'none';
-}
-function avisoResultado() {
-  const el = document.getElementById('f-aviso-resultado'); if (!el) return;
-  const v = document.getElementById('f-RESULTADO')?.value || '';
-  el.innerHTML = /oportunidad|Oferta|Seguimiento/.test(v) ? '<div class="aviso info">Apunta la próxima acción y la fecha de seguimiento para que te aparezca en «Hoy».</div>' : '';
-}
-
 function cerrarFormulario() { cerrarHoja('sh-form'); FORM = null; }
 
-async function guardarFormulario(confirmarSolape = false) {
+const NOMBRES_CAMPOS = {CLIENTE: 'cliente', FECHA: 'fecha', HORA_INICIO: 'hora de entrada', HORA_FIN: 'hora de salida',
+                        TEMAS: 'temas tratados', DESCRIPCION: 'qué se ha hablado', RESULTADO: 'resultado'};
+
+async function guardarFormulario(cerrar, confirmarSolape = false) {
   const d = leerFormulario();
   if (!d.CLIENTE) { await appAlert('Elige el cliente.', {type:'error'}); return; }
-  if (FORM.tipo === 'VISITA' && (!d.HORA_INICIO || !d.HORA_FIN)) {
-    if (FORM.curso && !d.HORA_FIN) {
-      const ok = await appConfirm('La visita sigue en curso. ¿Guardar lo que llevas escrito sin finalizarla?', {okText:'Guardar borrador'});
-      if (!ok) return;
-      return guardarBorrador(d);
+  if (cerrar || FORM.registro.ESTADO === 'REGISTRADA') {
+    const faltan = (YO.para_cerrar || []).filter(c => !d[c]).map(c => NOMBRES_CAMPOS[c] || c);
+    if (FORM.tipo === 'VISITA' && faltan.length) {
+      await appAlert('Para cerrar la visita falta: ' + faltan.join(', ') + '.\n\nPuedes pulsar «Guardar» y completarla más tarde.', {type:'error'}); return;
     }
-    await appAlert('Indica la hora de inicio y la de fin de la visita.', {type:'error'}); return;
   }
-  const btn = document.getElementById('f-guardar'); btn.disabled = true;
+  document.querySelectorAll('#f-pie .btn').forEach(b => b.disabled = true);
   showLoading();
   try {
-    const cuerpo = JSON.stringify({datos: d, confirmar_solape: confirmarSolape});
+    const cuerpo = JSON.stringify({datos: d, confirmar_solape: confirmarSolape, cerrar});
     if (FORM.modo === 'nuevo') await api('/actividad', {method:'POST', body: cuerpo});
     else await api('/actividad/' + encodeURIComponent(FORM.id), {method:'PUT', body: cuerpo});
     hideLoading();
+    const tipo = FORM.tipo, abierta = tipo === 'VISITA' && !cerrar && FORM.registro.ESTADO !== 'REGISTRADA';
     cerrarFormulario();
-    await appAlert('Guardado.', {type:'success'});
+    await appAlert(abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
+                           : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.', {type:'success'});
     mostrarVista();
   } catch (e) {
     hideLoading();
     if (e.status === 409 && e.message.startsWith('SOLAPE|')) {
       const ok = await appConfirm(e.message.slice(7), {okText:'Guardar igualmente'});
-      if (ok) { btn.disabled = false; return guardarFormulario(true); }
+      if (ok) return guardarFormulario(cerrar, true);
     } else if (e.message !== '401') await appAlert(e.message, {type:'error'});
-  } finally { btn.disabled = false; }
-}
-
-async function guardarBorrador(d) {
-  // Visita en curso: se guardan los textos sin cerrar la visita (sigue EN CURSO).
-  const r = await conCarga(() => api('/actividad/' + encodeURIComponent(FORM.id) + '/borrador', {method:'POST', body: JSON.stringify({datos: d})}));
-  if (r) { cerrarFormulario(); cargarHoy(); }
+  } finally { document.querySelectorAll('#f-pie .btn').forEach(b => b.disabled = false); }
 }
 
 // ===================================================================== detalle
@@ -1115,17 +1098,16 @@ async function verActividad(id) {
   const d = await conCarga(() => api('/actividad/' + encodeURIComponent(id)));
   if (!d) return;
   const r = d.registro;
-  document.getElementById('d-titulo').textContent = {VISITA:'Visita', LLAMADA:'Llamada', HITO:'Hito'}[r.TIPO] || 'Actividad';
-  const filas = [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE + (r.COD_CLIENTE ? ` (${r.COD_CLIENTE})` : ' · no está en Pirineos')],
-    ['Fecha', fechaLarga(r.FECHA)], ['Horario', r.HORA_INICIO ? `${r.HORA_INICIO}${r.HORA_FIN ? ' – ' + r.HORA_FIN : ''}` : ''],
-    ['Duración', dur(r.DURACION_MIN)], ['Registro', r.REGISTRO === 'CRONÓMETRO' ? 'Cronómetro (hora declarada)' : 'Manual'],
-    ['Tipo', r.SUBTIPO], ['Contacto', r.CONTACTO], ['Motivo', r.MOTIVO], ['Temas', r.TEMAS], ['Descripción', r.DESCRIPCION],
-    ['Resultado', r.RESULTADO], ['Productos', r.PRODUCTOS], ['Necesidades', r.NECESIDADES], ['Marca / modelo', [r.MARCA, r.MODELO].filter(Boolean).join(' ')],
-    ['Estado operación', r.ESTADO_OPERACION], ['Importe', r.IMPORTE ? eur(r.IMPORTE) : ''], ['Oferta', r.OFERTA],
-    ['Próxima acción', r.PROXIMA_ACCION], ['Seguimiento', r.FECHA_SEGUIMIENTO ? fechaCorta(r.FECHA_SEGUIMIENTO) + (r.SEGUIMIENTO_HECHO === 'SI' ? ' (hecho)' : '') : ''],
-    ['Observaciones', r.OBSERVACIONES], ['Estado', r.ESTADO]];
-  const ubic = r.TIPO === 'VISITA' ? [['Ubicación entrada', r.REGISTRO === 'MANUAL' ? 'Visita registrada a mano (sin ubicación)' : textoUbicacion(r.UBI_INICIO, r.DIST_INICIO_KM)],
-                                      ['Ubicación salida', r.REGISTRO === 'MANUAL' ? '' : textoUbicacion(r.UBI_FIN, r.DIST_FIN_KM)]] : [];
+  document.getElementById('d-titulo').textContent = {VISITA:'Visita', LLAMADA:'Llamada', PRECIO:'Precio dado'}[r.TIPO] || 'Actividad';
+  const filas = r.TIPO === 'PRECIO'
+    ? [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE], ['Fecha', fechaLarga(r.FECHA)], ['Referencia', r.PRODUCTOS], ['Artículo', r.DESCRIPCION],
+       ['Precio dado', eur(r.IMPORTE)], ['Nota', r.OBSERVACIONES]]
+    : [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE + (r.COD_CLIENTE ? ` (${r.COD_CLIENTE})` : ' · no está en Pirineos')],
+    ['Fecha', fechaLarga(r.FECHA)], ['Horario', r.HORA_INICIO ? `${r.HORA_INICIO}${r.HORA_FIN ? ' – ' + r.HORA_FIN : ' – (falta la salida)'}` : ''],
+    ['Duración', dur(r.DURACION_MIN)], ['Tipo', r.SUBTIPO], ['Contacto', r.CONTACTO], ['Temas', r.TEMAS], ['Qué se ha hablado', r.DESCRIPCION],
+    ['Resultado', r.RESULTADO], ['Próxima acción', r.PROXIMA_ACCION], ['Seguimiento', r.FECHA_SEGUIMIENTO ? fechaCorta(r.FECHA_SEGUIMIENTO) + (r.SEGUIMIENTO_HECHO === 'SI' ? ' (hecho)' : '') : ''],
+    ['Observaciones', r.OBSERVACIONES], ['Estado', r.ESTADO === 'REGISTRADA' ? (r.TIPO === 'VISITA' ? 'Cerrada' : 'Registrada') : r.ESTADO === 'SIN TERMINAR' ? 'Sin terminar' : r.ESTADO]];
+  const ubic = [];
   const hist = d.historial.map(h => `<div class="hist">${esc(h.FECHA_CAMBIO)} · ${esc(h.USUARIO)} · ${esc(h.ACCION)}${h.CAMPO ? `: ${esc(h.CAMPO)} «${esc(h.VALOR_ANTERIOR)}» → «${esc(h.VALOR_NUEVO)}»` : ''}</div>`).join('');
   document.getElementById('d-cuerpo').innerHTML = `<div class="card" style="margin-top:10px;">${filas.filter(f => f[1]).map(f => `<div class="dato"><span>${f[0]}</span><span>${esc(f[1])}</span></div>`).join('')}
     ${ubic.filter(f => f[1]).map(f => `<div class="dato"><span>${f[0]}</span><span>${f[1]}</span></div>`).join('')}</div>
@@ -1135,7 +1117,7 @@ async function verActividad(id) {
   const pie = document.getElementById('d-pie');
   window._detalle = r;
   pie.innerHTML = d.puede_editar && r.ESTADO !== 'ANULADA'
-    ? `<button class="btn btn-danger" onclick="anularActividad()">Anular</button><button class="btn btn-primary" onclick="editarActividad(window._detalle)">${r.ESTADO === 'EN CURSO' ? 'Completar' : 'Editar'}</button>`
+    ? `<button class="btn btn-danger" onclick="anularActividad()">Anular</button>${r.TIPO === 'PRECIO' ? '' : `<button class="btn btn-primary" onclick="editarActividad(window._detalle)">${r.ESTADO === 'SIN TERMINAR' ? 'Completar' : 'Editar'}</button>`}`
     : `<button class="btn btn-ghost" onclick="cerrarHoja('sh-detalle')">Cerrar</button>`;
   abrirHoja('sh-detalle');
 }
@@ -1153,17 +1135,20 @@ function pedirTexto(mensaje, opts = {}) {
   return new Promise(resolve => {
     const ov = document.createElement('div');
     ov.id = 'app-modal-overlay'; ov.className = 'show';
-    const desplegable = opts.opciones ? `<select id="pt-sel" style="margin-top:12px;">${opts.opciones.map(o => `<option ${o === opts.valor ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : '';
+    const desplegable = (opts.opciones ? `<select id="pt-sel" style="margin-top:12px; ${opts.sinTexto ? 'margin-bottom:16px;' : ''}">${opts.opciones.map(o => `<option ${o === opts.valor ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : '') +
+      (opts.numero ? `<input id="pt-num" inputmode="decimal" style="margin-top:12px; font-size:1.2rem; font-weight:700;" placeholder="Precio (€)" value="${esc(opts.valorNumero || '')}">` : '');
     ov.innerHTML = `<div class="app-modal-card"><div class="app-modal-msg" style="white-space:pre-wrap">${esc(mensaje)}</div>${desplegable}
-      <textarea id="pt-txt" style="margin:12px 0; min-height:70px;" placeholder="${opts.opciones ? 'Nota (opcional)' : ''}">${esc(opts.texto || '')}</textarea>
+      <textarea id="pt-txt" style="margin:12px 0; min-height:70px; ${opts.sinTexto ? 'display:none;' : ''}" placeholder="${esc(opts.placeholder || (opts.opciones ? 'Nota (opcional)' : ''))}">${esc(opts.texto || '')}</textarea>
       <div class="app-modal-actions"><button type="button" class="app-modal-btn-secondary" id="pt-no">Cancelar</button><button type="button" class="app-modal-btn-primary" id="pt-si">Aceptar</button></div></div>`;
     document.body.appendChild(ov);
     const fin = v => { ov.remove(); resolve(v); };
-    ov.querySelector('#pt-no').onclick = () => fin(opts.opciones ? null : '');
-    ov.querySelector('#pt-si').onclick = () => fin(opts.opciones
-      ? {opcion: ov.querySelector('#pt-sel').value, texto: ov.querySelector('#pt-txt').value.trim()}
+    const estructurado = opts.opciones || opts.numero;
+    ov.querySelector('#pt-no').onclick = () => fin(estructurado ? null : '');
+    ov.querySelector('#pt-si').onclick = () => fin(estructurado
+      ? {opcion: opts.opciones ? ov.querySelector('#pt-sel').value : '', numero: opts.numero ? ov.querySelector('#pt-num').value.trim() : '',
+         texto: ov.querySelector('#pt-txt').value.trim()}
       : ov.querySelector('#pt-txt').value.trim());
-    setTimeout(() => ov.querySelector('#pt-txt').focus(), 50);
+    setTimeout(() => (ov.querySelector('#pt-num') || ov.querySelector('#pt-txt')).focus(), 50);
   });
 }
 
@@ -1287,31 +1272,6 @@ function ordenarRuta() {
   document.getElementById('ruta-orden').scrollIntoView({behavior: 'smooth'});
 }
 
-// ===================================================================== UBICACIÓN al entrar y salir
-async function ubicacionParaRegistro() {
-  const clave = 'sugraf_ubi_informado_' + YO.clave;
-  let informado = false;
-  try { informado = localStorage.getItem(clave) === '1'; } catch (e) {}
-  if (!informado) {
-    await appAlert('Al iniciar y al finalizar cada visita la app guarda tu ubicación de ese momento (solo en esos dos momentos, no te sigue durante el día). ' +
-      'Sustituye a los mensajes de «Voy a / Salgo de» y la consulta Dirección. Si el móvil no la da, la visita se guarda igual indicando que no hay ubicación.',
-      {title: 'Registro de entrada y salida', okText: 'Entendido'});
-    try { localStorage.setItem(clave, '1'); } catch (e) {}
-    api('/ubicacion/informado', {method: 'POST'}).catch(() => {});
-  }
-  showLoading();
-  const u = await ubicacionActual(10000);
-  hideLoading();
-  return u;
-}
-function textoUbicacion(ubi, dist) {
-  if (!ubi) return '';
-  if (!/^-?\d/.test(ubi)) return ubi === 'SIN DATOS' ? 'Sin ubicación' : ubi.replace('NO DISPONIBLE', 'No disponible');
-  const [lat, lon, prec] = ubi.split(',');
-  return `<a style="color:var(--accent)" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}">ver en mapa</a> (±${prec} m)` +
-    (dist !== '' && dist != null ? ` · a ~${String(dist).replace('.', ',')} km del cliente (aprox., por código postal)` : '');
-}
-
 // ===================================================================== ASISTENTE
 let CHAT = [];
 try { CHAT = JSON.parse(sessionStorage.getItem('sugraf_com_chat') || '[]'); } catch (e) { CHAT = []; }
@@ -1334,46 +1294,52 @@ async function enviarChat() {
   t.value = '';
   const historial = CHAT.slice(-8);
   CHAT.push({rol: 'user', texto}); pintarChat(true);
-  const vista = (location.hash || '#hoy').slice(1).split('/')[0];
-  const contexto = {vista, cliente: vista === 'ficha' && FICHA ? FICHA.cliente.codigo : ''};
+  const contexto = contextoPantalla();
   try {
     const d = await api('/asistente', {method: 'POST', body: JSON.stringify({mensaje: texto, historial, contexto})});
     CHAT.push({rol: 'assistant', texto: d.respuesta});
   } catch (e) { if (e.message !== '401') CHAT.push({rol: 'assistant', texto: 'No he podido responder: ' + e.message}); }
   guardarChat(); pintarChat();
 }
+// Lo que hay abierto en la app, para que el asistente sepa de qué se le habla.
+function contextoPantalla() {
+  const vista = (location.hash || '#hoy').slice(1).split('/')[0];
+  const ctx = {vista: {hoy: 'Hoy', clientes: 'Clientes (control de visitas)', ficha: 'Ficha de cliente', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta'}[vista] || vista};
+  if (vista === 'ficha' && FICHA) {
+    ctx.cliente = FICHA.cliente.codigo;
+    const pest = document.querySelector('#ficha-tabs button.on'); if (pest) ctx.pestana_ficha = pest.textContent;
+    ctx.control_visitas_cliente = FICHA.control;
+  }
+  if (vista === 'clientes') {
+    ctx.filtro_clientes = filtroClientes; ctx.busqueda = document.getElementById('cli-q').value;
+    if (CONTROL && filtroClientes !== 'todos' && filtroClientes !== 'recuperar') ctx.clientes_en_pantalla = CONTROL.clientes.slice(0, 15).map(c => ({nombre: c.nombre, estado: c.estado, texto: c.texto}));
+  }
+  if (vista === 'precios') {
+    ctx.busqueda_precios = document.getElementById('pre-q').value;
+    if (precioCliente) { ctx.cliente_precios = precioCliente.nombre; ctx.cliente = precioCliente.codigo; }
+    ctx.articulos_en_pantalla = [...document.querySelectorAll('#pre-lista .card .t-strong')].slice(0, 6).map(x => x.textContent);
+  }
+  if (vista === 'agenda') ctx.agenda = {modo: modoAg, fecha: document.getElementById('ag-fecha').value, comercial: filtroComercial('ag-comercial')};
+  if (vista === 'ruta') ctx.ruta = {origen: RUTA.origen === 'gps' ? 'mi ubicación' : (RUTA.cliente || {}).nombre, radio_km: RUTA.radio, seleccionados: [...RUTA_SEL]};
+  if (vista === 'hoy') ctx.comercial_filtrado = filtroComercial('hoy-comercial');
+  // Formulario de visita o llamada abierto (lo que lleva escrito)
+  if (FORM && document.getElementById('sh-form').classList.contains('show')) {
+    const d = leerFormulario();
+    ctx.formulario_abierto = {tipo: FORM.tipo, nueva: FORM.modo === 'nuevo', estado: FORM.registro.ESTADO || 'nueva',
+      ...Object.fromEntries(Object.entries(d).filter(([k, v]) => v)),
+      falta_para_cerrar: FORM.tipo === 'VISITA' ? (YO.para_cerrar || []).filter(c => !d[c]).map(c => NOMBRES_CAMPOS[c] || c) : []};
+    if (d.COD_CLIENTE) ctx.cliente = d.COD_CLIENTE;
+  }
+  if (document.getElementById('sh-detalle').classList.contains('show') && window._detalle) {
+    const r = window._detalle;
+    ctx.registro_abierto = Object.fromEntries(Object.entries(r).filter(([k, v]) => v && !/^(CREADO|MODIFICADO)/.test(k)));
+  }
+  return ctx;
+}
 function borrarChat() { CHAT = []; guardarChat(); pintarChat(); }
 
-// ===================================================================== RESUMEN SEMANAL (Master)
-let semanaResumen = null;
-async function abrirResumenSemana(desplazar = 0) {
-  if (YO.rol !== 'master') return;
-  const base = semanaResumen ? new Date(semanaResumen + 'T12:00:00') : new Date();
-  base.setDate(base.getDate() + 7 * desplazar);
-  const desde = isoDe(base);
-  abrirHoja('sh-semana');
-  const el = document.getElementById('sem-cuerpo');
-  el.innerHTML = '<div class="empty">Calculando...</div>';
-  let d;
-  try { d = await api('/resumen_semana?desde=' + desde); } catch (e) { el.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
-  semanaResumen = d.desde;
-  document.getElementById('sem-titulo').textContent = `Semana ${fechaCorta(d.desde)} – ${fechaCorta(d.hasta)}`;
-  const filas = d.personas.map(p => `<tr><td><b>${esc(p.nombre)}</b></td><td class="n">${p.visitas}</td><td class="n">${p.llamadas}</td><td class="n">${p.hitos}</td>
-    <td class="n">${dur(p.minutos_visitas) || '0'}</td><td class="n">${p.clientes}</td><td class="n">${p.dias_con_actividad}</td>
-    <td class="n">${p.visitas ? p.visitas_con_ubicacion + '/' + p.visitas : '—'}</td><td class="n">${p.visitas_a_mano}</td>
-    <td class="n" style="${p.visitas_lejos ? 'color:#fca5a5' : ''}">${p.visitas_lejos}</td><td class="n" style="${p.seguimientos_vencidos ? 'color:#fde68a' : ''}">${p.seguimientos_vencidos}</td></tr>`).join('');
-  el.innerHTML = `<div class="row" style="gap:8px; margin:10px 0;"><button class="btn btn-ghost btn-sm" onclick="abrirResumenSemana(-1)">&lsaquo; Anterior</button>
-      <button class="btn btn-ghost btn-sm" onclick="abrirResumenSemana(1)">Siguiente &rsaquo;</button></div>
-    <h3>Actividad por persona</h3>
-    <div class="card scroll-x"><table class="tabla"><tr><th></th><th>Vis.</th><th>Llam.</th><th>Hitos</th><th>En visitas</th><th>Clientes</th><th>Días</th><th>Con ubic.</th><th>A mano</th><th>Lejos</th><th>Seg. venc.</th></tr>${filas}</table></div>
-    <div class="t-small">«Lejos»: visitas cuya ubicación al entrar está a más de 5 km del código postal del cliente (aproximado). «A mano»: visitas sin cronómetro.</div>
-    ${seccion('Hitos de la semana', d.hitos.map(itemActividad).join(''), d.hitos.length) || '<h3>Hitos de la semana</h3><div class="empty">Ninguno.</div>'}
-    ${seccion('Oportunidades detectadas por el SAT', d.oportunidades_sat.map(o => `<div class="card"><span class="t-strong">${esc(o.detalle)}</span><div class="t-small">${esc(o.cliente_nombre)} · ${esc(o.tecnico)} · ${esc(o.estado)}${o.comercial ? ' · ' + esc(o.comercial) : ''}</div></div>`).join(''), d.oportunidades_sat.length) || ''}
-    ${seccion('Clientes que han vuelto a comprar', d.recuperados.map(r => `<div class="card click" onclick="cerrarHoja('sh-semana'); abrirFicha('${esc(r.codigo)}')"><span class="t-strong">${esc(r.nombre)}</span><div class="t-small">Compró el ${fechaCorta(r.fecha)} tras ${r.dias_parado} días parado${r.comercial ? ' · ' + esc(r.comercial) : ''}</div></div>`).join(''), d.recuperados.length) || ''}`;
-}
-
 // ===================================================================== AGENDA
-let modoAg = 'dia', tiposAg = new Set(['VISITA','LLAMADA','HITO']);
+let modoAg = 'semana', tiposAg = new Set(['VISITA','LLAMADA']);
 function modoAgenda(m) { modoAg = m; ['dia','semana','mes'].forEach(x => document.getElementById('ag-' + x).classList.toggle('on', x === m)); cargarAgenda(); }
 function moverAgenda(n) {
   const el = document.getElementById('ag-fecha'); const [y,m,d] = (el.value || hoyISO()).split('-').map(Number);
@@ -1389,7 +1355,7 @@ function rangoAgenda() {
   return [isoDe(new Date(y, m-1, 1)), isoDe(new Date(y, m, 0))];
 }
 function pintarTiposAgenda() {
-  document.getElementById('ag-tipos').innerHTML = [['VISITA','Visitas'],['LLAMADA','Llamadas'],['HITO','Hitos']].map(([k,t]) =>
+  document.getElementById('ag-tipos').innerHTML = [['VISITA','Visitas'],['LLAMADA','Llamadas'],['PRECIO','Precios dados']].map(([k,t]) =>
     `<button class="chip ${tiposAg.has(k) ? 'on' : ''}" onclick="tiposAg.has('${k}') ? tiposAg.delete('${k}') : tiposAg.add('${k}'); pintarTiposAgenda(); cargarAgenda();">${t}</button>`).join('');
 }
 async function cargarAgenda() {
@@ -1405,7 +1371,21 @@ async function cargarAgenda() {
   const regs = d.registros.filter(r => r.FECHA >= desde && r.FECHA <= hasta && tiposAg.has(r.TIPO));
   const titulo = modoAg === 'dia' ? fechaLarga(desde) : `${fechaCorta(desde)} – ${fechaCorta(hasta)}`;
   let html = `<h3 style="margin-top:14px;">${esc(titulo)}</h3><div class="stats">${resumenJornada(regs)}</div>`;
+  // Visitas diarias y tiempos (visitas cerradas), por comercial y día
+  try {
+    const R = await api(`/resumen?desde=${desde}&hasta=${hasta}${com ? '&comercial=' + encodeURIComponent(com) : ''}`);
+    if (R.dias.length) {
+      const varios = YO.permisos.ver_todos;
+      html += `<h3>Visitas por día y tiempos</h3>
+        ${R.totales.length && modoAg !== 'dia' ? `<div class="card scroll-x"><table class="tabla"><tr><th></th><th>Días</th><th>Visitas</th><th>Por día</th><th>Media</th><th>Total</th></tr>
+          ${R.totales.map(t => `<tr><td><b>${esc(t.comercial)}</b></td><td class="n">${t.dias}</td><td class="n">${t.visitas}</td><td class="n">${String(t.visitas_por_dia).replace('.', ',')}</td><td class="n">${dur(t.media) || '—'}</td><td class="n">${dur(t.minutos) || '—'}</td></tr>`).join('')}</table></div>` : ''}
+        <div class="card scroll-x"><table class="tabla"><tr><th>Día</th>${varios ? '<th></th>' : ''}<th>Visitas</th><th>Horario</th><th>Media</th><th>Total</th></tr>
+          ${R.dias.map(f => `<tr><td>${fechaCorta(f.fecha)}</td>${varios ? `<td>${esc(f.comercial)}</td>` : ''}<td class="n">${f.visitas}</td><td class="n">${esc(f.entrada)}–${esc(f.salida)}</td><td class="n">${dur(f.media) || '—'}</td><td class="n">${dur(f.minutos) || '—'}</td></tr>`).join('')}</table></div>
+        <div class="t-small">Horario = primera entrada y última salida del día. Media = tiempo medio por visita.</div>`;
+    }
+  } catch (e) {}
   if (!regs.length) { cont.innerHTML = html + '<div class="empty">Sin actividad registrada.</div>'; return; }
+  html += '<h3>Detalle</h3>';
   if (modoAg === 'dia') {
     html += '<h3>Cronología</h3>' + regs.map(r => `<div class="timeline-item"><div class="timeline-hora">${esc(r.HORA_INICIO || '—')}<small>${esc(r.HORA_FIN || '')}</small></div>${itemActividad(r)}</div>`).join('');
   } else {
@@ -1425,7 +1405,6 @@ async function cargarAgenda() {
   try { YO = await api('/yo'); }
   catch (e) { if (e.message !== '401') document.getElementById('view-hoy').innerHTML = `<div class="aviso" style="margin-top:20px;">${esc(e.message)}</div>`; document.getElementById('view-hoy').classList.add('active'); return; }
   document.getElementById('user-name-text').textContent = YO.nombre;
-  document.getElementById('cli-mios').checked = YO.rol === 'comercial';
   if (YO.permisos.ver_todos) {
     const opts = '<option value="">Todos</option>' + YO.comerciales.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('');
     document.querySelectorAll('.solo-todos').forEach(s => s.innerHTML = opts);

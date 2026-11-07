@@ -1,13 +1,14 @@
 # comercial/api_comercial.py
 """API del módulo Comercial (/api/comercial/...).
 
-- Acceso con permisos; visitas (cronómetro o a mano) con ubicación al entrar y salir,
-  llamadas e hitos (incluidas ventas de maquinaria); agenda.
+- Acceso con permisos; visitas (horas de entrada y salida a mano, se pueden ir guardando),
+  llamadas y precios dados; agenda y resumen de visitas diarias y tiempos.
+- Control de visitas: clientes que toca visitar y clientes visitados de más.
 - Ficha de cliente con «Preparar visita»: lo hablado, seguimientos, avisos del SAT,
   pedidos pendientes, máquinas, productos que deja de comprar y sugerencias.
 - Precios (tarifa, precio especial y, solo Master, coste y margen estimado).
-- Oportunidades de venta que marcan los técnicos en los partes del SAT.
-- Clientes a recuperar (dormidos / en riesgo), rutas, resumen semanal (Master) y asistente.
+- Oportunidades de venta que marcan los técnicos (dentro de «Preparar visita»).
+- Clientes a recuperar (dormidos / en riesgo), rutas y asistente.
 """
 import os
 import sys
@@ -20,7 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-from comercial import actividad, analisis, geo, pirineos, sat  # noqa: E402
+from comercial import actividad, analisis, control, geo, pirineos, sat  # noqa: E402
 from comercial.usuarios import (USUARIOS, Sesion, clave_por_nombre, comerciales, comprobar_clave,  # noqa: E402
                                 crear_token, normalizar, sesion_actual)
 
@@ -36,11 +37,6 @@ OPCIONES = {
                    'Visita aplazada', 'Incidencia detectada', 'Sin resultado comercial', 'Otro'],
     'tipos_llamada': ['Prospección', 'Seguimiento de oferta', 'Negociación de precios', 'Reposición de consumibles',
                       'Venta de maquinaria', 'Recuperación de cliente', 'Incidencia', 'Coordinación de visita', 'Otro'],
-    'tipos_hito': ['Venta de maquinaria', 'Cierre de una operación importante', 'Pedido extraordinario',
-                   'Primera compra de un nuevo cliente', 'Recuperación de un cliente dormido',
-                   'Nueva oportunidad comercial', 'Demostración realizada', 'Negociación estratégica',
-                   'Acuerdo de precios', 'Firma de contrato', 'Reclamación importante', 'Pérdida de una operación', 'Otro'],
-    'estados_venta_maquinaria': ['Operación ganada', 'Pedido confirmado', 'Venta facturada'],
 }
 
 # Colores de las tarifas para la consulta discreta de precios (configurables).
@@ -78,7 +74,7 @@ def login(datos: Login):
 @router.get('/yo')
 def yo(s: Sesion = Depends(sesion_actual)):
     leyenda = {k: {**v, 'etiqueta': ('Precio especial' if k == 'especial' else f'Tarifa {k}')} for k, v in COLORES.items()}
-    return {**s.publico(), 'opciones': OPCIONES, 'colores': leyenda,
+    return {**s.publico(), 'opciones': OPCIONES, 'colores': leyenda, 'para_cerrar': [c for c, _ in CAMPOS_PARA_CERRAR],
             'comerciales': comerciales() if s.puede('ver_todos') else [], 'hoy': actividad.ahora().strftime('%Y-%m-%d')}
 
 
@@ -108,15 +104,15 @@ def listar_actividad(desde: str = '', hasta: str = '', comercial: str = '', clie
 
 @router.get('/actividad/pendientes')
 def pendientes(comercial: str = '', s: Sesion = Depends(sesion_actual)):
-    """Visitas en curso y seguimientos pendientes (fecha de seguimiento sin marcar como hecho)."""
+    """Visitas sin terminar (falta la hora de salida u otro dato) y seguimientos pendientes."""
     try:
         registros = actividad.listar(_claves_visibles(s, comercial))
-        en_curso = [r for r in registros if r['ESTADO'] == actividad.EN_CURSO]
+        sin_terminar = [r for r in registros if r['ESTADO'] == actividad.SIN_TERMINAR]
         seguimientos = sorted(
             (r for r in registros if r['ESTADO'] == actividad.REGISTRADA and r['FECHA_SEGUIMIENTO']
              and r['SEGUIMIENTO_HECHO'] != 'SI'),
             key=lambda r: r['FECHA_SEGUIMIENTO'])
-        return {'en_curso': en_curso, 'seguimientos': seguimientos}
+        return {'sin_terminar': sin_terminar, 'seguimientos': seguimientos}
     except Exception as e:
         _error(e)
 
@@ -146,97 +142,41 @@ def ver_actividad(id_registro: str, s: Sesion = Depends(sesion_actual)):
         _error(e)
 
 
-class Ubicacion(BaseModel):
-    lat: float | None = None
-    lon: float | None = None
-    precision: float | None = None
-    error: str = ''   # motivo si el móvil no ha dado la ubicación (denegada, sin señal...)
-
-
-def _registrar_ubicacion(ub, cod_cliente):
-    """(texto para guardar, distancia aproximada al cliente en km o '')."""
-    if ub is None:
-        return 'SIN DATOS', ''
-    if ub.lat is None or ub.lon is None:
-        return f"NO DISPONIBLE ({(ub.error or 'sin motivo')[:60]})", ''
-    texto = f"{ub.lat:.5f},{ub.lon:.5f},{round(ub.precision or 0)}"
-    c = pirineos.clientes().get(cod_cliente) if cod_cliente else None
-    dist = geo.distancia_recta_km((ub.lat, ub.lon), geo.coordenadas_cliente(c)) if c else None
-    return texto, ('' if dist is None else str(dist))
-
-
-class Iniciar(BaseModel):
-    cod_cliente: str = ''
-    cliente: str
-    poblacion: str = ''
-    ubicacion: Ubicacion | None = None
-
-
-@router.post('/actividad/iniciar')
-def iniciar_visita(datos: Iniciar, s: Sesion = Depends(sesion_actual)):
-    """Cronómetro: crea la visita EN CURSO con la hora del servidor."""
-    try:
-        if not s.puede('registrar'):
-            raise HTTPException(status_code=403, detail='Sin permiso para registrar actividad.')
-        if not datos.cliente.strip():
-            raise HTTPException(status_code=400, detail='Elige el cliente.')
-        abiertas = [r for r in actividad.listar([s.clave]) if r['ESTADO'] == actividad.EN_CURSO]
-        if abiertas:
-            raise HTTPException(status_code=409, detail=f"Ya tienes una visita en curso en {abiertas[0]['CLIENTE']}. Finalízala antes de empezar otra.")
-        momento = actividad.ahora()
-        d = {c: '' for c in actividad.EDITABLES}
-        d.update({'TIPO': 'VISITA', 'COD_CLIENTE': datos.cod_cliente.strip(), 'CLIENTE': datos.cliente.strip(),
-                  'POBLACION': datos.poblacion.strip(), 'FECHA': momento.strftime('%Y-%m-%d'),
-                  'HORA_INICIO': momento.strftime('%H:%M')})
-        d['UBI_INICIO'], d['DIST_INICIO_KM'] = _registrar_ubicacion(datos.ubicacion, d['COD_CLIENTE'])
-        return {'registro': actividad.crear(s.clave, s.nombre, d, estado=actividad.EN_CURSO, registro='CRONÓMETRO')}
-    except Exception as e:
-        _error(e)
-
-
-@router.post('/actividad/{id_registro}/finalizar')
-def finalizar_visita(id_registro: str, ub: Ubicacion | None = None, s: Sesion = Depends(sesion_actual)):
-    """Cronómetro: pone la hora de fin (del servidor). La visita queda EN CURSO hasta que
-    se completa el formulario con los temas y el resultado."""
-    try:
-        clave, r = _dueno(s, id_registro)
-        if clave != s.clave:
-            raise HTTPException(status_code=403, detail='Solo quien inició la visita puede finalizarla.')
-        if r['ESTADO'] != actividad.EN_CURSO:
-            raise HTTPException(status_code=409, detail='Esta visita ya no está en curso.')
-        if r['HORA_FIN']:
-            return {'registro': r}
-        momento = actividad.ahora()
-        hora_fin = momento.strftime('%H:%M')
-        if momento.strftime('%Y-%m-%d') != r['FECHA']:
-            hora_fin = '23:59'  # la visita no puede pasar de un día a otro
-        if hora_fin <= r['HORA_INICIO']:  # menos de un minuto
-            ini = datetime.strptime(r['HORA_INICIO'], '%H:%M')
-            hora_fin = (ini + timedelta(minutes=1)).strftime('%H:%M')
-        ubi, dist = _registrar_ubicacion(ub, r['COD_CLIENTE'])
-        r = actividad.actualizar(clave, s.nombre, id_registro, {'HORA_FIN': hora_fin, 'UBI_FIN': ubi, 'DIST_FIN_KM': dist},
-                                 accion='FIN CRONÓMETRO')
-        return {'registro': r}
-    except Exception as e:
-        _error(e)
-
-
 class Registro(BaseModel):
     datos: dict
     confirmar_solape: bool = False
+    cerrar: bool = False   # botón «Cerrar visita»: la da por terminada
 
 
-def _comprobar_y_guardar(s, clave, d, id_registro=None, confirmar_solape=False):
+# Lo que tiene que estar relleno para poder cerrar una visita (darla por bien hecha).
+CAMPOS_PARA_CERRAR = [('CLIENTE', 'cliente'), ('FECHA', 'fecha'), ('HORA_INICIO', 'hora de entrada'),
+                      ('HORA_FIN', 'hora de salida'), ('TEMAS', 'temas tratados'), ('DESCRIPCION', 'qué se ha hablado'),
+                      ('RESULTADO', 'resultado')]
+
+
+def _estado(d, cerrar, anterior=''):
+    """Una visita queda SIN TERMINAR (se puede ir guardando) hasta que se pulsa «Cerrar visita»,
+    que exige hora de entrada y de salida. Una visita ya cerrada sigue cerrada al editarla."""
+    if d['TIPO'] != 'VISITA':
+        return actividad.REGISTRADA
+    if cerrar or anterior == actividad.REGISTRADA:
+        faltan = [nombre for campo, nombre in CAMPOS_PARA_CERRAR if not d.get(campo)]
+        if faltan:
+            raise HTTPException(status_code=400, detail='Para cerrar la visita falta: ' + ', '.join(faltan) + '.')
+        return actividad.REGISTRADA
+    return actividad.SIN_TERMINAR
+
+
+def _comprobar_y_guardar(s, clave, d, id_registro=None, confirmar_solape=False, cerrar=False, anterior=''):
+    estado = _estado(d, cerrar, anterior)
     if not confirmar_solape:
         cruzadas = actividad.solapes(clave, d, excluir_id=id_registro or '')
         if cruzadas:
             lista = '; '.join(f"{r['HORA_INICIO']}-{r['HORA_FIN']} {r['CLIENTE']}" for r in cruzadas)
-            raise HTTPException(status_code=409, detail=f'SOLAPE|Este horario se cruza con: {lista}. ¿Guardar igualmente para revisión?')
+            raise HTTPException(status_code=409, detail=f'SOLAPE|Este horario se cruza con: {lista}. ¿Guardar igualmente?')
     if id_registro:
-        cambios = dict(d)
-        cambios['DURACION_MIN'] = d.get('DURACION_MIN', '')
-        return actividad.actualizar(clave, s.nombre, id_registro, cambios)
-    return actividad.crear(clave, s.nombre, d)
+        return actividad.actualizar(clave, s.nombre, id_registro, {**d, 'ESTADO': estado})
+    return actividad.crear(clave, s.nombre, d, estado=estado)
 
 
 @router.post('/actividad')
@@ -247,14 +187,14 @@ def crear_actividad(reg: Registro, s: Sesion = Depends(sesion_actual)):
         d, errores = actividad.validar(reg.datos)
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
-        return {'registro': _comprobar_y_guardar(s, s.clave, d, confirmar_solape=reg.confirmar_solape)}
+        return {'registro': _comprobar_y_guardar(s, s.clave, d, confirmar_solape=reg.confirmar_solape, cerrar=reg.cerrar)}
     except Exception as e:
         _error(e)
 
 
 @router.put('/actividad/{id_registro}')
 def editar_actividad(id_registro: str, reg: Registro, s: Sesion = Depends(sesion_actual)):
-    """Guarda cambios. Si la visita estaba EN CURSO (cronómetro), queda REGISTRADA."""
+    """Guarda cambios (se puede ir guardando una visita a medias y completarla después)."""
     try:
         clave, r = _dueno(s, id_registro)
         if clave != s.clave and not s.puede('editar_otros'):
@@ -264,32 +204,7 @@ def editar_actividad(id_registro: str, reg: Registro, s: Sesion = Depends(sesion
         d, errores = actividad.validar(reg.datos)
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
-        # Si se corrige a mano la hora que tomó el cronómetro, queda dicho en el propio registro
-        # (además del historial de cambios).
-        if r['REGISTRO'] == 'CRONÓMETRO' and (d['HORA_INICIO'] != r['HORA_INICIO'] or (r['HORA_FIN'] and d['HORA_FIN'] != r['HORA_FIN'])):
-            nota = f"[Horario del cronómetro corregido a mano; original {r['HORA_INICIO']}-{r['HORA_FIN'] or '?'}]"
-            if nota not in d['OBSERVACIONES']:
-                d['OBSERVACIONES'] = (d['OBSERVACIONES'] + ' ' if d['OBSERVACIONES'] else '') + nota
-        if r['ESTADO'] == actividad.EN_CURSO:
-            d['ESTADO'] = actividad.REGISTRADA
-        return {'registro': _comprobar_y_guardar(s, clave, d, id_registro, reg.confirmar_solape)}
-    except Exception as e:
-        _error(e)
-
-
-@router.post('/actividad/{id_registro}/borrador')
-def borrador_visita(id_registro: str, reg: Registro, s: Sesion = Depends(sesion_actual)):
-    """Guarda lo escrito de una visita EN CURSO sin cerrarla (no toca fecha ni horas)."""
-    try:
-        clave, r = _dueno(s, id_registro)
-        if clave != s.clave:
-            raise HTTPException(status_code=403, detail='Solo quien inició la visita puede modificarla.')
-        if r['ESTADO'] != actividad.EN_CURSO:
-            raise HTTPException(status_code=409, detail='Esta visita ya no está en curso.')
-        d, _ = actividad.validar({**reg.datos, 'FECHA': r['FECHA']}, en_curso=True)
-        for campo in ('TIPO', 'FECHA', 'HORA_INICIO', 'HORA_FIN', 'DURACION_MIN', 'COD_CLIENTE', 'CLIENTE', 'POBLACION'):
-            d.pop(campo, None)
-        return {'registro': actividad.actualizar(clave, s.nombre, id_registro, d, accion='BORRADOR')}
+        return {'registro': _comprobar_y_guardar(s, clave, d, id_registro, reg.confirmar_solape, reg.cerrar, r['ESTADO'])}
     except Exception as e:
         _error(e)
 
@@ -320,6 +235,48 @@ def seguimiento_hecho(id_registro: str, s: Sesion = Depends(sesion_actual)):
         if clave != s.clave and not s.puede('editar_otros'):
             raise HTTPException(status_code=403, detail='No puedes modificar la actividad de otra persona.')
         return {'registro': actividad.actualizar(clave, s.nombre, id_registro, {'SEGUIMIENTO_HECHO': 'SI'}, accion='SEGUIMIENTO HECHO')}
+    except Exception as e:
+        _error(e)
+
+
+# ---------------------------------------------------------------- precios dados (seguimiento)
+class PrecioDado(BaseModel):
+    cod_cliente: str
+    cliente: str
+    referencia: str
+    descripcion: str = ''
+    precio: float
+    nota: str = ''
+
+
+@router.post('/precios_dados')
+def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
+    """Apunta el precio que el comercial ha dado a un cliente para una referencia."""
+    try:
+        if p.precio <= 0:
+            raise HTTPException(status_code=400, detail='Indica un precio mayor que cero.')
+        momento = actividad.ahora()
+        d, errores = actividad.validar({
+            'TIPO': 'PRECIO', 'COD_CLIENTE': p.cod_cliente, 'CLIENTE': p.cliente, 'FECHA': momento.strftime('%Y-%m-%d'),
+            'HORA_INICIO': momento.strftime('%H:%M'), 'PRODUCTOS': p.referencia, 'DESCRIPCION': p.descripcion,
+            'IMPORTE': f'{p.precio:.4f}'.rstrip('0').rstrip('.'), 'OBSERVACIONES': p.nota})
+        if errores:
+            raise HTTPException(status_code=400, detail=' '.join(errores))
+        return {'registro': actividad.crear(s.clave, s.nombre, d)}
+    except Exception as e:
+        _error(e)
+
+
+def precios_dados(s, cliente='', comercial=''):
+    regs = actividad.listar(_claves_visibles(s, comercial))
+    return [r for r in reversed(regs) if r['TIPO'] == 'PRECIO' and r['ESTADO'] == actividad.REGISTRADA
+            and (not cliente or r['COD_CLIENTE'] == cliente)]
+
+
+@router.get('/precios_dados')
+def listar_precios_dados(cliente: str = '', comercial: str = '', s: Sesion = Depends(sesion_actual)):
+    try:
+        return {'precios': precios_dados(s, cliente, comercial)}
     except Exception as e:
         _error(e)
 
@@ -391,7 +348,12 @@ def ficha_cliente(codigo: str, s: Sesion = Depends(sesion_actual)):
         ops = [o for o in sat.oportunidades() if o['codigo'] == codigo]
         seguimientos = [r for r in propios if r['ESTADO'] == actividad.REGISTRADA and r['FECHA_SEGUIMIENTO']
                         and r['SEGUIMIENTO_HECHO'] != 'SI']
-        ultimo = next((r for r in reversed(propios) if r['ESTADO'] == actividad.REGISTRADA), None)
+        ultimo = next((r for r in reversed(propios) if r['ESTADO'] == actividad.REGISTRADA and r['TIPO'] != 'PRECIO'), None)
+        # Control de visitas de este cliente (visitas cerradas de cualquier comercial).
+        todas = [r for r in actividad.listar(list(USUARIOS)) if r['TIPO'] == 'VISITA' and r['ESTADO'] == actividad.REGISTRADA]
+        del_cliente = [r['FECHA'] for r in todas if r['COD_CLIENTE'] == codigo]
+        de_su_comercial = [r for r in todas if normalizar(USUARIOS.get(clave_por_nombre(r['COMERCIAL']) or '', {}).get('pirineos', '')) == c['comercial_norm']]
+        estado_visitas = control.estado_cliente(c, del_cliente, control.compras_12_meses(), control.cadencias(), inicio_de(de_su_comercial) or date.today())
         return {
             'cliente': datos,
             'resumen': {
@@ -402,7 +364,10 @@ def ficha_cliente(codigo: str, s: Sesion = Depends(sesion_actual)):
             },
             'compras': compras,
             'especiales': especiales,
-            'actividad': list(reversed(propios)),
+            'actividad': [r for r in reversed(propios) if r['TIPO'] != 'PRECIO'],
+            'precios_dados': [r for r in reversed(propios) if r['TIPO'] == 'PRECIO'],
+            'control': estado_visitas,
+            'frecuencias': control.OPCIONES_FRECUENCIA,
             'periodo_ventas': {'leidos': leidos, 'faltan': faltan},
             'preparar': {
                 'perfil': analisis.perfil(lineas),
@@ -671,67 +636,93 @@ def ruta_candidatos(lat: float | None = None, lon: float | None = None, cliente:
         _error(e)
 
 
-# ---------------------------------------------------------------- ubicación: información al usuario
-@router.post('/ubicacion/informado')
-def ubicacion_informado(s: Sesion = Depends(sesion_actual)):
-    """Deja constancia (historial del usuario) de que se le ha informado del registro de ubicación."""
+# ---------------------------------------------------------------- control de visitas
+def control_visitas(s, comercial=''):
+    """Clientes de la cartera con su frecuencia de visita y si toca visitarlos o se visitan de más."""
+    visitas = [r for r in actividad.listar(list(USUARIOS)) if r['TIPO'] == 'VISITA' and r['ESTADO'] == actividad.REGISTRADA]
+    if s.rol == 'master' and not comercial:
+        usuarios = [k for k, u in USUARIOS.items() if u['rol'] == 'comercial']
+    elif s.puede('ver_todos'):
+        k = clave_por_nombre(comercial)
+        if not k:
+            raise HTTPException(status_code=404, detail='Comercial no encontrado.')
+        usuarios = [k]
+    else:
+        usuarios = [s.clave]
+    resultado = []
+    for k in usuarios:
+        u = USUARIOS[k]
+        propias = [r for r in visitas if r['COMERCIAL'] == u['nombre']]
+        resultado += [{**x, 'usuario': u['nombre']} for x in control.control_cartera(u['pirineos'], visitas, inicio_de(propias))]
+    orden = {'toca': 0, 'demasiado': 1, 'pronto': 2, 'ok': 3}
+    resultado.sort(key=lambda x: (orden[x['estado']], -(x['dias_sin_visita'] or 0), -x['compras_12m']))
+    return resultado
+
+
+def inicio_de(visitas_propias):
+    """Desde cuándo usa la app el comercial (su primera visita), para no marcar en rojo a toda
+    la cartera el primer día."""
+    fechas = [r['FECHA'] for r in visitas_propias if r['FECHA']]
+    return date.fromisoformat(min(fechas)) if fechas else None
+
+
+@router.get('/control')
+def ver_control(comercial: str = '', s: Sesion = Depends(sesion_actual)):
     try:
-        actividad._anotar(s.clave, s.nombre, '-', 'INFORMADO REGISTRO DE UBICACIÓN', [])
+        return {'clientes': control_visitas(s, comercial), 'frecuencias': control.OPCIONES_FRECUENCIA,
+                'criterio': ('Frecuencia propuesta según lo que compra al año (15.000 € o más: mensual; 5.000-15.000: bimestral; '
+                             '1.000-5.000: trimestral; menos: semestral; sin compras: no se exige). Master puede fijarla en la ficha. '
+                             '«Visitado de más»: más del doble de las visitas previstas en 90 días, o 3+ visitas a un cliente que no compra.')}
+    except Exception as e:
+        _error(e)
+
+
+class Frecuencia(BaseModel):
+    dias: int | None = None   # None = volver a la propuesta automática
+
+
+@router.put('/frecuencia/{codigo}')
+def fijar_frecuencia(codigo: str, f: Frecuencia, s: Sesion = Depends(sesion_actual)):
+    try:
+        if s.rol != 'master':
+            raise HTTPException(status_code=403, detail='Solo Master puede cambiar la frecuencia de visita.')
+        if not pirineos.clientes().get(codigo):
+            raise HTTPException(status_code=404, detail='Cliente no encontrado.')
+        control.fijar_cadencia(codigo, f.dias, s.nombre, actividad.ahora().strftime('%Y-%m-%d %H:%M'))
         return {'ok': True}
     except Exception as e:
         _error(e)
 
 
-# ---------------------------------------------------------------- resumen semanal (Master)
-def resumen_semana(desde):
-    lunes = date.fromisoformat(desde)
-    lunes -= timedelta(days=lunes.weekday())
-    domingo = lunes + timedelta(days=6)
-    d, h = lunes.isoformat(), domingo.isoformat()
-    hoy = actividad.ahora().strftime('%Y-%m-%d')
-    claves = [k for k in USUARIOS]
-    registros = actividad.listar(claves, d, h)
-    todos = actividad.listar(claves)
-    personas = []
-    for k in claves:
-        nombre = USUARIOS[k]['nombre']
-        regs = [r for r in registros if r['COMERCIAL'] == nombre and r['ESTADO'] == actividad.REGISTRADA]
-        visitas = [r for r in regs if r['TIPO'] == 'VISITA']
-        con_ubi = [r for r in visitas if r['UBI_INICIO'][:1].isdigit() or r['UBI_INICIO'][:1] == '-']
-        lejos = [r for r in visitas if r['DIST_INICIO_KM'] and float(r['DIST_INICIO_KM']) > 5]
-        vencidos = [r for r in todos if r['COMERCIAL'] == nombre and r['ESTADO'] == actividad.REGISTRADA and r['FECHA_SEGUIMIENTO']
-                    and r['SEGUIMIENTO_HECHO'] != 'SI' and r['FECHA_SEGUIMIENTO'] < hoy]
-        if not regs and not vencidos and USUARIOS[k]['rol'] == 'master':
-            continue
-        personas.append({
-            'nombre': nombre, 'visitas': len(visitas), 'llamadas': sum(r['TIPO'] == 'LLAMADA' for r in regs),
-            'hitos': sum(r['TIPO'] == 'HITO' for r in regs),
-            'minutos_visitas': sum(int(r['DURACION_MIN'] or 0) for r in visitas),
-            'clientes': len({r['COD_CLIENTE'] or r['CLIENTE'] for r in visitas}),
-            'dias_con_actividad': len({r['FECHA'] for r in regs}),
-            'visitas_con_ubicacion': len(con_ubi), 'visitas_a_mano': sum(r['REGISTRO'] == 'MANUAL' for r in visitas),
-            'visitas_lejos': len(lejos), 'seguimientos_vencidos': len(vencidos),
-        })
-    hitos = [r for r in registros if r['TIPO'] == 'HITO' and r['ESTADO'] == actividad.REGISTRADA]
-    ops = [o for o in sat.oportunidades() if d <= o['fecha'] <= h]
-    clientes = pirineos.clientes()
-    recuperados = []
-    for x in analisis.recuperados(d, h):
-        c = clientes.get(x['codigo'])
-        if c:
-            recuperados.append({**x, 'nombre': c['nombre'], 'comercial': c['comercial']})
-    return {'desde': d, 'hasta': h, 'personas': personas, 'hitos': hitos, 'oportunidades_sat': ops,
-            'recuperados': sorted(recuperados, key=lambda x: -x['dias_parado'])}
+# ---------------------------------------------------------------- resumen: visitas diarias y tiempos
+def resumen(s, desde, hasta, comercial=''):
+    """Por comercial y día: nº de visitas, tiempo total y medio, primera entrada y última salida."""
+    regs = [r for r in actividad.listar(_claves_visibles(s, comercial), desde, hasta)
+            if r['TIPO'] == 'VISITA' and r['ESTADO'] == actividad.REGISTRADA and desde <= r['FECHA'] <= hasta]
+    dias = {}
+    for r in regs:
+        dias.setdefault((r['COMERCIAL'], r['FECHA']), []).append(r)
+    filas = []
+    for (comercial_nombre, fecha), vs in sorted(dias.items(), key=lambda x: (x[0][1], x[0][0]), reverse=True):
+        minutos = [int(v['DURACION_MIN'] or 0) for v in vs]
+        filas.append({'comercial': comercial_nombre, 'fecha': fecha, 'visitas': len(vs), 'minutos': sum(minutos),
+                      'media': round(sum(minutos) / len(vs)) if vs else 0,
+                      'entrada': min(v['HORA_INICIO'] for v in vs), 'salida': max(v['HORA_FIN'] for v in vs),
+                      'clientes': len({v['COD_CLIENTE'] or v['CLIENTE'] for v in vs})})
+    por_comercial = {}
+    for f in filas:
+        t = por_comercial.setdefault(f['comercial'], {'comercial': f['comercial'], 'dias': 0, 'visitas': 0, 'minutos': 0})
+        t['dias'] += 1; t['visitas'] += f['visitas']; t['minutos'] += f['minutos']
+    for t in por_comercial.values():
+        t['visitas_por_dia'] = round(t['visitas'] / t['dias'], 1) if t['dias'] else 0
+        t['media'] = round(t['minutos'] / t['visitas']) if t['visitas'] else 0
+    return {'desde': desde, 'hasta': hasta, 'dias': filas, 'totales': list(por_comercial.values())}
 
 
-@router.get('/resumen_semana')
-def ver_resumen_semana(desde: str = '', s: Sesion = Depends(sesion_actual)):
+@router.get('/resumen')
+def ver_resumen(desde: str, hasta: str, comercial: str = '', s: Sesion = Depends(sesion_actual)):
     try:
-        if s.rol != 'master':
-            raise HTTPException(status_code=403, detail='Solo para Master.')
-        return resumen_semana(desde or actividad.ahora().strftime('%Y-%m-%d'))
-    except ValueError:
-        raise HTTPException(status_code=400, detail='Fecha no válida.')
+        return resumen(s, desde, hasta, comercial)
     except Exception as e:
         _error(e)
 

@@ -1,8 +1,9 @@
 # comercial/actividad.py
-"""Registro de actividad comercial: visitas, llamadas e hitos (incluidas ventas de maquinaria).
+"""Registro de actividad comercial: visitas (horas de entrada y salida escritas a mano),
+llamadas y precios dados a clientes (para el seguimiento de precios).
 
 Se guarda en la carpeta "Comerciales" de Drive (dentro de SAT-App), un Excel por persona:
-  Actividad_<usuario>.xlsx   una fila por visita / llamada / hito
+  Actividad_<usuario>.xlsx   una fila por visita / llamada / precio dado
   Historial_<usuario>.xlsx   cada cambio: quién, cuándo, campo, valor anterior y nuevo
 
 Un fichero por persona evita que dos comerciales que guardan a la vez se pisen. Nada se
@@ -31,10 +32,9 @@ COLUMNAS = [
     'MOTIVO', 'TEMAS', 'DESCRIPCION', 'RESULTADO', 'PROXIMA_ACCION', 'FECHA_SEGUIMIENTO', 'SEGUIMIENTO_HECHO',
     'CONTACTO', 'PRODUCTOS', 'NECESIDADES', 'OFERTA', 'IMPORTE', 'MARCA', 'MODELO', 'ESTADO_OPERACION',
     'OBSERVACIONES', 'ESTADO', 'CREADO_POR', 'CREADO_EN', 'MODIFICADO_POR', 'MODIFICADO_EN',
-    # Registro de entrada/salida con ubicación (lo pone el servidor): "lat,lon,precisión_m" o el
-    # motivo por el que no hay ubicación, y la distancia aproximada al código postal del cliente.
-    'UBI_INICIO', 'UBI_FIN', 'DIST_INICIO_KM', 'DIST_FIN_KM',
 ]
+# Para un precio dado (TIPO = PRECIO): PRODUCTOS = referencia, DESCRIPCION = artículo,
+# IMPORTE = precio por unidad dado al cliente, OBSERVACIONES = nota.
 COLUMNAS_HISTORIAL = ['FECHA_CAMBIO', 'USUARIO', 'ID', 'ACCION', 'CAMPO', 'VALOR_ANTERIOR', 'VALOR_NUEVO']
 
 # Campos que puede rellenar el usuario (el resto los pone el servidor).
@@ -45,8 +45,9 @@ EDITABLES = [
     'OBSERVACIONES',
 ]
 
-TIPOS = ['VISITA', 'LLAMADA', 'HITO']
-EN_CURSO, REGISTRADA, ANULADA = 'EN CURSO', 'REGISTRADA', 'ANULADA'
+TIPOS = ['VISITA', 'LLAMADA', 'PRECIO']
+# Una visita se puede ir guardando: queda SIN TERMINAR hasta que tiene hora de entrada y de salida.
+SIN_TERMINAR, REGISTRADA, ANULADA = 'SIN TERMINAR', 'REGISTRADA', 'ANULADA'
 
 _locks = {clave: threading.Lock() for clave in USUARIOS}
 _cache = {}  # nombre fichero -> (modifiedTime, DataFrame)
@@ -114,7 +115,7 @@ def listar(claves, desde='', hasta='', incluir_anuladas=False):
     for r in todos:
         if not incluir_anuladas and r['ESTADO'] == ANULADA:
             continue
-        if desde and r['FECHA'] < desde and r['ESTADO'] != EN_CURSO:
+        if desde and r['FECHA'] < desde and r['ESTADO'] != SIN_TERMINAR:
             continue
         if hasta and r['FECHA'] > hasta:
             continue
@@ -146,7 +147,7 @@ def _minutos(hora):
     return None
 
 
-def validar(datos, en_curso=False):
+def validar(datos):
     """Normaliza y comprueba un registro. Devuelve (datos, errores)."""
     d = {k: str(datos.get(k, '') if datos.get(k) is not None else '').strip() for k in EDITABLES}
     errores = []
@@ -169,19 +170,19 @@ def validar(datos, en_curso=False):
         errores.append('Hora de inicio no válida.')
     if d['HORA_FIN'] and fin is None:
         errores.append('Hora de finalización no válida.')
-    if d['TIPO'] == 'VISITA' and not en_curso and (ini is None or fin is None):
-        errores.append('Una visita necesita hora de inicio y de finalización.')
     if ini is not None and fin is not None and fin <= ini:
         errores.append('La hora de finalización debe ser posterior a la de inicio (no se admiten duraciones negativas ni nulas).')
     d['HORA_INICIO'] = d['HORA_INICIO'][:5] if ini is not None else ''
     d['HORA_FIN'] = d['HORA_FIN'][:5] if fin is not None else ''
     d['DURACION_MIN'] = str(fin - ini) if ini is not None and fin is not None and fin > ini else ''
+    if d['TIPO'] == 'PRECIO' and not d['IMPORTE']:
+        errores.append('Indica el precio.')
     if d['IMPORTE']:
         try:
             d['IMPORTE'] = f"{float(d['IMPORTE'].replace('.', '').replace(',', '.') if ',' in d['IMPORTE'] else d['IMPORTE']):.2f}"
         except ValueError:
             errores.append('Importe no válido.')
-    if d['FECHA'] and d['FECHA'] > ahora().strftime('%Y-%m-%d') and d['TIPO'] != 'HITO':
+    if d['FECHA'] and d['FECHA'] > ahora().strftime('%Y-%m-%d'):
         errores.append('No se puede registrar actividad realizada en una fecha futura.')
     return d, errores
 

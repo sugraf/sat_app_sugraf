@@ -7,8 +7,12 @@ los datos reales con los permisos de quien pregunta (un comercial nunca recibe c
 márgenes ni la actividad de otros comerciales):
 
   buscar_clientes, ficha_cliente (preparación de visita completa), compras_cliente,
-  buscar_articulos (precios), actividad, clientes_a_recuperar, oportunidades_sat,
-  pedidos_pendientes, clientes_cerca y, solo Master, resumen_semana.
+  buscar_articulos (precios), precios_dados, actividad, control_visitas, resumen_visitas,
+  clientes_a_recuperar, oportunidades_sat, pedidos_pendientes y clientes_cerca.
+
+Además recibe en cada pregunta lo que el usuario tiene abierto en la app (pantalla, cliente,
+visita que está rellenando, búsqueda de precios, filtros...), para entender «este cliente»,
+«esta visita» o «este artículo» sin que haya que explicárselo.
 """
 import json
 import logging
@@ -30,13 +34,16 @@ MAX_SALIDA = 24000
 
 PROMPT = """Eres el asistente comercial de Sugraf, distribuidor de maquinaria de impresión digital, consumibles de artes gráficas (tintas offset, planchas, vinilos, lonas, DTF, gran formato...), láser y servicio técnico, en Aragón, Navarra, La Rioja y alrededores. Te usan los comerciales desde el móvil (a menudo justo antes o durante una visita) y Master (dirección).
 
+La app tiene: «Hoy» (registrar visitas con hora de entrada y salida escritas a mano; se pueden ir guardando y se cierran cuando están completas: cliente, horas, temas, qué se habló y resultado; también llamadas), «Clientes» (control de visitas: clientes a los que toca ir y clientes visitados de más según su frecuencia; clientes a recuperar; ficha con «Preparar visita»), «Precios» (precio al que se le cobra cada referencia a un cliente y apuntar el precio dado), «Agenda» (visitas por día/semana/mes y resumen de visitas diarias y tiempos) y «Ruta» (clientes cercanos para planificar el día).
+Cada pregunta trae PANTALLA: lo que el usuario está viendo ahora mismo. Úsalo: «este cliente», «esta visita», «este artículo» se refieren a lo que hay en pantalla. Si está rellenando una visita, puedes ayudarle a redactar «qué se ha hablado», recordarle lo que falta para cerrarla o decirle qué preguntar.
+
 Cómo trabajar:
 - Usa SIEMPRE las herramientas para cualquier dato de clientes, compras, precios, actividad, máquinas, pedidos, avisos del SAT u oportunidades. No inventes nada: si un dato no está, dilo.
 - Si te nombran un cliente, búscalo con buscar_clientes; si hay varios parecidos, pregunta cuál. Si el usuario está viendo la ficha de un cliente (CONTEXTO), entiende que habla de ese.
 - Para preparar una visita usa ficha_cliente: resume en pocas líneas lo importante (último contacto y lo que quedó pendiente, avisos del SAT abiertos, pedidos pendientes, productos que está dejando de comprar, sugerencias con su motivo, máquinas a renovar) y termina con 2-3 temas concretos para sacar en la visita.
 - Precios: distingue precio de tarifa, precio especial vigente y precio histórico facturado. Nunca nombres la tarifa (1, 2, 3) delante del cliente salvo que el usuario lo pida expresamente. Costes y márgenes solo si las herramientas los devuelven (solo Master); son estimaciones con el último coste de compra, no margen neto.
 - «Dejando de comprar», «dormido» y las sugerencias son estimaciones a partir del histórico de ventas cargado (año actual y dos anteriores): preséntalas como indicios, con su motivo, no como hechos.
-- La ubicación registrada en las visitas es información sensible: solo coméntala si quien pregunta es Master y la pide.
+- Frecuencia de visita: la fija Master o se propone según lo que compra el cliente; «toca visitar» y «visitado de más» salen de control_visitas.
 - Responde en español, breve y directo, pensado para leer en el móvil: frases cortas, listas cuando ayuden, cifras con € y fechas dd/mm/aaaa. Nada de rodeos.
 """
 
@@ -62,10 +69,21 @@ def _herramientas(s):
          'parameters': {'type': 'object', 'required': ['texto'], 'properties': {
              'texto': {'type': 'string'}, 'cliente': {'type': 'string', 'description': 'Código de cliente (opcional)'}}}},
         {'type': 'function', 'name': 'actividad', 'strict': False,
-         'description': 'Visitas, llamadas e hitos registrados en la app entre dos fechas (por defecto los últimos 30 días).',
+         'description': 'Visitas, llamadas y precios dados registrados en la app entre dos fechas (por defecto los últimos 30 días).',
          'parameters': {'type': 'object', 'properties': {
              'desde': {'type': 'string'}, 'hasta': {'type': 'string'}, 'cliente': {'type': 'string', 'description': 'Código de cliente'},
-             'comercial': {'type': 'string', 'description': 'Solo Master'}, 'tipo': {'type': 'string', 'enum': ['VISITA', 'LLAMADA', 'HITO']}}}},
+             'comercial': {'type': 'string', 'description': 'Solo Master'}, 'tipo': {'type': 'string', 'enum': ['VISITA', 'LLAMADA', 'PRECIO']}}}},
+        {'type': 'function', 'name': 'control_visitas', 'strict': False,
+         'description': 'Clientes de la cartera con su frecuencia de visita, última visita y estado: toca visitar, pronto, visitado de más o al día.',
+         'parameters': {'type': 'object', 'properties': {'comercial': {'type': 'string', 'description': 'Solo Master'},
+                                                         'estado': {'type': 'string', 'enum': ['toca', 'pronto', 'demasiado', 'ok']}}}},
+        {'type': 'function', 'name': 'resumen_visitas', 'strict': False,
+         'description': 'Visitas diarias y tiempos por comercial entre dos fechas: nº de visitas, tiempo total y medio, primera entrada y última salida.',
+         'parameters': {'type': 'object', 'required': ['desde', 'hasta'], 'properties': {
+             'desde': {'type': 'string'}, 'hasta': {'type': 'string'}, 'comercial': {'type': 'string', 'description': 'Solo Master'}}}},
+        {'type': 'function', 'name': 'precios_dados', 'strict': False,
+         'description': 'Precios que los comerciales han dado a clientes (apuntados en la app), opcionalmente de un cliente.',
+         'parameters': {'type': 'object', 'properties': {'cliente': {'type': 'string', 'description': 'Código de cliente'}}}},
         {'type': 'function', 'name': 'clientes_a_recuperar', 'strict': False,
          'description': 'Clientes dormidos o en riesgo (dejan de comprar respecto a su ritmo habitual) de la cartera.',
          'parameters': {'type': 'object', 'properties': {'comercial': {'type': 'string', 'description': 'Solo Master'}}}},
@@ -81,10 +99,6 @@ def _herramientas(s):
              'cliente': {'type': 'string', 'description': 'Código del cliente de referencia'},
              'poblacion': {'type': 'string'}, 'radio_km': {'type': 'number'}}}},
     ]
-    if s.rol == 'master':
-        h.append({'type': 'function', 'name': 'resumen_semana', 'strict': False,
-                  'description': 'Resumen de una semana: actividad por comercial, hitos, oportunidades del SAT y clientes recuperados.',
-                  'parameters': {'type': 'object', 'properties': {'fecha': {'type': 'string', 'description': 'Cualquier día de la semana, AAAA-MM-DD'}}}})
     return h
 
 
@@ -129,7 +143,7 @@ def _ejecutar(s, nombre, args):
         P['pedidos'] = [{k: x[k] for k in ('pedido', 'fecha', 'descripcion', 'cantidad', 'importe', 'entrega')} for x in P['pedidos'][:15]]
         P['seguimientos'] = [{k: r[k] for k in ('FECHA', 'PROXIMA_ACCION', 'FECHA_SEGUIMIENTO')} for r in P['seguimientos']]
         if P['ultimo_contacto']:
-            P['ultimo_contacto'] = {k: v for k, v in P['ultimo_contacto'].items() if v and not k.startswith(('UBI', 'DIST', 'CREADO', 'MODIF'))}
+            P['ultimo_contacto'] = {k: v for k, v in P['ultimo_contacto'].items() if v and not k.startswith(('CREADO', 'MODIF'))}
         return f
     if nombre == 'compras_cliente':
         c = _cliente_valido(args.get('codigo'))
@@ -160,8 +174,6 @@ def _ejecutar(s, nombre, args):
         campos = ['ID', 'TIPO', 'SUBTIPO', 'COMERCIAL', 'CLIENTE', 'FECHA', 'HORA_INICIO', 'HORA_FIN', 'DURACION_MIN', 'TEMAS',
                   'DESCRIPCION', 'RESULTADO', 'PROXIMA_ACCION', 'FECHA_SEGUIMIENTO', 'SEGUIMIENTO_HECHO', 'IMPORTE', 'MARCA',
                   'MODELO', 'ESTADO_OPERACION', 'ESTADO', 'REGISTRO']
-        if s.rol == 'master':
-            campos += ['UBI_INICIO', 'DIST_INICIO_KM', 'UBI_FIN', 'DIST_FIN_KM']
         return {'total': len(r), 'registros': [{k: x[k] for k in campos if x.get(k)} for x in r[-100:]]}
     if nombre == 'clientes_a_recuperar':
         lista = api.clientes_a_recuperar(s, args.get('comercial', '') if s.puede('ver_todos') else '')
@@ -193,8 +205,16 @@ def _ejecutar(s, nombre, args):
         lista = api.candidatos_ruta(s, origen, float(args.get('radio_km') or 25))
         return {'total': len(lista), 'clientes': [{k: x[k] for k in ('codigo', 'nombre', 'poblacion', 'km', 'motivos', 'compras_12m')}
                                                  for x in lista[:25]]}
-    if nombre == 'resumen_semana' and s.rol == 'master':
-        return api.resumen_semana(args.get('fecha') or actividad.ahora().strftime('%Y-%m-%d'))
+    if nombre == 'control_visitas':
+        lista = api.control_visitas(s, args.get('comercial', '') if s.puede('ver_todos') else '')
+        if args.get('estado'):
+            lista = [x for x in lista if x['estado'] == args['estado']]
+        return {'total': len(lista), 'clientes': lista[:60]}
+    if nombre == 'resumen_visitas':
+        return api.resumen(s, args.get('desde', ''), args.get('hasta', ''), args.get('comercial', '') if s.puede('ver_todos') else '')
+    if nombre == 'precios_dados':
+        p = api.precios_dados(s, str(args.get('cliente', '') or ''))
+        return {'total': len(p), 'precios': [{k: r[k] for k in ('FECHA', 'COMERCIAL', 'CLIENTE', 'PRODUCTOS', 'DESCRIPCION', 'IMPORTE', 'OBSERVACIONES') if r.get(k)} for r in p[:60]]}
     return {'error': f'Herramienta desconocida: {nombre}'}
 
 
@@ -238,7 +258,12 @@ def responder(s, mensaje, historial, contexto, cliente=None):
     if contexto.get('cliente'):
         c = pirineos.clientes().get(str(contexto['cliente']))
         if c:
-            ctx.append(f"Está viendo la ficha del cliente {c['nombre']} (código {c['codigo']}, {c['poblacion']}).")
+            ctx.append(f"Cliente abierto: {c['nombre']} (código {c['codigo']}, {c['poblacion']}).")
+    # Todo lo demás que la pantalla cuenta de sí misma (visita a medio rellenar, búsqueda de precios,
+    # resultados, filtros, fecha de la agenda...), resumido.
+    detalle = {k: v for k, v in contexto.items() if k not in ('vista', 'cliente') and v not in (None, '', [], {})}
+    if detalle:
+        ctx.append('PANTALLA: ' + json.dumps(detalle, ensure_ascii=False, default=str)[:6000])
     entrada = [{'role': 'assistant' if m.get('rol') == 'assistant' else 'user', 'content': str(m.get('texto', ''))[:1500]}
                for m in historial[-MAX_HISTORIAL:]]
     entrada.append({'role': 'user', 'content': 'CONTEXTO:\n' + '\n'.join(ctx) + '\n\nPREGUNTA:\n' + mensaje.strip()})
