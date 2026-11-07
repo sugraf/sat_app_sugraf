@@ -5,7 +5,13 @@
   MovimientosVenta*.xlsx. Se buscan por nombre entre lo que la cuenta de servicio de la
   app puede ver (primero dentro de la carpeta Pirineos).
 - Datos propios del módulo (lectura y escritura): carpeta "Comerciales" dentro de la
-  carpeta SAT-App de Drive (la misma que usa el SAT). Si no existe, se crea sola.
+  carpeta SAT-App de Drive (la misma que usa el SAT).
+
+IMPORTANTE: la cuenta de servicio de la app no tiene espacio propio en Drive, así que NO
+puede crear ficheros nuevos en «Mi unidad», solo modificar los que ya existen. Por eso los
+ficheros de la carpeta Comerciales (Actividad_<usuario>.xlsx, Historial_<usuario>.xlsx,
+Oportunidades_SAT.json, geo_codigos_postales.json) se crean a mano una vez (por una persona)
+y la app solo los actualiza. Si se añade un usuario nuevo, hay que crear sus dos Excel.
 
 Para pruebas en local se puede definir COMERCIAL_LOCAL_DIR: entonces todo se lee y se
 escribe en esa carpeta del disco (Pirineos dentro de <dir>/Pirineos y los datos propios
@@ -124,22 +130,24 @@ def descargar(meta):
 
 # ---------------------------------------------------------------- datos propios
 def _carpeta_comercial(drive):
+    """Id de la carpeta SAT-App/Comerciales. Si hay varias con ese nombre, la que tiene
+    ficheros (y entre ellas la más antigua), para que siempre sea la misma."""
     with _lock:
         if _ids.get('comercial'):
             return _ids['comercial']
-        r = drive.files().list(
+        carpetas = drive.files().list(
             q=f"'{SAT_FOLDER_ID}' in parents and name = '{NOMBRE_CARPETA_COMERCIAL}' and mimeType = '{MIME_CARPETA}' and trashed = false",
-            fields='files(id)', supportsAllDrives=True, includeItemsFromAllDrives=True,
+            fields='files(id, createdTime)', orderBy='createdTime', supportsAllDrives=True, includeItemsFromAllDrives=True,
         ).execute().get('files', [])
-        if r:
-            _ids['comercial'] = r[0]['id']
-        else:
-            creada = drive.files().create(
-                body={'name': NOMBRE_CARPETA_COMERCIAL, 'mimeType': MIME_CARPETA, 'parents': [SAT_FOLDER_ID]},
-                fields='id', supportsAllDrives=True,
-            ).execute()
-            _ids['comercial'] = creada['id']
-        return _ids['comercial']
+        if not carpetas:
+            raise RuntimeError("No existe la carpeta SAT-App/Comerciales en Drive. Créala (con sus ficheros) desde tu cuenta.")
+        for c in carpetas:
+            hay = drive.files().list(q=f"'{c['id']}' in parents and trashed = false", fields='files(id)', pageSize=1,
+                                     supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
+            if hay:
+                _ids['comercial'] = c['id']
+                return c['id']
+        return carpetas[0]['id']  # todas vacías: no se guarda, para volver a mirar en la próxima llamada
 
 
 def buscar_propio(nombre):
@@ -177,9 +185,17 @@ def guardar_propio(nombre, contenido, meta=None, mimetype=MIME_XLSX):
     if meta and not meta.get('local'):
         drive.files().update(fileId=meta['id'], media_body=media, supportsAllDrives=True).execute()
     else:
-        drive.files().create(
-            body={'name': nombre, 'parents': [_carpeta_comercial(drive)]}, media_body=media, supportsAllDrives=True,
-        ).execute()
+        try:
+            drive.files().create(
+                body={'name': nombre, 'parents': [_carpeta_comercial(drive)]}, media_body=media, supportsAllDrives=True,
+            ).execute()
+        except Exception as e:
+            if 'storageQuotaExceeded' in str(e) or 'storage quota' in str(e).lower():
+                raise RuntimeError(
+                    f"Falta el fichero '{nombre}' en la carpeta SAT-App/Comerciales de Drive y la app no puede crearlo "
+                    "(la cuenta de la app no tiene espacio propio en Drive). Hay que crearlo una vez desde la cuenta de Sugraf."
+                ) from e
+            raise
 
 
 # ---------------------------------------------------------------- ficheros del SAT (solo lectura)
