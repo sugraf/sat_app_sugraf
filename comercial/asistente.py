@@ -242,50 +242,130 @@ def _cliente_openai():
         return OpenAI(api_key=obtener('OPENAI_API_KEY')), MODELO_POR_DEFECTO
 
 
-def responder(s, mensaje, historial, contexto, cliente=None):
-    """Conversa con el modelo ejecutando aquí las herramientas. `cliente` permite pruebas."""
-    if not (mensaje or '').strip():
-        raise HTTPException(status_code=400, detail='Escribe una pregunta.')
-    inicio = time.time()
-    if cliente is None:
-        cliente, modelo = _cliente_openai()
-    else:
-        modelo = MODELO_POR_DEFECTO
-    ctx = [f"Usuario: {s.nombre} (rol {s.rol}{'; puede ver costes y márgenes' if s.puede('ver_costes') else '; NO ve costes ni márgenes'}"
-           f"{'; ve la actividad de todos' if s.puede('ver_todos') else '; solo ve su propia actividad'}).",
-           f"Hoy es {actividad.ahora().strftime('%A %d/%m/%Y %H:%M')}.",
-           f"Pantalla: {contexto.get('vista', 'inicio')}."]
+BUSQUEDA_WEB = {'type': 'web_search', 'search_context_size': 'medium',
+                'user_location': {'type': 'approximate', 'country': 'ES', 'timezone': 'Europe/Madrid'}}
+MAX_ACCIONES = 30
+MAX_FUENTES = 8
+
+PROMPT_CONTROL = """
+MODO CONTROL: si en «Herramientas activadas» aparece «control de la app», además de consultar datos puedes USAR la app por el usuario con las funciones de pantalla (ir_a, abrir_ficha_cliente, nueva_visita, rellenar_visita, guardar_visita, cerrar_visita, buscar_precios...). Se ejecutan en su móvil, a la vista, y te llega el resultado y cómo queda la pantalla.
+- Hazlo cuando te pidan hacer algo en la app («ábreme la ficha de X», «apunta una visita a X de 10:00 a 11:00...», «busca el precio de...»). Para consultas basta con las herramientas de datos.
+- Antes de rellenar una visita, abre el formulario (nueva_visita o abrir_visita). Usa los códigos de cliente reales (buscar_clientes).
+- Puedes guardar una visita sin terminar. Para cerrarla deben estar todos los campos importantes; si falta algo que no sabes (qué se habló, resultado...), no lo inventes: guarda y pregunta.
+- Nunca anules registros ni cambies frecuencias si el usuario no lo ha pedido expresamente.
+Si el control NO está activado y te piden hacer algo en la app, explica cómo hacerlo y recuerda que pueden activar el interruptor bajo el robot para que lo hagas tú.
+Búsqueda en internet: solo si está activada; cita lo que saques de internet."""
+
+
+def _t(valor, maximo=300):
+    texto = ' '.join(str(valor or '').split())
+    return texto if len(texto) <= maximo else texto[:maximo] + '…'
+
+
+def _leer(respuesta):
+    """(texto, llamadas a funciones, fuentes web)."""
+    llamadas, fuentes = [], {}
+    for item in respuesta.output or []:
+        tipo = getattr(item, 'type', '')
+        if tipo == 'function_call':
+            try:
+                args = json.loads(item.arguments or '{}')
+            except Exception:
+                args = {}
+            llamadas.append({'call_id': item.call_id, 'nombre': item.name, 'args': args if isinstance(args, dict) else {}})
+        elif tipo == 'message':
+            for parte in getattr(item, 'content', None) or []:
+                for ann in getattr(parte, 'annotations', None) or []:
+                    url = getattr(ann, 'url', '')
+                    if getattr(ann, 'type', '') == 'url_citation' and url and url not in fuentes:
+                        fuentes[url] = getattr(ann, 'title', '') or url
+    texto = (getattr(respuesta, 'output_text', '') or '').strip()
+    return texto, llamadas, [{'titulo': t, 'url': u} for u, t in list(fuentes.items())[:MAX_FUENTES]]
+
+
+def _contexto(s, contexto):
+    ctx = [f"Pantalla: {contexto.get('vista', 'inicio')}."]
     if contexto.get('cliente'):
         c = pirineos.clientes().get(str(contexto['cliente']))
         if c:
             ctx.append(f"Cliente abierto: {c['nombre']} (código {c['codigo']}, {c['poblacion']}).")
     # Todo lo demás que la pantalla cuenta de sí misma (visita a medio rellenar, búsqueda de precios,
     # resultados, filtros, fecha de la agenda...), resumido.
-    detalle = {k: v for k, v in contexto.items() if k not in ('vista', 'cliente') and v not in (None, '', [], {})}
+    detalle = {k: v for k, v in contexto.items() if k not in ('vista', 'cliente', 'etiqueta') and v not in (None, '', [], {})}
     if detalle:
         ctx.append('PANTALLA: ' + json.dumps(detalle, ensure_ascii=False, default=str)[:6000])
-    entrada = [{'role': 'assistant' if m.get('rol') == 'assistant' else 'user', 'content': str(m.get('texto', ''))[:1500]}
-               for m in historial[-MAX_HISTORIAL:]]
-    entrada.append({'role': 'user', 'content': 'CONTEXTO:\n' + '\n'.join(ctx) + '\n\nPREGUNTA:\n' + mensaje.strip()})
-    parametros = dict(model=modelo, instructions=PROMPT, input=entrada, tools=_herramientas(s),
+    return '\n'.join(ctx)
+
+
+def responder(s, mensaje, historial, contexto, cliente=None, web=False, control=False, acciones=None,
+              continuar='', resultados=None):
+    """Conversa con el modelo. Las herramientas de datos se ejecutan aquí; las acciones de pantalla
+    (modo control) se devuelven al navegador, que las ejecuta y vuelve con `continuar` y sus resultados.
+    `cliente` permite pruebas."""
+    continuando = bool(continuar)
+    if not continuando and not (mensaje or '').strip():
+        raise HTTPException(status_code=400, detail='Escribe una pregunta.')
+    inicio = time.time()
+    if cliente is None:
+        cliente, modelo = _cliente_openai()
+    else:
+        modelo = MODELO_POR_DEFECTO
+    tools = _herramientas(s)
+    nombres_servidor = {h['name'] for h in tools}
+    if web:
+        tools.append(dict(BUSQUEDA_WEB))
+    if control:
+        import re
+        for a in (acciones or [])[:MAX_ACCIONES]:
+            nombre = str(a.get('nombre', ''))
+            if not re.fullmatch(r'[A-Za-z0-9_]{1,64}', nombre) or nombre in nombres_servidor:
+                continue
+            tools.append({'type': 'function', 'name': nombre, 'strict': False, 'description': _t(a.get('descripcion'), 600),
+                          'parameters': a.get('parametros') or {'type': 'object', 'properties': {}}})
+
+    if continuando:
+        entrada = [{'type': 'function_call_output', 'call_id': str(r.get('call_id', '')), 'output': _t(r.get('salida'), 6000)}
+                   for r in (resultados or [])]
+        if entrada:
+            entrada[-1]['output'] += '\n\nPANTALLA AHORA:\n' + _contexto(s, contexto)
+    else:
+        modos = [m for m, activo in (('búsqueda en internet', web), ('control de la app', control)) if activo]
+        ctx = (f"Usuario: {s.nombre} (rol {s.rol}{'; puede ver costes y márgenes' if s.puede('ver_costes') else '; NO ve costes ni márgenes'}"
+               f"{'; ve la actividad de todos' if s.puede('ver_todos') else '; solo ve su propia actividad'}).\n"
+               f"Hoy es {actividad.ahora().strftime('%A %d/%m/%Y %H:%M')}.\n"
+               f"Herramientas activadas: {', '.join(modos) or 'ninguna'}.\n" + _contexto(s, contexto))
+        entrada = [{'role': 'assistant' if m.get('rol') == 'assistant' else 'user', 'content': str(m.get('texto', ''))[:1500]}
+                   for m in historial[-MAX_HISTORIAL:]]
+        entrada.append({'role': 'user', 'content': 'CONTEXTO:\n' + ctx + '\n\nPREGUNTA:\n' + mensaje.strip()})
+    parametros = dict(model=modelo, instructions=PROMPT + PROMPT_CONTROL, input=entrada, tools=tools,
                       max_output_tokens=MAX_TOKENS, reasoning={'effort': 'low'})
-    usadas, texto = [], ''
+    if continuando:
+        parametros['previous_response_id'] = continuar
+
+    usadas, texto, fuentes, de_pantalla, resultados_servidor = [], '', [], [], []
     for vuelta in range(MAX_VUELTAS):
         respuesta = cliente.responses.create(**parametros)
-        llamadas = [o for o in (respuesta.output or []) if getattr(o, 'type', '') == 'function_call']
-        texto = (getattr(respuesta, 'output_text', '') or '').strip()
-        if not llamadas:
+        texto, llamadas, f = _leer(respuesta)
+        fuentes += [x for x in f if x not in fuentes]
+        en_servidor = [c for c in llamadas if c['nombre'] in nombres_servidor]
+        de_pantalla = [c for c in llamadas if c['nombre'] not in nombres_servidor]
+        if not en_servidor:
             break
         salidas = []
-        for ll in llamadas:
-            try:
-                args = json.loads(ll.arguments or '{}')
-            except Exception:
-                args = {}
-            usadas.append(ll.name)
-            salidas.append({'type': 'function_call_output', 'call_id': ll.call_id, 'output': _salida(s, ll.name, args)})
-        parametros.update(previous_response_id=respuesta.id, input=salidas)
+        for c in en_servidor:
+            usadas.append(c['nombre'])
+            salidas.append({'type': 'function_call_output', 'call_id': c['call_id'], 'output': _salida(s, c['nombre'], c['args'])})
+        if de_pantalla:
+            # También hay acciones para el navegador: estas salidas vuelven junto con las suyas.
+            resultados_servidor = [{'call_id': x['call_id'], 'salida': x['output']} for x in salidas]
+            break
         if vuelta == MAX_VUELTAS - 1:
             texto = texto or 'He necesitado demasiadas consultas. Prueba a concretar más la pregunta.'
-    logger.info('asistente %s | %.1fs | herramientas=%s', s.clave, time.time() - inicio, usadas)
-    return {'respuesta': texto or 'No he podido generar una respuesta. Prueba a reformular la pregunta.', 'herramientas': usadas}
+            break
+        parametros.update(previous_response_id=respuesta.id, input=salidas)
+    logger.info('asistente %s | %.1fs | herramientas=%s | pantalla=%s', s.clave, time.time() - inicio, usadas,
+                [c['nombre'] for c in de_pantalla])
+    if not texto and not de_pantalla:
+        texto = 'No he podido generar una respuesta. Prueba a reformular la pregunta.'
+    return {'respuesta': texto, 'acciones': de_pantalla, 'respuesta_id': respuesta.id,
+            'resultados_servidor': resultados_servidor, 'fuentes': fuentes[:MAX_FUENTES], 'herramientas': usadas}

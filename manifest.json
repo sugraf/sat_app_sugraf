@@ -1,7 +1,7 @@
 {
-  "name": "Sugraf SAT App",
+  "name": "Sugraf SAT",
   "short_name": "Sugraf SAT",
-  "start_url": "/",
+  "start_url": "/sat",
   "display": "standalone",
   "background_color": "#070e1c",
   "theme_color": "#ffffff",

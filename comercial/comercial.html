@@ -40,7 +40,7 @@
     .topbar img{ height:28px; display:block; }
     .topbar-right{ color:var(--ink); font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
     .salir{ background:none; border:1px solid var(--line); color:var(--muted); font-family:inherit; font-size:0.72rem; font-weight:700; padding:6px 10px; border-radius:9px; cursor:pointer; }
-    body.sin-sesion .nav, body.sin-sesion .fab-ia, body.sin-sesion .topbar-right{ display:none !important; }
+    body.sin-sesion .nav, body.sin-sesion .topbar-right{ display:none !important; }
     .login{ min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center; padding:20px; }
     .login-caja{ width:100%; max-width:380px; background:rgba(9,20,38,0.78); border:1px solid var(--line); border-radius:20px; padding:30px 26px; box-shadow:0 24px 60px rgba(0,0,0,.45); }
     .login-caja h2{ text-align:center; margin-bottom:4px; }
@@ -65,6 +65,7 @@
     .stat{ background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:12px; padding:10px 6px; text-align:center; }
     .stat b{ display:block; font-size:1.15rem; color:#fff; } .stat span{ font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
     @media (max-width:420px){ .stats{ grid-template-columns:repeat(2, 1fr); } }
+    .stats.dos{ grid-template-columns:repeat(2, 1fr) !important; }
 
     /* botones */
     .btn{ border:none; padding:13px 16px; border-radius:12px; font-size:0.9rem; font-weight:700; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; }
@@ -154,14 +155,6 @@
     .card.borde-verde{ border-left:3px solid var(--accent); } .card.borde-ambar{ border-left:3px solid var(--amber); }
     .filtros-chips{ display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px; }
     .discreto{ display:block; text-align:center; color:#5c7291; font-size:0.72rem; margin:26px 0 6px; background:none; border:none; font-family:inherit; cursor:pointer; width:100%; }
-    .fab-ia{ position:fixed; right:16px; bottom:calc(86px + env(safe-area-inset-bottom)); z-index:160; width:50px; height:50px; border-radius:50%;
-      border:1px solid rgba(143,196,236,.5); background:var(--navy-light); color:var(--accent); font-size:1.3rem; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.4); }
-    .chat{ display:flex; flex-direction:column; gap:10px; padding:10px 0; }
-    .burbuja{ max-width:88%; padding:10px 13px; border-radius:14px; font-size:0.88rem; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
-    .burbuja.yo{ align-self:flex-end; background:var(--green); color:#fff; border-bottom-right-radius:4px; }
-    .burbuja.ia{ align-self:flex-start; background:var(--navy-light); border:1px solid var(--line); border-bottom-left-radius:4px; }
-    .burbuja.ia.pensando{ color:var(--muted); font-style:italic; }
-    .chat-pie{ display:flex; gap:8px; } .chat-pie textarea{ min-height:46px; height:46px; }
     .tabla{ width:100%; border-collapse:collapse; font-size:0.78rem; }
     .tabla th{ text-align:left; color:var(--muted); font-size:0.62rem; text-transform:uppercase; letter-spacing:.05em; padding:6px 4px; border-bottom:1px solid var(--line); }
     .tabla td{ padding:8px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -221,7 +214,7 @@
     <div id="hoy-control"></div>
     <div id="hoy-recuperar"></div>
     <h3>Resumen del día</h3>
-    <div class="stats" id="hoy-stats"></div>
+    <div class="stats dos" id="hoy-stats"></div>
     <h3>Actividad de hoy</h3>
     <div id="hoy-lista"></div>
     <h3>Seguimientos pendientes</h3>
@@ -336,15 +329,6 @@
     <div class="sheet-pie" id="f-pie"></div>
   </div>
 
-  <!-- ============ HOJA: ASISTENTE ============ -->
-  <button class="fab-ia" onclick="abrirAsistente()" aria-label="Asistente">&#10024;</button>
-  <div class="sheet" id="sh-ia">
-    <div class="sheet-cab"><b>Asistente comercial</b><div class="row" style="gap:8px;"><button class="btn btn-ghost btn-sm" onclick="borrarChat()">Nueva</button><button class="x" onclick="cerrarHoja('sh-ia')">&times;</button></div></div>
-    <div class="sheet-cuerpo"><div class="interior"><div class="chat" id="chat"></div></div></div>
-    <div class="sheet-pie chat-pie"><textarea id="chat-txt" placeholder="Pregunta lo que necesites..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); enviarChat();}"></textarea>
-      <button class="btn btn-primary" style="flex:0 0 auto;" onclick="enviarChat()">Enviar</button></div>
-  </div>
-
   <!-- ============ HOJA: DETALLE ACTIVIDAD ============ -->
   <div class="sheet" id="sh-detalle">
     <div class="sheet-cab"><b id="d-titulo">Actividad</b><button class="x" onclick="cerrarHoja('sh-detalle')">&times;</button></div>
@@ -375,7 +359,7 @@ async function entrar() {
 }
 function salir() {
   escribir(TOKEN_KEY, null); escribir(NOMBRE_KEY, null);
-  try { sessionStorage.removeItem('sugraf_com_chat'); } catch (e) {}
+  try { sessionStorage.removeItem('sugraf_com_bot_conversacion'); } catch (e) {}
   location.hash = ''; location.reload();
 }
 function mostrarLogin() {
@@ -455,8 +439,8 @@ function mostrarVista() {
 window.addEventListener('hashchange', mostrarVista);
 
 // Cada hoja que se abre queda encima de las que ya estaban abiertas (p. ej. el buscador de clientes sobre el formulario).
-function abrirHoja(id){ const el = document.getElementById(id); el.style.zIndex = 300 + document.querySelectorAll('.sheet.show').length * 10; el.classList.add('show'); document.body.style.overflow = 'hidden'; }
-function cerrarHoja(id){ document.getElementById(id).classList.remove('show'); if(!document.querySelector('.sheet.show')) document.body.style.overflow = ''; }
+function abrirHoja(id){ const el = document.getElementById(id); el.style.zIndex = 300 + document.querySelectorAll('.sheet.show').length * 10; el.classList.add('show'); document.body.style.overflow = 'hidden'; document.body.classList.add('hoja-abierta'); }
+function cerrarHoja(id){ document.getElementById(id).classList.remove('show'); if(!document.querySelector('.sheet.show')) { document.body.style.overflow = ''; document.body.classList.remove('hoja-abierta'); } }
 
 function menuNuevo() { nuevaActividad('VISITA'); }
 
@@ -593,6 +577,7 @@ function pickOtro() {
 let FICHA = null;
 async function cargarFicha(codigo) {
   const cont = document.getElementById('ficha');
+  FICHA = null;
   cont.innerHTML = '<div class="empty">Cargando ficha (la primera vez puede tardar unos segundos)...</div>';
   try { FICHA = await api('/clientes/' + encodeURIComponent(codigo)); }
   catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
@@ -705,7 +690,7 @@ function htmlPreparar() {
       <div class="t-small" style="margin-top:4px; color:#bfdbfe;">${esc(x.motivo)}</div></div>`).join('') +
       '<div class="t-small" style="margin:4px 2px 0;">Sugerencias calculadas con las ventas a otros clientes. Toca una para ver su precio.</div>');
   if (P.avisos_maquinas.length) h += seccion('Sus máquinas', plegable(P.avisos_maquinas.map(a => `<div class="card"><span class="badge ${a.tipo === 'garantia' ? 'warn' : ''}">${a.tipo === 'garantia' ? 'Garantía' : 'Renovación'}</span> <span class="t-small" style="color:#fff">${esc(a.texto)}</span></div>`), 4));
-  h += `<button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="abrirAsistente('Prepárame la visita a este cliente: qué temas sacar y qué ofrecerle.')">&#10024; Pedir al asistente un resumen de la visita</button>`;
+  h += `<button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="abrirAsistente('Prepárame la visita a este cliente: qué temas sacar y qué ofrecerle.')">Pedir al asistente un resumen de la visita</button>`;
   return h;
 }
 function buscarEnPrecios(ref) { precioCliente = clienteFicha(); pintarClientePrecios(); document.getElementById('pre-q').value = ref; irA('precios'); buscarPrecios(); }
@@ -805,12 +790,13 @@ function buscarPreciosPronto(){ clearTimeout(temporizadorPrecios); temporizadorP
 async function buscarPrecios() {
   const q = document.getElementById('pre-q').value.trim();
   const cont = document.getElementById('pre-lista');
-  if (!q) { cont.innerHTML = '<div class="empty">Escribe para buscar un artículo.</div>'; return; }
+  if (!q) { ULTIMOS_ARTICULOS = []; cont.innerHTML = '<div class="empty">Escribe para buscar un artículo.</div>'; return; }
   cont.innerHTML = '<div class="empty">Buscando...</div>';
   let d;
   try { d = await api(`/articulos?q=${encodeURIComponent(q)}${precioCliente && precioCliente.codigo ? '&cliente=' + encodeURIComponent(precioCliente.codigo) : ''}`); }
   catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
   if (q !== document.getElementById('pre-q').value.trim()) return;
+  ULTIMOS_ARTICULOS = d.articulos;
   if (!d.articulos.length) { cont.innerHTML = '<div class="empty">No se encuentra ningún artículo.</div>'; return; }
   cont.innerHTML = d.articulos.map(a => {
     let interno = '';
@@ -865,17 +851,14 @@ function itemActividad(r) {
 
 function resumenJornada(regs) {
   const val = regs.filter(r => r.ESTADO === 'REGISTRADA');
-  const v = val.filter(r => r.TIPO === 'VISITA'), l = val.filter(r => r.TIPO === 'LLAMADA');
-  const tv = v.reduce((s, r) => s + (+r.DURACION_MIN || 0), 0);
-  const clientes = new Set(v.map(r => r.COD_CLIENTE || r.CLIENTE)).size;
-  return `<div class="stat"><b>${v.length}</b><span>Visitas</span></div><div class="stat"><b>${clientes}</b><span>Clientes</span></div>
-    <div class="stat"><b>${dur(tv) || '0'}</b><span>En visitas</span></div><div class="stat"><b>${v.length ? dur(Math.round(tv / v.length)) : '—'}</b><span>Media / visita</span></div>
-    <div class="stat"><b>${l.length}</b><span>Llamadas</span></div>`;
+  const v = val.filter(r => r.TIPO === 'VISITA').length, l = val.filter(r => r.TIPO === 'LLAMADA').length;
+  return `<div class="stat"><b>${v}</b><span>Visitas</span></div><div class="stat"><b>${l}</b><span>Llamadas</span></div>`;
 }
 
 // ===================================================================== HOY
 function filtroComercial(id){ const el = document.getElementById(id); return el && YO.permisos.ver_todos ? el.value : ''; }
 
+let HOY_DATOS = null, AGENDA_REGS = [], ULTIMOS_ARTICULOS = [];
 async function cargarHoy() {
   if (!YO) return;
   const hoy = YO.hoy = hoyISO();
@@ -898,6 +881,7 @@ async function cargarHoy() {
   document.getElementById('hoy-stats').innerHTML = resumenJornada(hoyRegs);
   document.getElementById('hoy-lista').innerHTML = hoyRegs.filter(r => r.ESTADO === 'REGISTRADA').map(itemActividad).join('') || '<div class="empty">Todavía no hay visitas cerradas hoy.</div>';
   const seg = pend.seguimientos.filter(r => r.FECHA_SEGUIMIENTO <= isoDe(new Date(Date.now() + 7*864e5)));
+  HOY_DATOS = {sin_terminar: st, hoy: hoyRegs, seguimientos: seg};
   document.getElementById('hoy-seguimientos').innerHTML = seg.map(r => {
     const vencido = r.FECHA_SEGUIMIENTO < hoy;
     return `<div class="card"><div class="row between"><span class="t-strong">${esc(r.CLIENTE)}</span>
@@ -1063,13 +1047,16 @@ function cerrarFormulario() { cerrarHoja('sh-form'); FORM = null; }
 const NOMBRES_CAMPOS = {CLIENTE: 'cliente', FECHA: 'fecha', HORA_INICIO: 'hora de entrada', HORA_FIN: 'hora de salida',
                         TEMAS: 'temas tratados', DESCRIPCION: 'qué se ha hablado', RESULTADO: 'resultado'};
 
-async function guardarFormulario(cerrar, confirmarSolape = false) {
+// silencioso (lo usa el robot): sin avisos que esperen a que se pulse Aceptar; devuelve {ok, mensaje|error}.
+async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = false) {
+  const aviso = async (texto, tipo) => { if (!silencioso) await appAlert(texto, {type: tipo}); };
   const d = leerFormulario();
-  if (!d.CLIENTE) { await appAlert('Elige el cliente.', {type:'error'}); return; }
+  if (!d.CLIENTE) { await aviso('Elige el cliente.', 'error'); return {ok: false, error: 'Falta el cliente.'}; }
   if (cerrar || FORM.registro.ESTADO === 'REGISTRADA') {
     const faltan = (YO.para_cerrar || []).filter(c => !d[c]).map(c => NOMBRES_CAMPOS[c] || c);
     if (FORM.tipo === 'VISITA' && faltan.length) {
-      await appAlert('Para cerrar la visita falta: ' + faltan.join(', ') + '.\n\nPuedes pulsar «Guardar» y completarla más tarde.', {type:'error'}); return;
+      await aviso('Para cerrar la visita falta: ' + faltan.join(', ') + '.\n\nPuedes pulsar «Guardar» y completarla más tarde.', 'error');
+      return {ok: false, error: 'Para cerrar la visita falta: ' + faltan.join(', ') + '. Se puede guardar sin cerrar.'};
     }
   }
   document.querySelectorAll('#f-pie .btn').forEach(b => b.disabled = true);
@@ -1080,16 +1067,22 @@ async function guardarFormulario(cerrar, confirmarSolape = false) {
     else await api('/actividad/' + encodeURIComponent(FORM.id), {method:'PUT', body: cuerpo});
     hideLoading();
     const tipo = FORM.tipo, abierta = tipo === 'VISITA' && !cerrar && FORM.registro.ESTADO !== 'REGISTRADA';
+    const mensaje = abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
+                            : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.';
     cerrarFormulario();
-    await appAlert(abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
-                           : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.', {type:'success'});
+    await aviso(mensaje, 'success');
     mostrarVista();
+    return {ok: true, mensaje};
   } catch (e) {
     hideLoading();
     if (e.status === 409 && e.message.startsWith('SOLAPE|')) {
+      if (silencioso) return {ok: false, error: e.message.slice(7) + ' Si el usuario confirma, repite con confirmar_solape=true.'};
       const ok = await appConfirm(e.message.slice(7), {okText:'Guardar igualmente'});
       if (ok) return guardarFormulario(cerrar, true);
-    } else if (e.message !== '401') await appAlert(e.message, {type:'error'});
+      return {ok: false, error: 'Cancelado.'};
+    }
+    if (e.message !== '401') await aviso(e.message, 'error');
+    return {ok: false, error: e.message};
   } finally { document.querySelectorAll('#f-pie .btn').forEach(b => b.disabled = false); }
 }
 
@@ -1229,7 +1222,7 @@ function marcarRuta(codigo, si) { if (si) RUTA_SEL.add(codigo); else RUTA_SEL.de
 function actualizarPieRuta() {
   const verPie = RUTA_SEL.size && location.hash.startsWith('#ruta');
   document.getElementById('ruta-pie').style.display = verPie ? '' : 'none';
-  document.querySelector('.fab-ia').style.display = verPie ? 'none' : '';
+  document.body.classList.toggle('ruta-pie-on', !!verPie);
   document.getElementById('ruta-btn').textContent = `Ordenar ruta (${RUTA_SEL.size} cliente${RUTA_SEL.size === 1 ? '' : 's'})`;
 }
 function km(a, b) {
@@ -1272,34 +1265,13 @@ function ordenarRuta() {
   document.getElementById('ruta-orden').scrollIntoView({behavior: 'smooth'});
 }
 
-// ===================================================================== ASISTENTE
-let CHAT = [];
-try { CHAT = JSON.parse(sessionStorage.getItem('sugraf_com_chat') || '[]'); } catch (e) { CHAT = []; }
-function guardarChat() { try { sessionStorage.setItem('sugraf_com_chat', JSON.stringify(CHAT.slice(-30))); } catch (e) {} }
-function pintarChat(pensando) {
-  const el = document.getElementById('chat');
-  el.innerHTML = (CHAT.length ? '' : `<div class="burbuja ia">Hola, ${esc(YO.nombre)}. Pregúntame por tus clientes, compras, precios, visitas o rutas. Por ejemplo: «¿Qué ha dejado de comprar Gráficas Vela?» o «Prepárame la visita a Luis Vives».</div>`) +
-    CHAT.map(m => `<div class="burbuja ${m.rol === 'user' ? 'yo' : 'ia'}">${esc(m.texto)}</div>`).join('') +
-    (pensando ? '<div class="burbuja ia pensando">Consultando los datos...</div>' : '');
-  const cuerpo = el.closest('.sheet-cuerpo'); setTimeout(() => cuerpo.scrollTop = cuerpo.scrollHeight, 30);
-}
+// ===================================================================== ASISTENTE (robot)
+// El robot (comercial/robot.js) es el mismo que el del SAT y la app de escritorio: chat, dictado, búsqueda en
+// internet y modo control. Aquí se le dice qué hay en pantalla y qué puede hacer en la app.
 function abrirAsistente(pregunta) {
-  abrirHoja('sh-ia'); pintarChat();
-  if (pregunta) { document.getElementById('chat-txt').value = pregunta; enviarChat(); }
-  else setTimeout(() => document.getElementById('chat-txt').focus(), 100);
-}
-async function enviarChat() {
-  const t = document.getElementById('chat-txt'), texto = t.value.trim();
-  if (!texto) return;
-  t.value = '';
-  const historial = CHAT.slice(-8);
-  CHAT.push({rol: 'user', texto}); pintarChat(true);
-  const contexto = contextoPantalla();
-  try {
-    const d = await api('/asistente', {method: 'POST', body: JSON.stringify({mensaje: texto, historial, contexto})});
-    CHAT.push({rol: 'assistant', texto: d.respuesta});
-  } catch (e) { if (e.message !== '401') CHAT.push({rol: 'assistant', texto: 'No he podido responder: ' + e.message}); }
-  guardarChat(); pintarChat();
+  if (!window.SugrafBot) return;
+  SugrafBot.abrir();
+  if (pregunta) SugrafBot.enviar(pregunta);
 }
 // Lo que hay abierto en la app, para que el asistente sepa de qué se le habla.
 function contextoPantalla() {
@@ -1321,7 +1293,20 @@ function contextoPantalla() {
   }
   if (vista === 'agenda') ctx.agenda = {modo: modoAg, fecha: document.getElementById('ag-fecha').value, comercial: filtroComercial('ag-comercial')};
   if (vista === 'ruta') ctx.ruta = {origen: RUTA.origen === 'gps' ? 'mi ubicación' : (RUTA.cliente || {}).nombre, radio_km: RUTA.radio, seleccionados: [...RUTA_SEL]};
-  if (vista === 'hoy') ctx.comercial_filtrado = filtroComercial('hoy-comercial');
+  const breve = r => ({id: r.ID, tipo: r.TIPO, cliente: r.CLIENTE, cod_cliente: r.COD_CLIENTE, fecha: r.FECHA, entrada: r.HORA_INICIO, salida: r.HORA_FIN,
+                       estado: r.ESTADO, resultado: r.RESULTADO, comercial: r.COMERCIAL, proxima_accion: r.PROXIMA_ACCION, fecha_seguimiento: r.FECHA_SEGUIMIENTO});
+  if (vista === 'hoy') {
+    ctx.comercial_filtrado = filtroComercial('hoy-comercial');
+    if (HOY_DATOS) {
+      ctx.visitas_sin_terminar = HOY_DATOS.sin_terminar.slice(0, 15).map(breve);
+      ctx.actividad_de_hoy = HOY_DATOS.hoy.slice(0, 20).map(breve);
+      ctx.seguimientos_7_dias = HOY_DATOS.seguimientos.slice(0, 15).map(breve);
+    }
+  }
+  if (vista === 'agenda') ctx.registros_agenda = AGENDA_REGS.slice(0, 40).map(breve);
+  if (vista === 'precios' && ULTIMOS_ARTICULOS.length)
+    ctx.articulos_en_pantalla = ULTIMOS_ARTICULOS.slice(0, 8).map(a => ({referencia: a.referencia, descripcion: a.descripcion,
+      precio_cliente: a.aplicable ? a.aplicable.precio : null, tarifas: a.tarifas.map(t => t.precio)}));
   // Formulario de visita o llamada abierto (lo que lleva escrito)
   if (FORM && document.getElementById('sh-form').classList.contains('show')) {
     const d = leerFormulario();
@@ -1334,9 +1319,285 @@ function contextoPantalla() {
     const r = window._detalle;
     ctx.registro_abierto = Object.fromEntries(Object.entries(r).filter(([k, v]) => v && !/^(CREADO|MODIFICADO)/.test(k)));
   }
+  ctx.etiqueta = ctx.formulario_abierto ? (ctx.formulario_abierto.tipo === 'VISITA' ? 'visita' : 'llamada') + (ctx.formulario_abierto.CLIENTE ? ' a ' + ctx.formulario_abierto.CLIENTE : '')
+    : (vista === 'ficha' && FICHA) ? FICHA.cliente.nombre : (vista === 'precios' && precioCliente) ? precioCliente.nombre : '';
   return ctx;
 }
-function borrarChat() { CHAT = []; guardarChat(); pintarChat(); }
+window.sugrafBotContexto = contextoPantalla;
+
+// ---- Lo que el robot puede hacer en la app (modo control). Cada acción devuelve {ok, ...} o {ok:false, error}.
+const esperarA = async (cond, ms = 20000) => { const fin = Date.now() + ms; while (Date.now() < fin) { try { if (cond()) return true; } catch (e) {} await new Promise(r => setTimeout(r, 120)); } return false; };
+const cargando = () => [...document.querySelectorAll('.view.active .empty')].some(e => /^(Cargando|Calculando|Buscando)/.test(e.textContent.trim()));
+const hojaAbierta = id => document.getElementById(id).classList.contains('show');
+const bot = () => window.SugrafBot;
+async function clienteRobot(codigo, nombre) {
+  await cargarClientes();
+  if (codigo) {
+    const c = (CLIENTES || []).find(x => x.codigo === String(codigo).trim());
+    if (!c) throw new Error(`No hay ningún cliente con el código ${codigo}. Búscalo con buscar_clientes.`);
+    return {codigo: c.codigo, nombre: c.nombre, poblacion: c.poblacion};
+  }
+  if (nombre) return {codigo: '', nombre: String(nombre).trim(), poblacion: ''};
+  return null;
+}
+async function irVistaRobot(v) {
+  ['sh-detalle', 'sh-cliente'].forEach(id => hojaAbierta(id) && cerrarHoja(id));
+  const boton = document.querySelector(`.nav button[data-v="${v}"]`);
+  if (boton && bot()) await bot().resaltar(boton);
+  if ((location.hash || '#hoy').slice(1) === v) mostrarVista(); else location.hash = v;
+  await new Promise(r => setTimeout(r, 250));
+  await esperarA(() => !cargando());
+}
+function estadoFormularioRobot() {
+  if (!FORM || !hojaAbierta('sh-form')) return null;
+  const d = leerFormulario();
+  return {tipo: FORM.tipo, nueva: FORM.modo === 'nuevo', estado: FORM.registro.ESTADO || 'sin guardar',
+          campos: Object.fromEntries(Object.entries(d).filter(([k, v]) => v)),
+          falta_para_cerrar: FORM.tipo === 'VISITA' ? (YO.para_cerrar || []).filter(c => !d[c]).map(c => NOMBRES_CAMPOS[c] || c) : []};
+}
+const FORM_ABIERTO = 'Hay una visita o llamada abierta en pantalla. Guárdala (guardar_visita) o ciérrala sin guardar (cerrar_formulario) antes.';
+
+function definirAccionesRobot() {
+  const O = YO.opciones, obj = (props, req = []) => ({type: 'object', properties: props, required: req, additionalProperties: false});
+  const VISTAS_NAV = ['hoy', 'clientes', 'precios', 'agenda', 'ruta'];
+  const PESTANAS = {preparar: 0, datos: 1, actividad: 2, compras: 3, precios_dados: 4, maquinas: 5, pedidos: 6, sat: 7, especiales: 8};
+  window.sugrafBotAcciones = {
+    ir_a: {
+      descripcion: 'Cambia de pantalla: hoy (visitas sin terminar, actividad y seguimientos), clientes (control de visitas), precios, agenda o ruta.',
+      parametros: obj({vista: {type: 'string', enum: VISTAS_NAV}}, ['vista']),
+      etiqueta: a => `Abriendo ${{hoy: 'Hoy', clientes: 'Clientes', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta'}[a.vista] || a.vista}`,
+      ejecutar: async a => {
+        if (!VISTAS_NAV.includes(a.vista)) return {ok: false, error: 'Pantalla desconocida.'};
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        await irVistaRobot(a.vista);
+        return {ok: true};
+      },
+    },
+    abrir_ficha_cliente: {
+      descripcion: 'Abre la ficha de un cliente (preparar visita, datos, actividad, compras, precios dados, máquinas, pedidos, SAT, precios especiales). Necesita el código de cliente.',
+      parametros: obj({codigo: {type: 'string', description: 'Código de cliente de Pirineos'}}, ['codigo']),
+      etiqueta: a => `Abriendo la ficha del cliente ${a.codigo}`,
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        const c = await clienteRobot(a.codigo);
+        ['sh-detalle', 'sh-cliente'].forEach(id => hojaAbierta(id) && cerrarHoja(id));
+        const destino = 'ficha/' + encodeURIComponent(c.codigo);
+        if ((location.hash || '').slice(1) === destino) cargarFicha(c.codigo); else location.hash = destino;
+        const ok = await esperarA(() => (FICHA && FICHA.cliente.codigo === c.codigo) || document.querySelector('#ficha .aviso'), 30000);
+        if (!ok || !FICHA) return {ok: false, error: (document.querySelector('#ficha .aviso') || {}).textContent || 'La ficha no ha cargado.'};
+        return {ok: true, cliente: c.nombre};
+      },
+    },
+    ver_pestana_ficha: {
+      descripcion: 'En la ficha de cliente abierta, cambia de pestaña.',
+      parametros: obj({pestana: {type: 'string', enum: Object.keys(PESTANAS)}}, ['pestana']),
+      etiqueta: a => `Abriendo la pestaña ${String(a.pestana).replace('_', ' ')}`,
+      ejecutar: async a => {
+        if (!FICHA || vistaActualRobot() !== 'ficha') return {ok: false, error: 'No hay ninguna ficha abierta.'};
+        const b = document.querySelectorAll('#ficha-tabs button')[PESTANAS[a.pestana]];
+        if (!b) return {ok: false, error: 'Pestaña desconocida.'};
+        if (bot()) await bot().resaltar(b);
+        tabFicha(a.pestana, b);
+        return {ok: true};
+      },
+    },
+    filtrar_clientes: {
+      descripcion: 'En Clientes, elige el filtro (toca = toca visitar o pronto, demasiado = visitados de más, cartera, recuperar = dormidos/en riesgo, todos = buscar en todos) y opcionalmente una búsqueda.',
+      parametros: obj({filtro: {type: 'string', enum: FILTROS_CLIENTES.map(f => f[0])}, busqueda: {type: 'string'}}, ['filtro']),
+      etiqueta: a => `Filtrando clientes: ${(FILTROS_CLIENTES.find(f => f[0] === a.filtro) || [0, a.filtro])[1]}`,
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        filtroClientes = a.filtro;
+        if (vistaActualRobot() !== 'clientes') await irVistaRobot('clientes');
+        if (bot()) await bot().escribir(document.getElementById('cli-q'), a.busqueda || '', {eventos: false});
+        await pintarClientes();
+        await esperarA(() => !cargando());
+        const n = document.querySelectorAll('#cli-lista .card').length;
+        return {ok: true, clientes_en_lista: n};
+      },
+    },
+    nueva_visita: {
+      descripcion: 'Abre el formulario de una visita o llamada nueva (sin guardar todavía). Con codigo_cliente si está en Pirineos; si es un cliente potencial, nombre_cliente.',
+      parametros: obj({tipo: {type: 'string', enum: ['VISITA', 'LLAMADA']}, codigo_cliente: {type: 'string'}, nombre_cliente: {type: 'string'}}),
+      etiqueta: a => `Abriendo ${a.tipo === 'LLAMADA' ? 'una llamada nueva' : 'una visita nueva'}`,
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        const c = await clienteRobot(a.codigo_cliente, a.nombre_cliente);
+        nuevaActividad(a.tipo === 'LLAMADA' ? 'LLAMADA' : 'VISITA', c);
+        await new Promise(r => setTimeout(r, 300));
+        return {ok: true, formulario: estadoFormularioRobot()};
+      },
+    },
+    abrir_visita: {
+      descripcion: 'Abre para completar o editar una visita o llamada ya guardada (por ejemplo una visita sin terminar), por su id.',
+      parametros: obj({id: {type: 'string'}}, ['id']),
+      etiqueta: () => 'Abriendo la visita',
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        let d;
+        try { d = await api('/actividad/' + encodeURIComponent(a.id)); } catch (e) { return {ok: false, error: e.message}; }
+        if (d.registro.TIPO === 'PRECIO') return {ok: false, error: 'Es un precio dado, no una visita.'};
+        if (!d.puede_editar || d.registro.ESTADO === 'ANULADA') return {ok: false, error: 'Este registro no se puede editar.'};
+        ['sh-detalle'].forEach(id => hojaAbierta(id) && cerrarHoja(id));
+        completarVisita(d.registro);
+        await new Promise(r => setTimeout(r, 300));
+        return {ok: true, formulario: estadoFormularioRobot()};
+      },
+    },
+    rellenar_visita: {
+      descripcion: 'Escribe en el formulario de visita/llamada abierto. Solo los campos que se pasen; el resto se queda como está. Horas HH:MM, fechas AAAA-MM-DD. No inventes lo que no te hayan dicho.',
+      parametros: obj({
+        codigo_cliente: {type: 'string', description: 'Cambia el cliente'},
+        fecha: {type: 'string'}, hora_entrada: {type: 'string'}, hora_salida: {type: 'string'},
+        tipo_llamada: {type: 'string', enum: O.tipos_llamada},
+        contacto: {type: 'string', description: 'Persona con la que se ha hablado'},
+        temas: {type: 'array', items: {type: 'string', enum: O.temas}, description: 'Temas tratados (sustituye a los marcados)'},
+        descripcion: {type: 'string', description: 'Qué se ha hablado'},
+        resultado: {type: 'string', enum: O.resultados},
+        proxima_accion: {type: 'string'}, fecha_seguimiento: {type: 'string'}, observaciones: {type: 'string'},
+      }),
+      etiqueta: () => 'Rellenando la visita',
+      ejecutar: async a => {
+        if (!estadoFormularioRobot()) return {ok: false, error: 'No hay ninguna visita o llamada abierta: usa nueva_visita o abrir_visita.'};
+        const avisos = [];
+        if (a.codigo_cliente) {
+          const c = await clienteRobot(a.codigo_cliente);
+          FORM.cliente = c;
+          const el = document.getElementById('f-cliente'); if (bot()) await bot().resaltar(el.parentElement); el.textContent = c.nombre; el.className = '';
+        }
+        const campos = {fecha: 'FECHA', hora_entrada: 'HORA_INICIO', hora_salida: 'HORA_FIN', tipo_llamada: 'SUBTIPO', contacto: 'CONTACTO',
+                        descripcion: 'DESCRIPCION', resultado: 'RESULTADO', proxima_accion: 'PROXIMA_ACCION', fecha_seguimiento: 'FECHA_SEGUIMIENTO', observaciones: 'OBSERVACIONES'};
+        for (const [k, id] of Object.entries(campos)) {
+          if (a[k] === undefined || a[k] === null) continue;
+          const el = document.getElementById('f-' + id);
+          if (!el) { avisos.push(`${k}: no existe en este formulario`); continue; }
+          await bot().escribir(el, a[k]);
+          if (String(a[k]) && el.value !== String(a[k])) avisos.push(`${k}: valor no válido «${a[k]}»`);
+        }
+        if (Array.isArray(a.temas)) {
+          const chips = [...document.querySelectorAll('#f-temas .chip')];
+          if (chips[0] && bot()) await bot().resaltar(chips[0].parentElement);
+          chips.forEach(ch => ch.classList.toggle('on', a.temas.includes(ch.textContent)));
+          a.temas.filter(t => !chips.some(ch => ch.textContent === t)).forEach(t => avisos.push(`tema desconocido «${t}»`));
+        }
+        verDuracion();
+        const duracion = document.getElementById("f-duracion").textContent;
+        return {ok: true, formulario: estadoFormularioRobot(), duracion, avisos};
+      },
+    },
+    guardar_visita: {
+      descripcion: 'Guarda la visita/llamada abierta sin cerrarla (una visita queda «sin terminar» para completarla después).',
+      parametros: obj({confirmar_solape: {type: 'boolean', description: 'Solo si el usuario ha confirmado guardar aunque se solape con otra'}}),
+      etiqueta: () => 'Guardando',
+      ejecutar: async a => {
+        if (!estadoFormularioRobot()) return {ok: false, error: 'No hay ninguna visita o llamada abierta.'};
+        const b = document.getElementById('f-guardar'); if (b && bot()) await bot().resaltar(b);
+        return guardarFormulario(false, !!a.confirmar_solape, true);
+      },
+    },
+    cerrar_visita: {
+      descripcion: 'Cierra la visita abierta (queda como bien visitada). Exige cliente, fecha, horas de entrada y salida, temas, qué se ha hablado y resultado.',
+      parametros: obj({confirmar_solape: {type: 'boolean', description: 'Solo si el usuario ha confirmado guardar aunque se solape con otra'}}),
+      etiqueta: () => 'Cerrando la visita',
+      ejecutar: async a => {
+        const f = estadoFormularioRobot();
+        if (!f) return {ok: false, error: 'No hay ninguna visita abierta.'};
+        if (f.tipo !== 'VISITA') return guardarFormulario(false, !!a.confirmar_solape, true);
+        const b = document.getElementById('f-cerrar') || document.getElementById('f-guardar'); if (b && bot()) await bot().resaltar(b);
+        return guardarFormulario(true, !!a.confirmar_solape, true);
+      },
+    },
+    cerrar_formulario: {
+      descripcion: 'Cierra el formulario de visita/llamada abierto SIN guardar los cambios.',
+      parametros: obj({}),
+      etiqueta: () => 'Cerrando el formulario sin guardar',
+      ejecutar: async () => { if (hojaAbierta('sh-form')) cerrarFormulario(); return {ok: true}; },
+    },
+    ver_registro: {
+      descripcion: 'Abre el detalle de una visita, llamada o precio dado por su id (con su historial de cambios).',
+      parametros: obj({id: {type: 'string'}}, ['id']),
+      etiqueta: () => 'Abriendo el registro',
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        try { await api('/actividad/' + encodeURIComponent(a.id)); } catch (e) { return {ok: false, error: e.message}; }
+        await verActividad(a.id);
+        return {ok: true};
+      },
+    },
+    buscar_precios: {
+      descripcion: 'En Precios, busca artículos por referencia o descripción; con codigo_cliente muestra el precio al que se le cobra a ese cliente (vacío = sin cliente).',
+      parametros: obj({texto: {type: 'string'}, codigo_cliente: {type: 'string'}}, ['texto']),
+      etiqueta: a => `Buscando «${a.texto}» en Precios`,
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        if (a.codigo_cliente !== undefined) { precioCliente = a.codigo_cliente ? await clienteRobot(a.codigo_cliente) : null; pintarClientePrecios(); }
+        if (vistaActualRobot() !== 'precios') await irVistaRobot('precios');
+        const el = document.getElementById('pre-q');
+        await bot().escribir(el, a.texto, {eventos: false});
+        await buscarPrecios();
+        return {ok: true, cliente: precioCliente ? precioCliente.nombre : '', resultados: ULTIMOS_ARTICULOS.length,
+                articulos: ULTIMOS_ARTICULOS.slice(0, 8).map(x => ({referencia: x.referencia, descripcion: x.descripcion,
+                  precio_cliente: x.aplicable ? x.aplicable.precio : null, especial_hasta: x.aplicable && x.aplicable.hasta || '', tarifas: x.tarifas.map(t => t.precio)}))};
+      },
+    },
+    apuntar_precio_dado: {
+      descripcion: 'Apunta el precio que el comercial le ha dado al cliente elegido en Precios (seguimiento de precios). Solo si el usuario lo pide.',
+      parametros: obj({referencia: {type: 'string'}, precio: {type: 'number', description: 'En euros'}, nota: {type: 'string'}}, ['referencia', 'precio']),
+      etiqueta: a => `Apuntando precio dado: ${a.referencia} a ${a.precio} €`,
+      ejecutar: async a => {
+        if (!precioCliente || !precioCliente.codigo) return {ok: false, error: 'Primero elige el cliente en Precios (buscar_precios con codigo_cliente).'};
+        if (!(Number(a.precio) > 0)) return {ok: false, error: 'Precio no válido.'};
+        let art = ULTIMOS_ARTICULOS.find(x => x.referencia === a.referencia);
+        if (!art) { const d = await api(`/articulos?q=${encodeURIComponent(a.referencia)}`); art = d.articulos.find(x => x.referencia === a.referencia); }
+        if (!art) return {ok: false, error: `No encuentro la referencia ${a.referencia}.`};
+        try {
+          await api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
+            referencia: art.referencia, descripcion: art.descripcion, precio: Number(a.precio), nota: a.nota || ''})});
+        } catch (e) { return {ok: false, error: e.message}; }
+        return {ok: true, mensaje: `Apuntado: ${art.descripcion} a ${a.precio} € para ${precioCliente.nombre}.`};
+      },
+    },
+    ver_agenda: {
+      descripcion: 'Abre la Agenda en modo día, semana o mes en torno a una fecha (AAAA-MM-DD; por defecto hoy).',
+      parametros: obj({modo: {type: 'string', enum: ['dia', 'semana', 'mes']}, fecha: {type: 'string'}}),
+      etiqueta: a => `Abriendo la agenda (${a.modo || modoAg})`,
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        if (vistaActualRobot() !== 'agenda') await irVistaRobot('agenda');
+        if (a.fecha) document.getElementById('ag-fecha').value = a.fecha;
+        if (a.modo) { modoAg = a.modo; ['dia','semana','mes'].forEach(x => document.getElementById('ag-' + x).classList.toggle('on', x === a.modo)); }
+        await cargarAgenda();
+        return {ok: true, registros: AGENDA_REGS.length};
+      },
+    },
+    ruta_cerca: {
+      descripcion: 'Abre Ruta con los clientes cercanos a un cliente (codigo_cliente) o a la ubicación del móvil (sin código), dentro de un radio.',
+      parametros: obj({codigo_cliente: {type: 'string'}, radio_km: {type: 'number', enum: [10, 25, 50, 100]}}),
+      etiqueta: () => 'Buscando clientes cerca',
+      ejecutar: async a => {
+        if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
+        if (a.radio_km) RUTA.radio = Number(a.radio_km);
+        if (a.codigo_cliente) { RUTA.origen = 'cliente'; RUTA.cliente = await clienteRobot(a.codigo_cliente); }
+        else { RUTA.origen = 'gps'; RUTA.pos = null; }
+        ['gps', 'cli'].forEach(x => document.getElementById('ruta-o-' + x).classList.toggle('on', (RUTA.origen === 'gps') === (x === 'gps')));
+        if (vistaActualRobot() !== 'ruta') await irVistaRobot('ruta'); else await cargarRuta();
+        await esperarA(() => !cargando(), 25000);
+        return {ok: true, candidatos: (RUTA.candidatos || []).slice(0, 15).map(c => ({codigo: c.codigo, nombre: c.nombre, km: c.km, motivos: c.motivos}))};
+      },
+    },
+    marcar_seguimiento_hecho: {
+      descripcion: 'Marca como hecho el seguimiento pendiente de una visita o llamada (por su id). Solo si el usuario lo pide.',
+      parametros: obj({id: {type: 'string'}}, ['id']),
+      etiqueta: () => 'Marcando el seguimiento como hecho',
+      ejecutar: async a => {
+        try { await api(`/actividad/${encodeURIComponent(a.id)}/seguimiento_hecho`, {method: 'POST'}); } catch (e) { return {ok: false, error: e.message}; }
+        if (vistaActualRobot() === 'hoy') cargarHoy();
+        return {ok: true};
+      },
+    },
+  };
+}
+function vistaActualRobot() { return (location.hash || '#hoy').slice(1).split('/')[0] || 'hoy'; }
 
 // ===================================================================== AGENDA
 let modoAg = 'semana', tiposAg = new Set(['VISITA','LLAMADA']);
@@ -1369,8 +1630,9 @@ async function cargarAgenda() {
   try { d = await api(`/actividad?desde=${desde}&hasta=${hasta}${com ? '&comercial=' + encodeURIComponent(com) : ''}`); }
   catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
   const regs = d.registros.filter(r => r.FECHA >= desde && r.FECHA <= hasta && tiposAg.has(r.TIPO));
+  AGENDA_REGS = regs;
   const titulo = modoAg === 'dia' ? fechaLarga(desde) : `${fechaCorta(desde)} – ${fechaCorta(hasta)}`;
-  let html = `<h3 style="margin-top:14px;">${esc(titulo)}</h3><div class="stats">${resumenJornada(regs)}</div>`;
+  let html = `<h3 style="margin-top:14px;">${esc(titulo)}</h3><div class="stats dos">${resumenJornada(regs)}</div>`;
   // Visitas diarias y tiempos (visitas cerradas), por comercial y día
   try {
     const R = await api(`/resumen?desde=${desde}&hasta=${hasta}${com ? '&comercial=' + encodeURIComponent(com) : ''}`);
@@ -1411,9 +1673,11 @@ async function cargarAgenda() {
   } else document.querySelectorAll('.solo-todos').forEach(s => s.style.display = 'none');
   document.querySelectorAll('.solo-master').forEach(el => el.style.display = YO.rol === 'master' ? '' : 'none');
   pintarLeyenda(); pintarClientePrecios(); pintarTiposAgenda();
+  definirAccionesRobot();
   mostrarVista();
   cargarClientes();  // en segundo plano, para que el buscador vaya rápido
 })();
 </script>
+<script src="/comercial/robot.js"></script>
 </body>
 </html>

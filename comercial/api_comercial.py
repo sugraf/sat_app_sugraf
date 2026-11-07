@@ -733,17 +733,35 @@ class Mensaje(BaseModel):
     texto: str
 
 
+class AccionPantalla(BaseModel):
+    nombre: str
+    descripcion: str = ''
+    parametros: dict = {}
+
+
+class ResultadoAccion(BaseModel):
+    call_id: str
+    salida: str = ''
+
+
 class PeticionAsistente(BaseModel):
-    mensaje: str
+    mensaje: str = ''
     historial: list[Mensaje] = []
     contexto: dict = {}
+    web: bool = False                      # búsqueda en internet (bola del mundo)
+    control: bool = False                  # el robot puede usar la app
+    acciones: list[AccionPantalla] = []    # lo que admite la pantalla
+    continuar: str = ''                    # id de la respuesta cuyas acciones ya se han ejecutado
+    resultados: list[ResultadoAccion] = []
 
 
 @router.post('/asistente')
 def asistente(req: PeticionAsistente, s: Sesion = Depends(sesion_actual)):
     try:
         from comercial import asistente as ia
-        return ia.responder(s, req.mensaje, [m.model_dump() for m in req.historial], req.contexto)
+        return ia.responder(s, req.mensaje, [m.model_dump() for m in req.historial], req.contexto,
+                            web=req.web, control=req.control, acciones=[a.model_dump() for a in req.acciones],
+                            continuar=req.continuar, resultados=[r.model_dump() for r in req.resultados])
     except HTTPException:
         raise
     except Exception as e:

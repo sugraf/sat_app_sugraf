@@ -84,6 +84,10 @@ def view_comercial():
 def view_comercial_antigua():
     return RedirectResponse("/comercial")
 
+@app.get("/comercial/robot.js")
+def get_robot_comercial():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "comercial", "robot.js"), media_type="application/javascript")
+
 @app.get("/comercial/manifest.json")
 def get_manifest_comercial():
     return JSONResponse(content={
@@ -132,9 +136,9 @@ def get_css(filename: str):
 @app.get("/manifest.json")
 def get_manifest():
     return JSONResponse(content={
-        "name": "Sugraf Digital Manager",
-        "short_name": "Sugraf Hub",
-        "start_url": "/",
+        "name": "Sugraf SAT",
+        "short_name": "Sugraf SAT",
+        "start_url": "/sat",
         "display": "standalone",
         "background_color": "#070e1c",
         "theme_color": "#ffffff",
