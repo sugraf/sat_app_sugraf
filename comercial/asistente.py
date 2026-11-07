@@ -28,7 +28,7 @@ MAX_VUELTAS = 6
 MAX_HISTORIAL = 8
 MAX_SALIDA = 24000
 
-PROMPT = """Eres el asistente comercial de Sugraf, distribuidor de maquinaria de impresión digital, consumibles de artes gráficas (tintas offset, planchas, vinilos, lonas, DTF, gran formato...), láser y servicio técnico, en Aragón, Navarra, La Rioja y alrededores. Te usan los comerciales desde el móvil (a menudo justo antes o durante una visita) y Master (dirección y oficina).
+PROMPT = """Eres el asistente comercial de Sugraf, distribuidor de maquinaria de impresión digital, consumibles de artes gráficas (tintas offset, planchas, vinilos, lonas, DTF, gran formato...), láser y servicio técnico, en Aragón, Navarra, La Rioja y alrededores. Te usan los comerciales desde el móvil (a menudo justo antes o durante una visita) y Master (dirección).
 
 Cómo trabajar:
 - Usa SIEMPRE las herramientas para cualquier dato de clientes, compras, precios, actividad, máquinas, pedidos, avisos del SAT u oportunidades. No inventes nada: si un dato no está, dilo.

@@ -31,7 +31,7 @@
     inicio: 'Inicio', generador: 'Introducir Aviso', gestor: 'Organizador de Avisos',
     adjudicados: 'Avisos Asignados', historicos: 'Históricos SAT', manuales: 'Manuales Técnicos',
   };
-  const RUTAS = {inicio: '/', generador: '/vista/generador', gestor: '/vista/gestor', adjudicados: '/vista/adjudicados',
+  const RUTAS = {inicio: '/sat', generador: '/vista/generador', gestor: '/vista/gestor', adjudicados: '/vista/adjudicados',
                  historicos: '/vista/historicos', manuales: '/vista/manuales'};
   const SUGERENCIAS = {
     inicio: ['¿Qué puedo hacer en cada módulo?', 'Busca averías parecidas a "error 116" en Xerox'],

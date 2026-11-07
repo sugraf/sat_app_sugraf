@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10263B">
   <link rel="manifest" href="/manifest.json">
-  <title>SUGRAF</title>
+  <title>SUGRAF SAT</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -90,7 +90,6 @@
     .text-center p { color:var(--muted); font-size:0.98rem; line-height:1.6; max-width:480px; margin:0 auto; }
 
     .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:22px; }
-    .seccion{ font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); margin:34px 0 14px; display:none; }
     @media (max-width:640px){ .grid{ grid-template-columns:1fr; } }
     
     .card {
@@ -183,31 +182,18 @@
   <div id="view-login" class="view active">
     <div class="login-wrap">
       <div class="form-box">
-        <h2>Acceso Sugraf App</h2>
+        <h2>Acceso Sugraf SAT App</h2>
         <p class="sub" style="margin-top:12px;">Introduce tus credenciales para continuar</p>
         <label>Usuario</label>
         <select id="login-user">
-          <optgroup label="Servicio t&eacute;cnico">
-            <option value="Ion Volog">Ion Volog</option>
-            <option value="Francisco Ant&uacute;nez">Francisco Ant&uacute;nez</option>
-            <option value="Daniel Gargallo">Daniel Gargallo</option>
-            <option value="Técnico 4">Técnico 4</option>
-          </optgroup>
-          <optgroup label="Comercial">
-            <option value="Artemio">Artemio</option>
-            <option value="Sergio">Sergio</option>
-            <option value="Hugo">Hugo</option>
-          </optgroup>
-          <optgroup label="Oficina">
-            <option value="Lucía">Lucía</option>
-            <option value="Carolina">Carolina</option>
-          </optgroup>
-          <optgroup label="Direcci&oacute;n">
-            <option value="Master">Master</option>
-          </optgroup>
+          <option value="Ion Volog">Ion Volog</option>
+          <option value="Francisco Ant&uacute;nez">Francisco Ant&uacute;nez</option>
+          <option value="Daniel Gargallo">Daniel Gargallo</option>
+          <option value="Técnico 4">Técnico 4</option>
+          <option value="Master">Master</option>
         </select>
         <label>Contrase&ntilde;a</label>
-        <input type="password" id="login-pass" placeholder="Introduce tu clave" onkeydown="if(event.key==='Enter') iniciarSesion()">
+        <input type="password" id="login-pass" placeholder="Introduce tu clave">
         <button class="btn" onclick="iniciarSesion()">Entrar al sistema</button>
       </div>
     </div>
@@ -219,8 +205,7 @@
         <h1>SUGRAF</h1>
         <p>Selecciona una opci&oacute;n para comenzar.</p>
       </div>
-      <h2 class="seccion" id="titulo-sat">Servicio t&eacute;cnico</h2>
-      <div class="grid" id="grid-sat">
+      <div class="grid">
         <div class="card" id="card-generador" onclick="irA('generador')">
           <div class="card-icon">
             <svg class="note-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -284,56 +269,6 @@
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
       </div>
-
-      <h2 class="seccion" id="titulo-comercial">Comercial</h2>
-      <div class="grid" id="grid-comercial">
-        <div class="card" onclick="irAComercial('hoy')">
-          <div class="card-icon">
-            <svg class="clock-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="13" r="7.25" stroke="#a9bcd6" stroke-width="1.5"/>
-              <path d="M12 9.5V13l2.5 1.5" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9.5 3.25h5" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <h3>Visitas y actividad</h3>
-          <p>Inicia y finaliza visitas, registra llamadas, hitos y ventas de maquinaria.</p>
-          <div class="card-arrow">Abrir <span>&rarr;</span></div>
-        </div>
-        <div class="card" onclick="irAComercial('clientes')">
-          <div class="card-icon">
-            <svg class="person-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle class="head" cx="9" cy="8" r="3" stroke="#a9bcd6" stroke-width="1.5"/>
-              <path d="M3.5 19c0-3.3 2.5-5.25 5.5-5.25s5.5 1.95 5.5 5.25" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M15.5 5.5a3 3 0 0 1 0 5.5M17.5 13.9c1.9.7 3 2.3 3 5.1" stroke="#a9bcd6" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <h3>Clientes</h3>
-          <p>Fichas de cliente, hist&oacute;rico de compras y precios especiales.</p>
-          <div class="card-arrow">Abrir <span>&rarr;</span></div>
-        </div>
-        <div class="card" onclick="irAComercial('precios')">
-          <div class="card-icon">
-            <svg class="note-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3.75 12.5 12 4.25h7.75V12L11.5 20.25z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
-              <circle cx="15.75" cy="8.25" r="1.4" stroke="#2fd9b8" stroke-width="1.5"/>
-            </svg>
-          </div>
-          <h3>Precios</h3>
-          <p>Consulta discreta del precio que puedes ofrecer a cada cliente.</p>
-          <div class="card-arrow">Abrir <span>&rarr;</span></div>
-        </div>
-        <div class="card" onclick="irAComercial('agenda')">
-          <div class="card-icon">
-            <svg class="book-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="3.75" y="5.25" width="16.5" height="14.5" rx="2" stroke="#a9bcd6" stroke-width="1.5"/>
-              <path d="M3.75 9.75h16.5M8 3.25v4M16 3.25v4" stroke="#2fd9b8" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <h3>Agenda</h3>
-          <p>Calendario de actividad por d&iacute;a, semana o mes.</p>
-          <div class="card-arrow">Abrir <span>&rarr;</span></div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -346,74 +281,15 @@
       "Master": "sugraf_5"
     };
 
-    // Usuarios del módulo Comercial: la contraseña se comprueba en el servidor
-    // (líneas COMERCIAL_<USUARIO> de contraseñas.txt en la carpeta Media de Drive).
-    const USUARIOS_COMERCIAL = ["Artemio", "Sergio", "Hugo", "Lucía", "Carolina", "Master"];
-
     let currentUser = localStorage.getItem("sugraf_user") || null;
 
-    function rolActual() {
-        if (currentUser === "Master") return "master";
-        if (USUARIOS[currentUser] !== undefined) return "tecnico";
-        return localStorage.getItem("sugraf_rol") || "comercial";
-    }
-
     function applyUserPermissions() {
-        const rol = rolActual();
-        const verSat = rol === "tecnico" || rol === "master";
-        const verComercial = rol !== "tecnico";
-        document.getElementById("grid-sat").style.display = verSat ? "" : "none";
-        document.getElementById("grid-comercial").style.display = verComercial ? "" : "none";
-        // Los títulos de sección solo hacen falta cuando se ven las dos partes (Master).
-        document.getElementById("titulo-sat").style.display = verSat && verComercial ? "block" : "none";
-        document.getElementById("titulo-comercial").style.display = verSat && verComercial ? "block" : "none";
         if (currentUser === "Técnico 4") {
             const cGen = document.getElementById("card-generador");
             const cGes = document.getElementById("card-gestor");
             if (cGen) cGen.style.display = "none";
             if (cGes) cGes.style.display = "none";
         }
-    }
-
-    async function loginComercial(usuario, clave) {
-        // Devuelve {ok:true} o {ok:false, error}
-        try {
-            const r = await fetch("/api/comercial/login", {
-                method: "POST", headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({usuario: usuario, clave: clave})
-            });
-            const d = await r.json().catch(() => ({}));
-            if (!r.ok) return {ok: false, error: d.detail || "No se pudo entrar."};
-            localStorage.setItem("sugraf_com_token", d.token);
-            localStorage.setItem("sugraf_rol", d.rol);
-            return {ok: true};
-        } catch (e) {
-            return {ok: false, error: "Sin conexión con el servidor."};
-        }
-    }
-
-    function entrar(u) {
-        currentUser = u;
-        localStorage.setItem("sugraf_user", u);
-        document.getElementById("user-name-text").innerText = currentUser;
-        document.getElementById("zona-usuario").style.display = "flex";
-        document.getElementById("login-pass").value = "";
-        document.getElementById("view-login").classList.remove("active");
-        document.getElementById("view-dashboard").classList.add("active");
-        applyUserPermissions();
-        if (rolActual() !== "comercial" && rolActual() !== "oficina" && !window.SugrafBot) {
-          const bot = document.createElement('script');
-          bot.src = '/chatbot.js';
-          document.body.appendChild(bot);
-        }
-    }
-
-    async function irAComercial(seccion) {
-        if (!localStorage.getItem("sugraf_com_token")) {
-            await appAlert("Para entrar en Comercial, desconecta y vuelve a entrar con tu contraseña del módulo comercial.", {type: 'info'});
-            return;
-        }
-        window.location.href = "/vista/comercial#" + seccion;
     }
 
     if (currentUser) {
@@ -449,32 +325,29 @@
     async function iniciarSesion() {
       const u = document.getElementById("login-user").value;
       const p = document.getElementById("login-pass").value;
-      const esComercial = USUARIOS_COMERCIAL.includes(u);
-      const okSat = USUARIOS[u] !== undefined && USUARIOS[u] === p;
+      if (USUARIOS[u] === p) {
+        currentUser = u;
+        localStorage.setItem("sugraf_user", u);
+        document.getElementById("user-name-text").innerText = currentUser;
+        document.getElementById("zona-usuario").style.display = "flex";
+        document.getElementById("login-pass").value = "";
 
-      if (!esComercial) {
-        // Técnicos: exactamente igual que siempre.
-        if (okSat) entrar(u);
-        else await appAlert("Contraseña incorrecta.", {type: 'error'});
-        return;
-      }
+        document.getElementById("view-login").classList.remove("active");
+        document.getElementById("view-dashboard").classList.add("active");
 
-      showLoading();
-      const com = await loginComercial(u, p);
-      hideLoading();
-      if (com.ok || okSat) {
-        // Master con la contraseña del SAT pero sin acceso comercial: entra solo al SAT.
-        if (!com.ok) { localStorage.removeItem("sugraf_com_token"); localStorage.removeItem("sugraf_rol"); }
-        entrar(u);
+        applyUserPermissions();
+        if (!window.SugrafBot) {
+          const bot = document.createElement('script');
+          bot.src = '/chatbot.js';
+          document.body.appendChild(bot);
+        }
       } else {
-        await appAlert(com.error || "Contraseña incorrecta.", {type: 'error'});
+        await appAlert("Contraseña incorrecta.", {type: 'error'});
       }
     }
 
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
-      localStorage.removeItem("sugraf_com_token");
-      localStorage.removeItem("sugraf_rol");
       sessionStorage.removeItem("sugraf_bot_conversacion");
       location.reload();
     }
@@ -483,11 +356,6 @@
       window.location.href = `/vista/${modulo}`;
     }
   </script>
-  <script>
-    // El asistente IA del SAT no se carga para comerciales ni oficina.
-    if (!["comercial", "oficina"].includes(localStorage.getItem("sugraf_rol")) || localStorage.getItem("sugraf_user") === "Master") {
-      document.write('<script src="/chatbot.js"><\/script>');
-    }
-  </script>
+  <script src="/chatbot.js"></script>
 </body>
 </html>

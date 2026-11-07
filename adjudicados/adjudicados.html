@@ -426,7 +426,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
-      <a href="/" class="btn-back">&larr; Volver</a>
+      <a href="/sat" class="btn-back">&larr; Volver</a>
     </div>
 
     <div class="topbar-right" id="zona-usuario" style="display:none;">
@@ -655,7 +655,7 @@
 
   <script>
     const currentUser = localStorage.getItem("sugraf_user");
-    if (!currentUser) window.location.href = "/";
+    if (!currentUser) window.location.href = "/sat";
     const TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Técnico 4"];
 
     document.getElementById("user-name-text").innerText = currentUser;
@@ -668,7 +668,7 @@
     function cerrarSesion() {
       localStorage.removeItem("sugraf_user");
       sessionStorage.removeItem("sugraf_bot_conversacion");
-      window.location.href = "/";
+      window.location.href = "/sat";
     }
 
     window.addEventListener("click", function(event) {

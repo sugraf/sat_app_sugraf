@@ -4,48 +4,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#10263B">
-  <link rel="manifest" href="/manifest.json">
-  <title>Comercial - Sugraf Digital Manager</title>
+  <meta name="theme-color" content="#0a1526">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sugraf Comercial">
+  <link rel="manifest" href="/comercial/manifest.json">
+  <link rel="apple-touch-icon" href="/comercial/icono.png">
+  <link rel="icon" type="image/png" href="/comercial/icono.png">
+  <title>Sugraf Comercial</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/ui-common.css">
   <style>
     :root{
-      --navy:#10263B; --navy-dark:#0a1826; --navy-light:#173654;
-      --green:#006858; --green-dark:#004d40; --green-soft:rgba(0,104,88,0.15); --accent:#2fd9b8;
-      --grey:#B6BEC4; --ink:#f4f8fc; --muted:#a9bcd6; --line:rgba(182,190,196,0.14);
+      /* Azul Sugraf, la misma paleta que la app de escritorio (App/Comun/diseno.py) */
+      --navy:#0a1526; --navy-dark:#081121; --navy-light:#122544;
+      --green:#2f6fb0; --green-dark:#24588c; --green-soft:rgba(79,156,217,0.16); --accent:#8fc4ec;
+      --grey:#B6BEC4; --ink:#f4f8fc; --muted:#9fb2cc; --line:rgba(143,196,236,0.14);
       --red:#ef4444; --amber:#f59e0b;
     }
     *{ box-sizing:border-box; margin:0; padding:0; }
     html{ -webkit-text-size-adjust:100%; }
     body{
-      font-family:'Montserrat', sans-serif; background-color:var(--navy); color:var(--ink); min-height:100vh;
-      background-image:radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
-                       radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+      font-family:'Montserrat', sans-serif; background-color:#050b17; color:var(--ink); min-height:100vh;
+      background-image:radial-gradient(900px circle at 85% 90%, rgba(47,111,176,0.24) 0%, transparent 60%),
+                       radial-gradient(800px circle at 10% -5%, rgba(79,156,217,0.14) 0%, transparent 55%),
+                       linear-gradient(180deg, #0a1526 0%, #050b17 100%);
       background-attachment:fixed; padding-bottom:calc(84px + env(safe-area-inset-bottom));
     }
     h2{ font-size:1.35rem; font-weight:800; letter-spacing:-0.01em; }
     h3{ font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin:22px 0 10px; }
-    .topbar{ background:#fff; height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 14px;
-      position:sticky; top:0; z-index:100; box-shadow:0 1px 0 rgba(16,38,59,0.08); }
+    .topbar{ background:rgba(8,17,33,0.92); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); height:56px;
+      display:flex; align-items:center; justify-content:space-between; padding:0 14px;
+      position:sticky; top:0; z-index:100; border-bottom:1px solid var(--line); }
     .topbar-left{ display:flex; align-items:center; gap:12px; }
     .topbar img{ height:28px; display:block; }
-    .btn-back{ color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.8rem; padding:7px 11px; border-radius:10px; border:1px solid #e2e8f0; }
-    .topbar-right{ color:#4a5a72; font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .topbar-right{ color:var(--ink); font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .salir{ background:none; border:1px solid var(--line); color:var(--muted); font-family:inherit; font-size:0.72rem; font-weight:700; padding:6px 10px; border-radius:9px; cursor:pointer; }
+    body.sin-sesion .nav, body.sin-sesion .fab-ia, body.sin-sesion .topbar-right{ display:none !important; }
+    .login{ min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center; padding:20px; }
+    .login-caja{ width:100%; max-width:380px; background:rgba(9,20,38,0.78); border:1px solid var(--line); border-radius:20px; padding:30px 26px; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+    .login-caja h2{ text-align:center; margin-bottom:4px; }
+    .login-caja .t-small{ text-align:center; }
     .dot{ width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 0 4px var(--green-soft); }
     .container{ max-width:760px; margin:0 auto; padding:14px; }
     .view{ display:none; } .view.active{ display:block; animation:fadeIn .25s ease; }
     @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
 
     /* tarjetas y listas */
-    .card{ background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:10px; }
+    .card{ background:rgba(9,20,38,0.74); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:10px; }
     .card.click{ cursor:pointer; } .card.click:active{ transform:scale(.99); }
     .row{ display:flex; align-items:center; gap:10px; } .row.between{ justify-content:space-between; } .wrap{ flex-wrap:wrap; }
     .t-strong{ font-weight:700; color:#fff; font-size:0.95rem; } .t-small{ font-size:0.78rem; color:var(--muted); line-height:1.45; }
     .t-txt{ font-size:0.85rem; color:#e2e8f0; line-height:1.45; white-space:pre-wrap; word-break:break-word; margin-top:6px; }
     .badge{ display:inline-flex; align-items:center; gap:4px; font-size:0.66rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:var(--muted); white-space:nowrap; }
-    .badge.visita{ background:rgba(47,217,184,.15); color:#7fd9c7; } .badge.llamada{ background:rgba(59,130,246,.18); color:#93c5fd; }
+    .badge.visita{ background:rgba(143,196,236,.16); color:#bfe0f7; } .badge.llamada{ background:rgba(59,130,246,.18); color:#93c5fd; }
     .badge.hito{ background:rgba(245,158,11,.18); color:#fcd34d; } .badge.curso{ background:rgba(239,68,68,.18); color:#fca5a5; }
     .badge.ok{ background:rgba(34,197,94,.16); color:#86efac; } .badge.warn{ background:rgba(245,158,11,.18); color:#fcd34d; } .badge.bad{ background:rgba(239,68,68,.18); color:#fca5a5; }
     .empty{ color:var(--muted); font-size:0.88rem; text-align:center; padding:22px 8px; }
@@ -70,7 +82,7 @@
     input, select, textarea{ width:100%; padding:12px; border:1px solid rgba(182,190,196,.3); border-radius:10px; font-size:16px; font-family:inherit; background:var(--navy-dark); color:#fff; min-width:0; color-scheme:dark; }
     textarea{ min-height:84px; resize:vertical; }
     input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
-    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%237fd9c7" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 12px center; background-size:16px; padding-right:36px; }
+    select{ appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238fc4ec" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:right 12px center; background-size:16px; padding-right:36px; }
     .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:0 10px; } .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 8px; }
     .chips{ display:flex; flex-wrap:wrap; gap:6px; }
     .chip{ padding:8px 11px; border-radius:999px; border:1px solid rgba(182,190,196,.3); font-size:0.78rem; font-weight:600; color:var(--muted); background:transparent; font-family:inherit; cursor:pointer; }
@@ -101,11 +113,11 @@
     /* ficha cliente */
     .tabs{ display:flex; gap:6px; overflow-x:auto; margin:14px 0 10px; scrollbar-width:none; } .tabs::-webkit-scrollbar{ display:none; }
     .tabs button{ flex:0 0 auto; border:1px solid var(--line); background:transparent; color:var(--muted); padding:9px 13px; border-radius:999px; font-weight:700; font-size:0.8rem; font-family:inherit; cursor:pointer; }
-    .tabs button.on{ background:#fff; color:var(--navy); border-color:#fff; }
+    .tabs button.on{ background:var(--green); color:#fff; border-color:var(--green); }
     .dato{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:0.85rem; }
     .dato span:first-child{ color:var(--muted); font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding-top:2px; }
     .dato span:last-child{ text-align:right; word-break:break-word; }
-    .dato a{ color:#7fd9c7; }
+    .dato a{ color:var(--accent); }
     .evolucion{ display:none; margin-top:8px; } .evolucion.show{ display:block; }
 
     /* agenda */
@@ -117,13 +129,13 @@
     .navfecha{ display:grid; grid-template-columns:44px 1fr 44px; gap:8px; align-items:center; }
 
     /* barra inferior */
-    .nav{ position:fixed; left:0; right:0; bottom:0; z-index:150; background:#fff; display:grid; grid-template-columns:repeat(5, 1fr);
+    .nav{ position:fixed; left:0; right:0; bottom:0; z-index:150; background:rgba(8,17,33,0.96); border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(5, 1fr);
       padding:6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -4px 20px rgba(0,0,0,.25); }
-    .nav button{ background:none; border:none; font-family:inherit; display:flex; flex-direction:column; align-items:center; gap:3px; color:#94a3b8; font-size:0.64rem; font-weight:700; padding:6px 0; cursor:pointer; }
+    .nav button{ background:none; border:none; font-family:inherit; display:flex; flex-direction:column; align-items:center; gap:3px; color:#6d84a8; font-size:0.64rem; font-weight:700; padding:6px 0; cursor:pointer; }
     .nav button svg{ width:23px; height:23px; stroke:currentColor; }
-    .nav button.on{ color:var(--green); }
+    .nav button.on{ color:var(--accent); }
     .nav .mas{ position:relative; top:-18px; }
-    .nav .mas span.circ{ width:54px; height:54px; border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(0,104,88,.45); color:#fff; }
+    .nav .mas span.circ{ width:54px; height:54px; border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(47,111,176,.5); color:#fff; }
     .nav .mas span.circ svg{ stroke:#fff; width:26px; height:26px; }
 
     /* hojas (pantallas superpuestas) */
@@ -147,7 +159,7 @@
     .filtros-chips{ display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px; }
     .discreto{ display:block; text-align:center; color:#5c7291; font-size:0.72rem; margin:26px 0 6px; background:none; border:none; font-family:inherit; cursor:pointer; width:100%; }
     .fab-ia{ position:fixed; right:16px; bottom:calc(86px + env(safe-area-inset-bottom)); z-index:160; width:50px; height:50px; border-radius:50%;
-      border:1px solid rgba(47,217,184,.5); background:var(--navy-light); color:var(--accent); font-size:1.3rem; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.4); }
+      border:1px solid rgba(143,196,236,.5); background:var(--navy-light); color:var(--accent); font-size:1.3rem; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.4); }
     .chat{ display:flex; flex-direction:column; gap:10px; padding:10px 0; }
     .burbuja{ max-width:88%; padding:10px 13px; border-radius:14px; font-size:0.88rem; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
     .burbuja.yo{ align-self:flex-end; background:var(--green); color:#fff; border-bottom-right-radius:4px; }
@@ -171,10 +183,24 @@
 
   <div class="topbar">
     <div class="topbar-left">
-      <img src="/logo_grande.png" alt="Sugraf" onerror="this.style.display='none'">
-      <a href="/" class="btn-back">&larr; Inicio</a>
+      <img src="/comercial/logo.png" alt="Sugraf" onerror="this.style.display='none'">
     </div>
-    <div class="topbar-right"><div class="dot"></div><span id="user-name-text"></span></div>
+    <div class="topbar-right"><div class="dot"></div><span id="user-name-text"></span><button class="salir" onclick="salir()">Salir</button></div>
+  </div>
+
+  <!-- ============ ACCESO (propio de la app de comerciales) ============ -->
+  <div class="login" id="view-login" style="display:none">
+    <div class="login-caja">
+      <h2>Sugraf Comercial</h2>
+      <div class="t-small">Entra con tu usuario</div>
+      <label>Usuario</label>
+      <select id="login-user">
+        <option>Artemio</option><option>Sergio</option><option>Hugo</option><option>Master</option>
+      </select>
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="Tu contraseña" onkeydown="if(event.key==='Enter') entrar()">
+      <button class="btn btn-primary btn-block" style="margin-top:22px;" onclick="entrar()">Entrar</button>
+    </div>
   </div>
 
   <!-- ============ HOY ============ -->
@@ -339,9 +365,37 @@
 
 <script>
 // ===================================================================== utilidades
-const TOKEN_KEY = 'sugraf_com_token';
-let TOKEN = localStorage.getItem(TOKEN_KEY);
-if (!TOKEN || !localStorage.getItem('sugraf_user')) window.location.href = '/';
+// Sesión propia de la app de comerciales (no comparte nada con la del SAT).
+const TOKEN_KEY = 'sugraf_com_token', NOMBRE_KEY = 'sugraf_com_nombre';
+function leer(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function escribir(k, v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+let TOKEN = leer(TOKEN_KEY);
+
+async function entrar() {
+  const usuario = document.getElementById('login-user').value, clave = document.getElementById('login-pass').value;
+  if (!clave) return;
+  showLoading();
+  try {
+    const r = await fetch('/api/comercial/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({usuario, clave})});
+    const d = await r.json().catch(() => ({}));
+    hideLoading();
+    if (!r.ok) { await appAlert(d.detail || 'No se ha podido entrar.', {type: 'error'}); return; }
+    escribir(TOKEN_KEY, d.token); escribir(NOMBRE_KEY, d.nombre); escribir('sugraf_com_ultimo', usuario);
+    location.reload();
+  } catch (e) { hideLoading(); await appAlert('Sin conexión con el servidor.', {type: 'error'}); }
+}
+function salir() {
+  escribir(TOKEN_KEY, null); escribir(NOMBRE_KEY, null);
+  try { sessionStorage.removeItem('sugraf_com_chat'); } catch (e) {}
+  location.hash = ''; location.reload();
+}
+function mostrarLogin() {
+  document.body.classList.add('sin-sesion');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-login').style.display = '';
+  const ultimo = leer('sugraf_com_ultimo'); if (ultimo) document.getElementById('login-user').value = ultimo;
+  setTimeout(() => document.getElementById('login-pass').focus(), 100);
+}
 
 let YO = null;           // datos del usuario, opciones y colores
 let CLIENTES = null;     // listado ligero
@@ -365,9 +419,9 @@ async function api(ruta, opciones = {}) {
   let datos = {};
   try { datos = await r.json(); } catch(e) {}
   if (r.status === 401) {
-    localStorage.removeItem(TOKEN_KEY);
+    escribir(TOKEN_KEY, null);
     await appAlert(datos.detail || 'Tu sesión ha caducado. Vuelve a entrar.', {type:'error'});
-    window.location.href = '/';
+    location.reload();
     throw new Error('401');
   }
   if (!r.ok) { const e = new Error(datos.detail || `Error ${r.status}`); e.status = r.status; throw e; }
@@ -394,6 +448,7 @@ function chipPrecio(p, tam='') { if(!p) return ''; return `<span class="precio $
 const VISTAS = ['hoy','clientes','ficha','precios','agenda','ruta'];
 function irA(v) { location.hash = v; }
 function mostrarVista() {
+  if (!TOKEN) return;
   const h = (location.hash || '#hoy').slice(1);
   const [vista, arg] = h.split('/');
   const v = VISTAS.includes(vista) ? vista : 'hoy';
@@ -800,7 +855,7 @@ function htmlOportunidad(o) {
   return `<div class="card borde-${cerrada ? 'gris' : 'verde'}">
     <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(o.detalle || 'Posible venta (el técnico no indicó qué)')}</span>
       <span class="badge ${o.estado === 'NUEVA' ? 'ok' : o.estado === 'GANADA' ? 'ok' : cerrada ? '' : 'warn'}">${esc(o.estado)}</span></div>
-    <div class="t-small">${o.codigo ? `<a style="color:#7fd9c7" onclick="abrirFicha('${esc(o.codigo)}')">${esc(o.cliente_nombre)}</a>` : esc(o.cliente_nombre)}${o.poblacion ? ' · ' + esc(o.poblacion) : ''}</div>
+    <div class="t-small">${o.codigo ? `<a style="color:var(--accent)" onclick="abrirFicha('${esc(o.codigo)}')">${esc(o.cliente_nombre)}</a>` : esc(o.cliente_nombre)}${o.poblacion ? ' · ' + esc(o.poblacion) : ''}</div>
     <div class="t-small">Lo detectó ${esc(o.tecnico || 'el técnico')} el ${fechaCorta(o.fecha)}${o.maquina ? ' en ' + esc(o.maquina) : ''}${YO.permisos.ver_todos && o.comercial ? ' · comercial: ' + esc(o.comercial) : ''}</div>
     ${o.averia ? `<div class="t-txt" style="color:var(--muted)">Avería: ${esc(o.averia.slice(0, 160))}</div>` : ''}
     ${o.nota ? `<div class="t-small" style="margin-top:4px;">Nota: ${esc(o.nota)} <span style="opacity:.7">(${esc(o.actualizado_por)}, ${esc(o.actualizado)})</span></div>` : ''}
@@ -1181,7 +1236,7 @@ async function cargarRuta() {
         <div class="t-small">${esc(c.poblacion)}${YO.permisos.ver_todos ? ' · ' + esc(c.comercial || 'sin comercial') : ''}${c.compras_12m ? ' · ' + eur(c.compras_12m) + '/año' : ''}</div>
         ${c.motivos.map(m => `<div class="t-small" style="color:#fde68a">• ${esc(m)}</div>`).join('')}
       </div></label>
-      <div style="text-align:right; margin-top:4px;"><a class="t-small" style="color:#7fd9c7" onclick="abrirFicha('${esc(c.codigo)}')">Preparar visita &rsaquo;</a></div></div>`).join('')
+      <div style="text-align:right; margin-top:4px;"><a class="t-small" style="color:var(--accent)" onclick="abrirFicha('${esc(c.codigo)}')">Preparar visita &rsaquo;</a></div></div>`).join('')
     : `<div class="empty">No hay clientes situados a menos de ${RUTA.radio} km.</div>`;
   actualizarPieRuta();
 }
@@ -1253,7 +1308,7 @@ function textoUbicacion(ubi, dist) {
   if (!ubi) return '';
   if (!/^-?\d/.test(ubi)) return ubi === 'SIN DATOS' ? 'Sin ubicación' : ubi.replace('NO DISPONIBLE', 'No disponible');
   const [lat, lon, prec] = ubi.split(',');
-  return `<a style="color:#7fd9c7" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}">ver en mapa</a> (±${prec} m)` +
+  return `<a style="color:var(--accent)" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}">ver en mapa</a> (±${prec} m)` +
     (dist !== '' && dist != null ? ` · a ~${String(dist).replace('.', ',')} km del cliente (aprox., por código postal)` : '');
 }
 
@@ -1365,7 +1420,8 @@ async function cargarAgenda() {
 
 // ===================================================================== arranque
 (async function init() {
-  document.getElementById('user-name-text').textContent = localStorage.getItem('sugraf_user') || '';
+  if (!TOKEN) { mostrarLogin(); return; }
+  document.getElementById('user-name-text').textContent = leer(NOMBRE_KEY) || '';
   try { YO = await api('/yo'); }
   catch (e) { if (e.message !== '401') document.getElementById('view-hoy').innerHTML = `<div class="aviso" style="margin-top:20px;">${esc(e.message)}</div>`; document.getElementById('view-hoy').classList.add('active'); return; }
   document.getElementById('user-name-text').textContent = YO.nombre;

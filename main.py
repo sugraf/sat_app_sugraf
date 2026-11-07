@@ -2,7 +2,7 @@
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from generador.api_generador import router as generador_router
 from gestor.api_gestor import router as gestor_router
 from adjudicados.api_adjudicados import router as adjudicados_router
@@ -35,9 +35,25 @@ def get_html(path):
             return f.read()
     return f"Error: {path} no encontrado."
 
+# Qué se abre en la dirección principal (https://satappsugraf.vercel.app/):
+#   "sat" -> la app del servicio técnico (como hasta ahora)
+#   "hub" -> la pantalla para elegir entre Servicio técnico y Comercial
+# Cada app tiene además su propia dirección fija: /sat y /comercial.
+PAGINA_PRINCIPAL = "sat"
+
 @app.get("/", response_class=HTMLResponse)
 def home():
+    if PAGINA_PRINCIPAL == "hub":
+        return get_html(os.path.join(os.path.dirname(__file__), "hub.html"))
     return get_html(os.path.join(os.path.dirname(__file__), "index.html"))
+
+@app.get("/sat", response_class=HTMLResponse)
+def home_sat():
+    return get_html(os.path.join(os.path.dirname(__file__), "index.html"))
+
+@app.get("/hub", response_class=HTMLResponse)
+def home_hub():
+    return get_html(os.path.join(os.path.dirname(__file__), "hub.html"))
 
 @app.get("/vista/generador", response_class=HTMLResponse)
 def view_generador():
@@ -59,9 +75,33 @@ def view_historicos():
 def view_manuales():
     return get_html(os.path.join(os.path.dirname(__file__), "manuales", "manuales.html"))
 
-@app.get("/vista/comercial", response_class=HTMLResponse)
+# ---- App de comerciales: independiente del SAT (su propio acceso y su propio icono)
+@app.get("/comercial", response_class=HTMLResponse)
 def view_comercial():
     return get_html(os.path.join(os.path.dirname(__file__), "comercial", "comercial.html"))
+
+@app.get("/vista/comercial")
+def view_comercial_antigua():
+    return RedirectResponse("/comercial")
+
+@app.get("/comercial/manifest.json")
+def get_manifest_comercial():
+    return JSONResponse(content={
+        "name": "Sugraf Comercial",
+        "short_name": "Sugraf Comercial",
+        "start_url": "/comercial",
+        "scope": "/comercial",
+        "display": "standalone",
+        "background_color": "#0a1526",
+        "theme_color": "#0a1526",
+        "icons": [{"src": "/comercial/icono.png", "sizes": "512x512", "type": "image/png"}]
+    })
+
+@app.get("/comercial/{archivo}.png")
+def get_png_comercial(archivo: str):
+    if archivo not in ("logo", "icono"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(os.path.join(os.path.dirname(__file__), "comercial", f"{archivo}.png"), media_type="image/png")
 
 @app.get("/{filename}.png")
 def get_png(filename: str):

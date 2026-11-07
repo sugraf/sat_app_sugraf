@@ -9,7 +9,6 @@ Media de Drive (ver secretos.py), con una línea por usuario:
     COMERCIAL_HUGO = ...
     COMERCIAL_MASTER = ...
 
-Lucía, Carolina y Dirección usan el mismo usuario, Master (como en el SAT).
 
 Al entrar, el servidor comprueba la contraseña y entrega un token firmado (30 días). Cada
 llamada a /api/comercial/... lleva ese token, de modo que los permisos (por ejemplo, ver
@@ -44,7 +43,6 @@ USUARIOS = {
 # Permisos por rol (configurables aquí). Los comerciales solo ven su propia actividad.
 PERMISOS = {
     'comercial': {'registrar': True, 'ver_todos': False, 'ver_costes': False, 'editar_otros': False},
-    'oficina':   {'registrar': True, 'ver_todos': True,  'ver_costes': False, 'editar_otros': False},
     'master':    {'registrar': True, 'ver_todos': True,  'ver_costes': True,  'editar_otros': True},
 }
 

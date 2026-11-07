@@ -1,0 +1,48 @@
+<!-- hub.html: pantalla para elegir app (Servicio técnico o Comercial). Se abre en /hub y,
+     cuando PAGINA_PRINCIPAL = "hub" en main.py, también en la dirección principal. -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a1526">
+  <title>Sugraf</title>
+  <link rel="icon" type="image/png" href="/comercial/icono.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    body{ font-family:'Montserrat', sans-serif; color:#f4f8fc; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px 16px;
+      background:#050b17; background-image:radial-gradient(900px circle at 85% 90%, rgba(47,111,176,0.22) 0%, transparent 60%),
+        radial-gradient(800px circle at 10% 0%, rgba(0,104,88,0.20) 0%, transparent 55%), linear-gradient(180deg, #0a1526 0%, #050b17 100%); }
+    img.logo{ width:min(260px, 70vw); margin-bottom:34px; }
+    p.sub{ color:#9fb2cc; font-size:0.95rem; margin-bottom:26px; text-align:center; }
+    .opciones{ display:grid; grid-template-columns:1fr 1fr; gap:18px; width:100%; max-width:640px; }
+    @media (max-width:560px){ .opciones{ grid-template-columns:1fr; } }
+    a.op{ display:block; text-decoration:none; color:inherit; padding:26px 24px; border-radius:20px; background:rgba(9,20,38,0.74);
+      border:1px solid rgba(143,196,236,0.14); transition:transform .2s, border-color .2s, box-shadow .2s; }
+    a.op:hover, a.op:focus-visible{ transform:translateY(-3px); box-shadow:0 18px 34px rgba(0,0,0,.35); outline:none; }
+    a.op.sat:hover{ border-color:rgba(47,217,184,.6); } a.op.com:hover{ border-color:rgba(143,196,236,.7); }
+    .icono{ width:50px; height:50px; border-radius:14px; display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+    .sat .icono{ background:rgba(0,104,88,.2); border:1px solid rgba(0,104,88,.5); } .com .icono{ background:rgba(47,111,176,.22); border:1px solid rgba(79,156,217,.5); }
+    .icono svg{ width:24px; height:24px; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+    .sat svg{ stroke:#2fd9b8; } .com svg{ stroke:#8fc4ec; }
+    h2{ font-size:1.2rem; margin-bottom:6px; } .op p{ color:#9fb2cc; font-size:0.86rem; line-height:1.5; }
+    .ir{ margin-top:14px; font-weight:700; font-size:0.82rem; } .sat .ir{ color:#2fd9b8; } .com .ir{ color:#8fc4ec; }
+  </style>
+</head>
+<body>
+  <img class="logo" src="/comercial/logo.png" alt="Sugraf">
+  <p class="sub">¿A qué aplicación quieres entrar?</p>
+  <div class="opciones">
+    <a class="op sat" href="/sat">
+      <div class="icono"><svg viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.2L4.5 16.4a1.6 1.6 0 0 0 2.3 2.3l4.7-4.7a4 4 0 0 0 5.2-5.3l-2.4 2.4-2.1-.4-.4-2.1z"/></svg></div>
+      <h2>Servicio técnico</h2><p>Avisos, partes, históricos y manuales.</p><div class="ir">Entrar &rarr;</div>
+    </a>
+    <a class="op com" href="/comercial">
+      <div class="icono"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M21 19H3"/></svg></div>
+      <h2>Comercial</h2><p>Visitas, clientes, precios, rutas y asistente.</p><div class="ir">Entrar &rarr;</div>
+    </a>
+  </div>
+</body>
+</html>
