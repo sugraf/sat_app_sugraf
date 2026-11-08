@@ -87,7 +87,7 @@ def propuesta(importe):
 def estado_cliente(c, visitas_cliente, compras, cad_fijadas, inicio_uso, hoy=None):
     """Situación de visitas de un cliente. visitas_cliente: fechas (AAAA-MM-DD) de visitas registradas."""
     hoy = hoy or date.today()
-    fijada = cad_fijadas.get(c['codigo'])
+    fijada = cad_fijadas.get(pirineos.principal(c['codigo'])) or cad_fijadas.get(c['codigo'])
     importe = compras.get(c['codigo'], 0.0)
     if fijada:
         dias_freq, origen = fijada['dias'], f"fijada por {fijada.get('por', 'Master')}"
@@ -129,17 +129,25 @@ def control_cartera(nombre_pirineos_comercial, visitas, inicio_uso=None, hoy=Non
     objetivo = normalizar(nombre_pirineos_comercial)
     compras = compras_12_meses()
     cad = cadencias()
+    # Un cliente con varios códigos de Pirineos cuenta una vez (con su código principal) y
+    # suma las visitas hechas a cualquiera de sus códigos.
     por_cliente = {}
     for r in visitas:
         if r['COD_CLIENTE']:
-            por_cliente.setdefault(r['COD_CLIENTE'], []).append(r['FECHA'])
-    lista = []
-    for c in pirineos.clientes().values():
+            por_cliente.setdefault(pirineos.principal(r['COD_CLIENTE']), []).append(r['FECHA'])
+    cl = pirineos.clientes()
+    lista, vistos = [], set()
+    for c in cl.values():
         if c['comercial_norm'] != objetivo or c['grupo'].upper() == 'PROVEEDORES':
             continue
-        e = estado_cliente(c, por_cliente.get(c['codigo'], []), compras, cad, inicio_uso, hoy)
+        pr = pirineos.principal(c['codigo'])
+        if pr in vistos:
+            continue
+        vistos.add(pr)
+        c = cl.get(pr, c)
+        e = estado_cliente(c, por_cliente.get(pr, []), compras, cad, inicio_uso, hoy)
         lista.append({'codigo': c['codigo'], 'nombre': c['nombre'], 'poblacion': c['poblacion'],
-                      'comercial': c['comercial'], **e})
+                      'comercial': c['comercial'], 'otros_codigos': [h for h in pirineos.codigos_hermanos(pr) if h != pr], **e})
     orden = {'toca': 0, 'demasiado': 1, 'pronto': 2, 'ok': 3}
     lista.sort(key=lambda x: (orden[x['estado']], -(x['dias_sin_visita'] or 0), -x['compras_12m']))
     return lista

@@ -226,6 +226,8 @@ def _datos_cruzada():
     grupo_familia = defaultdict(Counter)
     equiv_ref = {}
     for cod, lineas in ventas.items():
+        if pirineos.principal(cod) != cod:  # un cliente con varios códigos cuenta una vez
+            continue
         utiles = [l for l in lineas_utiles(lineas) if l['fecha'] >= corte and not es_puntual(l)]
         if not utiles:
             continue
@@ -404,6 +406,8 @@ def recuperados(desde, hasta):
     ventas, _ = pirineos.todas_las_ventas()
     resultado = []
     for cod, lineas in ventas.items():
+        if pirineos.principal(cod) != cod:
+            continue
         fechas = sorted({_d(l['fecha']) for l in lineas_utiles(lineas) if _d(l['fecha'])})
         en_rango = [f for f in fechas if desde <= f.isoformat() <= hasta]
         if not en_rango:

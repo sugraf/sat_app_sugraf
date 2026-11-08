@@ -10,6 +10,8 @@ Cada fichero se guarda en memoria mientras la instancia siga viva y solo se vuel
 descargar si ha cambiado en Drive (se comprueba como mucho cada 10 minutos).
 """
 import io
+import json
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -23,6 +25,9 @@ from comercial.usuarios import normalizar
 SEGUNDOS_COMPROBACION = 600
 ANIOS_VENTAS_ANTERIORES = 2   # además del año en curso
 GRUPOS_EXCLUIDOS = {'CONTABILIDAD'}
+# Comerciales que ya no están: sus clientes se tratan como «sin comercial» (no entran en
+# ninguna cartera; Master los ve todos). Se compara sin tildes ni mayúsculas.
+COMERCIALES_DE_BAJA = {'PEREZ DE PETINTO FERNANDEZ, CELIA'}
 
 _lock = threading.Lock()
 _cache = {}  # nombre lógico -> {'clave', 'datos', 'comprobado'}
@@ -97,6 +102,9 @@ def _falta(nombre, ruta):
 
 
 # ---------------------------------------------------------------- clientes
+_DE_BAJA = {normalizar(n) for n in COMERCIALES_DE_BAJA}
+
+
 def _procesar_clientes(contenido):
     clientes = {}
     for d in _filas(contenido):
@@ -122,8 +130,8 @@ def _procesar_clientes(contenido):
             'grupo': _texto(d.get('GrupoCliente')),
             'actividad': _texto(d.get('Actividad')),
             'tarifa': tarifa if tarifa in ('1', '2', '3') else '1',
-            'comercial': _texto(d.get('Comercial')),
-            'comercial_norm': normalizar(d.get('Comercial')),
+            'comercial': '' if normalizar(d.get('Comercial')) in _DE_BAJA else _texto(d.get('Comercial')),
+            'comercial_norm': '' if normalizar(d.get('Comercial')) in _DE_BAJA else normalizar(d.get('Comercial')),
         }
     return clientes
 
@@ -246,7 +254,8 @@ def ventas_cliente(codigo_cliente):
             faltan.append(nombre)
             continue
         leidos.append(nombre)
-        lineas.extend(datos.get(str(codigo_cliente), []))
+        for cod in codigos_hermanos(codigo_cliente):
+            lineas.extend(dict(l, codigo=cod) for l in datos.get(cod, []))
     # Si un documento aparece en dos ficheros (cambio de año), nos quedamos con uno.
     vistos, unicas = set(), []
     for l in sorted(lineas, key=lambda l: l['fecha'], reverse=True):
@@ -269,6 +278,10 @@ def ultima_compra_por_cliente():
             f = max((l['fecha'] for l in lineas), default='')
             if f > resultado.get(cliente, ''):
                 resultado[cliente] = f
+    for cod in list(resultado):  # la del cliente es la última de cualquiera de sus códigos
+        for h in codigos_hermanos(cod):
+            if resultado[cod] > resultado.get(h, ''):
+                resultado[h] = resultado[cod]
     return resultado
 
 
@@ -286,41 +299,87 @@ def clave_nombre(nombre):
     return ' '.join(palabras)
 
 
+# ---------------------------------------------------------------- grupos: varios códigos, un cliente
+# En Pirineos una misma empresa puede tener varios códigos (uno por departamento o tipo de
+# consumo -tintas, planchas, maquinaria...-, un código antiguo y otro nuevo, altas duplicadas).
+# Se tratan como UN cliente: se suman sus ventas, sus visitas y su control de visitas.
+#   - comercial/grupos_clientes.json: grupos revisados a mano (con motivo). Los códigos de
+#     "revisados" ya se estudiaron, así que con ellos no se aplica ninguna regla automática.
+#   - Códigos nuevos (no revisados): misma razón social y misma población -> mismo cliente.
+_FICHERO_GRUPOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'grupos_clientes.json')
+
+
+def _grupos_revisados():
+    entrada = _cache.get('grupos_revisados')
+    if entrada is None:
+        try:
+            with open(_FICHERO_GRUPOS, encoding='utf-8') as f:
+                datos = json.load(f)
+        except (OSError, ValueError):
+            datos = {}
+        entrada = {'grupos': datos.get('grupos', []), 'revisados': set(datos.get('revisados', []))}
+        _cache['grupos_revisados'] = entrada
+    return entrada
+
+
 def _indice_nombres():
     cl = clientes()
     entrada = _cache.get('indice_nombres')
     version = (_cache.get('clientes', {}).get('clave'), (_cache.get('ventas_todas') or {}).get('version'))
     if entrada and entrada.get('version') == version:
         return entrada['datos']
-    # En Pirineos una misma empresa puede tener varios códigos (uno por departamento:
-    # tintas, preimpresión, maquinaria...). Para cruzar por nombre se elige el código
-    # "principal" (el de más ventas o, si no hay ventas, el más bajo) y se guardan todos
-    # los códigos hermanos para mostrar en cada uno lo que llegue por nombre.
+    rev = _grupos_revisados()
+    # Grupos: los revisados + misma razón social y población entre códigos sin revisar.
+    grupo, principal_de = {}, {}
+    for g in rev['grupos']:
+        cods = [c for c in g['codigos'] if c in cl]
+        if len(cods) > 1:
+            pr = g['principal'] if g['principal'] in cods else cods[0]
+            for c in cods:
+                grupo[c], principal_de[c] = cods, pr
+    auto = {}
+    for c in cl.values():
+        if c['codigo'] in rev['revisados'] or c['codigo'] in grupo:
+            continue
+        k = clave_nombre(c['nombre'])
+        if k:
+            auto.setdefault((k, normalizar(c['poblacion'])), []).append(c['codigo'])
+    ventas_raw = _ventas_por_codigo_crudas()
+    for cods in auto.values():
+        if len(cods) > 1:
+            cods = sorted(cods, key=lambda y: int(y) if y.isdigit() else 0)
+            pr = max(cods, key=lambda x: (len(ventas_raw.get(x, [])), -int(x) if x.isdigit() else 0))
+            for c in cods:
+                grupo[c], principal_de[c] = cods, pr
+    hermanos = {c: sorted(v, key=lambda y: int(y) if y.isdigit() else 0) for c, v in grupo.items()}
+    # Cruce por nombre (máquinas, pedidos y avisos del SAT vienen por nombre, no por código).
     por_razon = {}
     for c in cl.values():
         k = clave_nombre(c['nombre'])
         if k:
             por_razon.setdefault(k, set()).add(c['codigo'])
-    ventas = (_cache.get('ventas_todas') or {}).get('datos') or {}
     def principal(codigos):
-        return max(codigos, key=lambda x: (len(ventas.get(x, [])), -int(x) if x.isdigit() else 0))
-    hermanos = {}
-    for codigos in por_razon.values():
-        for x in codigos:
-            hermanos[x] = sorted(codigos, key=lambda y: int(y) if y.isdigit() else 0)
+        prs = {principal_de.get(x, x) for x in codigos}
+        return max(prs, key=lambda x: (len(ventas_raw.get(x, [])), -int(x) if x.isdigit() else 0))
     exactos = {k: principal(v) for k, v in por_razon.items()}
     for c in cl.values():  # nombre comercial, solo si no lleva a dos empresas distintas
         k = clave_nombre(c['nombre_comercial'])
         if k and k not in exactos:
-            exactos[k] = c['codigo']
-    indice = {'exactos': exactos, 'hermanos': hermanos}
+            exactos[k] = principal_de.get(c['codigo'], c['codigo'])
+    indice = {'exactos': exactos, 'hermanos': hermanos, 'principal': principal_de}
     _cache['indice_nombres'] = {'version': version, 'datos': indice, 'clave': version, 'comprobado': time.time()}
     return indice
 
 
 def codigos_hermanos(codigo):
-    """Todos los códigos de Pirineos de la misma empresa (misma razón social), incluido este."""
+    """Todos los códigos de Pirineos que son el mismo cliente, incluido este."""
     return _indice_nombres()['hermanos'].get(str(codigo), [str(codigo)])
+
+
+def principal(codigo):
+    """Código que representa al cliente (el propio si no tiene más códigos)."""
+    codigo = str(codigo or '')
+    return _indice_nombres()['principal'].get(codigo, codigo) if codigo else ''
 
 
 def codigo_por_nombre(nombre):
@@ -424,8 +483,21 @@ def pedidos_cliente(codigo):
 
 
 # ---------------------------------------------------------------- todas las ventas (para análisis)
+def _ventas_por_codigo_crudas():
+    """{codigo: [lineas]} sin agrupar, con lo que ya esté en caché (no descarga nada)."""
+    resultado = {}
+    for nombre in _ficheros_ventas():
+        for cliente, lineas in ((_cache.get(f'ventas:{nombre}') or {}).get('datos') or {}).items():
+            resultado.setdefault(cliente, []).extend(lineas)
+    return resultado
+
+
 def todas_las_ventas():
-    """({codigo_cliente: [lineas]}, version) de todos los ficheros de ventas cargados."""
+    """({codigo_cliente: [lineas]}, version) de todos los ficheros de ventas cargados.
+
+    Los códigos de un mismo cliente comparten la MISMA lista (todas las ventas del cliente,
+    cada línea con su 'codigo'), así que cualquier cálculo por código ve el cliente entero.
+    Para recorrer clientes sin repetirlos, usar clientes_unicos()."""
     nombres = _ficheros_ventas()
 
     def cargar(nombre):
@@ -433,21 +505,38 @@ def todas_las_ventas():
 
     with ThreadPoolExecutor(max_workers=len(nombres)) as ex:
         resultados = list(ex.map(cargar, nombres))
-    version = '|'.join(str(_cache.get(f'ventas:{n}', {}).get('clave')) for n in nombres)
+    version = '|'.join(str(_cache.get(f'ventas:{n}', {}).get('clave')) for n in nombres) + '|' + str(_cache.get('clientes', {}).get('clave'))
     entrada = _cache.get('ventas_todas')
     if entrada and entrada.get('version') == version:
         return entrada['datos'], version
-    por_cliente = {}
+    crudas = {}
     for datos in resultados:
         for cliente, lineas in (datos or {}).items():
-            por_cliente.setdefault(cliente, []).extend(lineas)
-    for cliente, lineas in por_cliente.items():
+            crudas.setdefault(cliente, []).extend(dict(l, codigo=cliente) for l in lineas)
+    por_cliente = {}
+    for cliente in crudas:
+        if cliente in por_cliente:
+            continue
+        cods = codigos_hermanos(cliente)
+        lineas = [l for c in cods for l in crudas.get(c, [])]
         vistos, unicas = set(), []
         for l in sorted(lineas, key=lambda l: l['fecha'], reverse=True):
-            k = (l['tipo'], l['documento'], l['referencia'], l['cantidad'], l['importe'], l['fecha'])
+            k = (l['codigo'], l['tipo'], l['documento'], l['referencia'], l['cantidad'], l['importe'], l['fecha'])
             if k not in vistos:
                 vistos.add(k)
                 unicas.append(l)
-        por_cliente[cliente] = unicas
+        for c in cods:
+            por_cliente[c] = unicas
     _cache['ventas_todas'] = {'version': version, 'datos': por_cliente, 'clave': version, 'comprobado': time.time()}
     return por_cliente, version
+
+
+def clientes_unicos(codigos):
+    """Deja un solo código (el principal) por cliente."""
+    vistos, lista = set(), []
+    for c in codigos:
+        pr = principal(c)
+        if pr not in vistos:
+            vistos.add(pr)
+            lista.append(pr)
+    return lista

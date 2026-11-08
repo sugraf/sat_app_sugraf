@@ -108,6 +108,8 @@
     .precio i{ width:10px; height:10px; border-radius:50%; display:inline-block; }
     .precio.grande{ font-size:1.25rem; padding:8px 14px; }
     .precio.peq{ font-size:0.8rem; font-weight:700; padding:3px 8px; }
+    details.interno-det{ margin-top:8px; } details.interno-det > summary{ list-style:none; cursor:pointer; display:inline-block; font-size:0.68rem; color:#5c7291; padding:4px 0; user-select:none; }
+    details.interno-det > summary::-webkit-details-marker{ display:none; } details.interno-det[open] > summary{ color:var(--muted); }
     .interno{ margin-top:10px; padding:10px; border-radius:10px; border:1px dashed rgba(239,68,68,.45); background:rgba(239,68,68,.06); font-size:0.78rem; color:#fecaca; line-height:1.5; }
     .leyenda{ display:none; } .leyenda.show{ display:block; }
 
@@ -470,7 +472,7 @@ function filtrarClientes(q, soloMios) {
 function filaCliente(c, accion) {
   const est = c.estado === 'dormido' ? '<span class="badge bad">Dormido</span>' : c.estado === 'en_riesgo' ? '<span class="badge warn">En riesgo</span>' : '';
   return `<div class="card click" onclick="${accion}('${esc(c.codigo)}')">
-    <div class="row between"><div class="t-strong">${esc(c.nombre)}</div><span class="row" style="gap:4px;">${est}${c.mio ? '<span class="badge ok">Mío</span>' : ''}</span></div>
+    <div class="row between"><div class="t-strong">${esc(c.nombre)}</div><span class="row" style="gap:4px;">${est}${c.mio ? `<span class="badge ok">${esc(YO.nombre)}</span>` : ''}</span></div>
     <div class="t-small">${esc([c.nombre_comercial, c.poblacion, c.provincia].filter(Boolean).join(' · '))}</div>
     <div class="t-small">${c.comercial ? 'Comercial: ' + esc(c.comercial) : 'Sin comercial asignado'}${c.ultima_compra ? ' · Última compra ' + fechaCorta(c.ultima_compra) : ''}</div>
   </div>`;
@@ -587,6 +589,7 @@ async function cargarFicha(codigo) {
   cont.innerHTML = `
     <h2>${esc(c.nombre)}</h2>
     <div class="t-small" style="margin-top:4px;">${esc([c.nombre_comercial, c.poblacion].filter(Boolean).join(' · '))} · Cód. ${esc(c.codigo)}</div>
+    ${FICHA.otros_codigos.length ? `<div class="aviso info" style="margin-top:10px;">Mismo cliente con otros códigos de Pirineos: ${FICHA.otros_codigos.map(o => `<b>${esc(o.codigo)}</b>${o.nombre_comercial ? ' (' + esc(o.nombre_comercial) + ')' : ''}`).join(', ')}. Compras, visitas y precios dados se suman.</div>` : ''}
     <div class="row wrap" style="gap:6px; margin-top:12px;">
       ${tel ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(tel.replace(/\s/g,''))}">&#9742; Llamar</a>` : ''}
       ${c.email ? `<a class="btn btn-ghost btn-sm" href="mailto:${esc(c.email)}">&#9993; Email</a>` : ''}
@@ -757,7 +760,7 @@ function tabFicha(tab, boton) {
     const lista = FICHA.especiales.slice().sort((a,b) => (b.vigente - a.vigente) || (b.desde||'').localeCompare(a.desde||''));
     el.innerHTML = lista.length ? lista.map(e => `<div class="card"><div class="row between"><div class="t-strong">${esc(e.descripcion || 'Ref. ' + e.referencia)}</div>
       ${chipPrecio({precio:e.precio, clase:'especial'}, 'peq')}</div>
-      <div class="t-small">Ref. ${esc(e.referencia)} · ${e.desde ? 'desde ' + fechaCorta(e.desde) : ''} ${e.hasta ? 'hasta ' + fechaCorta(e.hasta) : ''}
+      <div class="t-small">Ref. ${esc(e.referencia)}${FICHA.otros_codigos.length ? ' · cód. ' + esc(e.codigo) : ''} · ${e.desde ? 'desde ' + fechaCorta(e.desde) : ''} ${e.hasta ? 'hasta ' + fechaCorta(e.hasta) : ''}
       ${e.vigente ? '<span class="badge ok">Vigente</span>' : '<span class="badge">Caducado</span>'}</div></div>`).join('')
       : '<div class="empty">Este cliente no tiene precios especiales en Pirineos.</div>';
   }
@@ -802,10 +805,10 @@ async function buscarPrecios() {
     let interno = '';
     if ('coste' in a) {
       const m = a.margen_aplicable || (a.tarifas[0] && a.margenes[a.tarifas[0].clase]);
-      interno = `<div class="interno">INTERNO · Coste último ${eur(a.coste)} · Stock ${a.stock}<br>${a.tarifas.map(t => {
+      interno = `<details class="interno-det"><summary>&#9662; más datos</summary><div class="interno">INTERNO · Coste último ${eur(a.coste)} · Stock ${a.stock}<br>${a.aplicable ? '' : a.tarifas.map(t => {
         const mm = a.margenes[t.clase]; return `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colorClase(t.clase)}"></i> ${mm ? `margen ${eur(mm.euros)} (${mm.pct_venta} % s/venta, recargo ${mm.recargo_coste} %)` : 'margen no calculable'}`; }).join('<br>')}
-        ${a.margen_aplicable ? `<br>Precio cliente: margen ${eur(a.margen_aplicable.euros)} (${a.margen_aplicable.pct_venta} % s/venta)` : ''}
-        <br><span style="opacity:.75">Estimación con el último coste de compra; no es margen neto.</span></div>`;
+        ${a.margen_aplicable ? `Precio cliente: margen ${eur(a.margen_aplicable.euros)} (${a.margen_aplicable.pct_venta} % s/venta)` : ''}
+        <br><span style="opacity:.75">Estimación con el último coste de compra; no es margen neto.</span></div></details>`;
     }
     return `<div class="card">
       <div class="t-strong">${esc(a.descripcion)}</div>
@@ -813,7 +816,7 @@ async function buscarPrecios() {
         ${a.hay_stock ? '<span class="badge ok">Stock</span>' : '<span class="badge">Sin stock</span>'}</div>
       ${a.aplicable ? `<div class="t-small" style="margin-top:10px;">Precio para ${esc(precioCliente.nombre)}:</div>
         <div style="margin-top:4px;">${chipPrecio(a.aplicable, 'grande')}${a.aplicable.hasta ? `<span class="t-small"> &nbsp;precio especial hasta ${fechaCorta(a.aplicable.hasta)}</span>` : ''}</div>` : ''}
-      <div class="row wrap" style="gap:6px; margin-top:10px;">${a.tarifas.length ? (precioCliente ? '<span class="t-small">Tarifas:</span>' : '') + a.tarifas.map(t => chipPrecio(t, 'peq')).join('') : '<span class="t-small">Sin precio de tarifa</span>'}</div>
+      ${a.aplicable ? '' : `<div class="row wrap" style="gap:6px; margin-top:10px;">${a.tarifas.length ? a.tarifas.map(t => chipPrecio(t, 'peq')).join('') : '<span class="t-small">Sin precio de tarifa</span>'}</div>`}
       ${precioCliente && precioCliente.codigo ? `<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick='apuntarPrecio(${JSON.stringify({ref: a.referencia, desc: a.descripcion, precio: a.aplicable ? a.aplicable.precio : ''}).replace(/'/g, "&#39;")})'>Apuntar precio dado</button>` : ''}
       ${interno}</div>`;
   }).join('') + (d.total > d.articulos.length ? `<div class="empty">${d.total - d.articulos.length} artículos más: afina la búsqueda.</div>` : '');
@@ -827,7 +830,8 @@ async function apuntarPrecio(a) {
   if (!(precio > 0)) { await appAlert('Escribe un precio válido.', {type: 'error'}); return; }
   const ok = await conCarga(() => api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
     referencia: a.ref, descripcion: a.desc, precio, nota: r.texto})}));
-  if (ok) await appAlert('Precio apuntado. Lo verás en la ficha del cliente, pestaña «Precios dados».', {type: 'success'});
+  if (ok) await appAlert('Precio apuntado. Lo verás en la ficha del cliente, pestaña «Precios dados».' +
+    (ok.correo === false ? '\n\n(No se ha podido enviar el aviso por correo a Lucía y Carolina.)' : ''), {type: 'success'});
 }
 function pintarLeyenda() {
   document.getElementById('leyenda').innerHTML = '<div class="t-small" style="margin-bottom:8px;">Leyenda interna (no la enseñes al cliente)</div>' +
@@ -1550,11 +1554,12 @@ function definirAccionesRobot() {
         let art = ULTIMOS_ARTICULOS.find(x => x.referencia === a.referencia);
         if (!art) { const d = await api(`/articulos?q=${encodeURIComponent(a.referencia)}`); art = d.articulos.find(x => x.referencia === a.referencia); }
         if (!art) return {ok: false, error: `No encuentro la referencia ${a.referencia}.`};
+        let r;
         try {
-          await api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
+          r = await api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
             referencia: art.referencia, descripcion: art.descripcion, precio: Number(a.precio), nota: a.nota || ''})});
         } catch (e) { return {ok: false, error: e.message}; }
-        return {ok: true, mensaje: `Apuntado: ${art.descripcion} a ${a.precio} € para ${precioCliente.nombre}.`};
+        return {ok: true, mensaje: `Apuntado: ${art.descripcion} a ${a.precio} € para ${precioCliente.nombre}.` + (r.correo === false ? ' (El aviso por correo no se ha podido enviar.)' : ' Se ha avisado por correo a Lucía y Carolina.')};
       },
     },
     ver_agenda: {

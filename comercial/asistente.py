@@ -43,6 +43,7 @@ Cómo trabajar:
 - Para preparar una visita usa ficha_cliente: resume en pocas líneas lo importante (último contacto y lo que quedó pendiente, avisos del SAT abiertos, pedidos pendientes, productos que está dejando de comprar, sugerencias con su motivo, máquinas a renovar) y termina con 2-3 temas concretos para sacar en la visita.
 - Precios: distingue precio de tarifa, precio especial vigente y precio histórico facturado. Nunca nombres la tarifa (1, 2, 3) delante del cliente salvo que el usuario lo pida expresamente. Costes y márgenes solo si las herramientas los devuelven (solo Master); son estimaciones con el último coste de compra, no margen neto.
 - «Dejando de comprar», «dormido» y las sugerencias son estimaciones a partir del histórico de ventas cargado (año actual y dos anteriores): preséntalas como indicios, con su motivo, no como hechos.
+- Un mismo cliente puede tener varios códigos en Pirineos (departamentos, código antiguo y nuevo...): la app ya los trata como uno solo (suma compras, visitas y precios dados). Si una herramienta devuelve otros_codigos, menciónalo cuando ayude.
 - Frecuencia de visita: la fija Master o se propone según lo que compra el cliente; «toca visitar» y «visitado de más» salen de control_visitas.
 - Responde en español, breve y directo, pensado para leer en el móvil: frases cortas, listas cuando ayuden, cifras con € y fechas dd/mm/aaaa. Nada de rodeos.
 """
@@ -122,7 +123,8 @@ def _ejecutar(s, nombre, args):
                 p = perfiles.get(c['codigo'], {})
                 res.append({'codigo': c['codigo'], 'nombre': c['nombre'], 'nombre_comercial': c['nombre_comercial'],
                             'poblacion': c['poblacion'], 'comercial': c['comercial'], 'estado_compra': p.get('estado', 'sin_compras'),
-                            'ultima_compra': p.get('ultima', '')})
+                            'ultima_compra': p.get('ultima', ''),
+                            'otros_codigos': [h for h in pirineos.codigos_hermanos(c['codigo']) if h != c['codigo']]})
         return {'total': len(res), 'clientes': res[:10]}
     if nombre == 'ficha_cliente':
         c = _cliente_valido(args.get('codigo'))

@@ -1,0 +1,1583 @@
+{
+ "_info": "Códigos de Pirineos que son el mismo cliente (revisado el 08/11/2026 por dos revisores independientes y un árbitro). Se suman sus ventas y visitas. Los códigos de \"revisados\" ya se han estudiado: para ellos no se aplica la regla automática de misma razón social.",
+ "grupos": [
+  {
+   "codigos": [
+    "325",
+    "2200"
+   ],
+   "principal": "325",
+   "confianza": "alta",
+   "motivo": "Mismo NIF B50551928, razón SERITRES SERIGRAFIA, dirección, teléfono y email",
+   "nombres": [
+    "SERITRES SERIGRAFIA, S.L.U.",
+    "SERITRES SERIGRAFIA"
+   ]
+  },
+  {
+   "codigos": [
+    "246",
+    "1312"
+   ],
+   "principal": "246",
+   "confianza": "media",
+   "motivo": "Cátedra Cervantes de la AGM: mismo NIF S5000010H y misma dirección",
+   "nombres": [
+    "A.G.M. CATEDRA MIGUEL DE CERVANTES",
+    "ACADEMIA GENERAL MILITAR (CATEDRA CERVANTES)"
+   ]
+  },
+  {
+   "codigos": [
+    "65",
+    "2139"
+   ],
+   "principal": "65",
+   "confianza": "alta",
+   "motivo": "Calidad Gráfica: mismo NIF y teléfono; 2139 es la sección servicio técnico/repuestos CTP",
+   "nombres": [
+    "CALIDAD GRAFICA, S.L.",
+    "CALIDAD GRAFICA, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "67",
+    "2528",
+    "2671"
+   ],
+   "principal": "2671",
+   "confianza": "media",
+   "motivo": "Serigrafía Valentín (Caspe): mismo teléfono, email y dirección; 2671 sucede a 67 (relevo familiar), 2528 alta sin NIF",
+   "nombres": [
+    "D. VALENTIN DE CASTRO PEÑA",
+    "SERIGRAFIA VALENTIN",
+    "DE CASTRO PARDO, CAROLINA"
+   ]
+  },
+  {
+   "codigos": [
+    "85",
+    "1337",
+    "1338",
+    "1353"
+   ],
+   "principal": "85",
+   "confianza": "alta",
+   "motivo": "Editorial Luis Vives: mismo NIF, dirección y contacto; códigos por departamento",
+   "nombres": [
+    "EDITORIAL LUIS VIVES",
+    "EDITORIAL LUIS VIVES",
+    "EDITORIAL LUIS VIVES",
+    "EDITORIAL LUIS VIVES"
+   ]
+  },
+  {
+   "codigos": [
+    "115",
+    "2167"
+   ],
+   "principal": "115",
+   "confianza": "alta",
+   "motivo": "Gambon S.A.: mismo NIF, dirección y teléfono; 2167 sección maquinaria",
+   "nombres": [
+    "GAMBON S.A.",
+    "GAMBON, S.A."
+   ]
+  },
+  {
+   "codigos": [
+    "346",
+    "2183"
+   ],
+   "principal": "346",
+   "confianza": "alta",
+   "motivo": "Tipo Línea S.A.: mismo NIF y email; 2183 sección varios",
+   "nombres": [
+    "TIPO LINEA, S.A.",
+    "TIPO LINEA, S.A."
+   ]
+  },
+  {
+   "codigos": [
+    "606",
+    "975",
+    "1692"
+   ],
+   "principal": "606",
+   "confianza": "media",
+   "motivo": "Colortech: mismo teléfono 976468468; 975 es el titular con nombre comercial COLORTECH y 1692 alta antigua en la misma dirección",
+   "nombres": [
+    "COLORTECH , S.A.",
+    "ACEBILLO MARIN, LUIS FERNANDO",
+    "COLORTECH PUBLICACIONES DIGITALES D'ARAGO"
+   ]
+  },
+  {
+   "codigos": [
+    "630",
+    "1009"
+   ],
+   "principal": "630",
+   "confianza": "alta",
+   "motivo": "Reproar / Heliográficos Reprografía Aragón: misma dirección, teléfono y email",
+   "nombres": [
+    "REPROAR-LUIS MIMBELA",
+    "HELIOGRAFICOS REPROGRAFIA ARAGON S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "608",
+    "1368"
+   ],
+   "principal": "1368",
+   "confianza": "alta",
+   "motivo": "Copia Rápida: persona física sustituida por Global Digital Impresión S.L., mismo teléfono, móvil, email y dirección",
+   "nombres": [
+    "CARLOS DEL POZO GIMENEZ",
+    "GLOBAL DIGITAL IMPRESION, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1176",
+    "1557"
+   ],
+   "principal": "1557",
+   "confianza": "media",
+   "motivo": "Dies Rivera: mismo teléfono y móvil; Nadima Equipamiento (DIES) sucede al código de Ignacio Dies",
+   "nombres": [
+    "IGNACIO DIES MAÑAS",
+    "NADIMA EQUIPAMIENTO, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1355",
+    "2239"
+   ],
+   "principal": "1355",
+   "confianza": "media",
+   "motivo": "Corpóreas Aragón: titular persona física y S.L. con misma dirección y dominio de email",
+   "nombres": [
+    "ROSER RODRIGUEZ, LUIS",
+    "NO SOLO ROTULOS Y GRAFICAS S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "122",
+    "801",
+    "802"
+   ],
+   "principal": "122",
+   "confianza": "alta",
+   "motivo": "Gráficas Alós: mismo NIF, dirección y email; códigos por consumo (planchas/tintas)",
+   "nombres": [
+    "GRAFICAS ALOS, S.A.",
+    "GRAFICAS ALOS, S.A.",
+    "GRAFICAS ALOS, S.A."
+   ]
+  },
+  {
+   "codigos": [
+    "170",
+    "959"
+   ],
+   "principal": "959",
+   "confianza": "alta",
+   "motivo": "Gráficas Zar: mismo NIF y dirección; códigos por sección",
+   "nombres": [
+    "GRAFICAS ZAR, S.L.",
+    "GRAFICAS ZAR, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1086",
+    "2479"
+   ],
+   "principal": "1086",
+   "confianza": "alta",
+   "motivo": "Henneo Print: mismo NIF y contacto; 2479 sección plotter",
+   "nombres": [
+    "HENNEO PRINT SL",
+    "HENNEO PRINT SL"
+   ]
+  },
+  {
+   "codigos": [
+    "193",
+    "1627"
+   ],
+   "principal": "193",
+   "confianza": "media",
+   "motivo": "Gráficas González (Casetas): mismo teléfono y apartado de correos, relevo familiar",
+   "nombres": [
+    "D. MANUEL GONZALEZ CIVERA",
+    "GONZALEZ IRANZO, AMPARO"
+   ]
+  },
+  {
+   "codigos": [
+    "204",
+    "2605"
+   ],
+   "principal": "2605",
+   "confianza": "alta",
+   "motivo": "Imprenta Moisés: persona física sustituida por Moises Forgrafic S.L., mismo teléfono y email",
+   "nombres": [
+    "D. FERNANDO ENCINAR RAMON",
+    "MOISES FORGRAFIC, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "280",
+    "1496"
+   ],
+   "principal": "280",
+   "confianza": "alta",
+   "motivo": "Musigraf Joval: mismo NIF, dirección y teléfono",
+   "nombres": [
+    "MUSIGRAF JOVAL, S.L.",
+    "IMPRENTA MUSIGRAF JOVAL, S.L"
+   ]
+  },
+  {
+   "codigos": [
+    "2040",
+    "2469"
+   ],
+   "principal": "2040",
+   "confianza": "alta",
+   "motivo": "Buenaventura: persona física y S.L.U. con misma dirección, teléfono y email",
+   "nombres": [
+    "PUEYO BARRACA, AGUSTIN",
+    "BUENAVENTURA GRAFICO, S.L.U."
+   ]
+  },
+  {
+   "codigos": [
+    "1563",
+    "1830"
+   ],
+   "principal": "1563",
+   "confianza": "media",
+   "motivo": "Rótulos Imagine: mismo teléfono y email (1830 es el titular)",
+   "nombres": [
+    "ROTULOS IMAGINE",
+    "BENITO CARCAVILLA, JESUS"
+   ]
+  },
+  {
+   "codigos": [
+    "1672",
+    "2008"
+   ],
+   "principal": "1672",
+   "confianza": "media",
+   "motivo": "Tu Vinilo: mismo teléfono; S.C. (2008) y S.L. (1672) con mismo nombre comercial",
+   "nombres": [
+    "TU VINILO DECORATIVO, S.L.",
+    "SISTEMAS DE DECORACION E IMPRESION, S.C."
+   ]
+  },
+  {
+   "codigos": [
+    "2061",
+    "2124"
+   ],
+   "principal": "2061",
+   "confianza": "media",
+   "motivo": "ORSE: S.C.V. J99464877 → S.L. B99464877 (mismo número de NIF)",
+   "nombres": [
+    "ORSE, S.C.V.",
+    "ORSE ROTULOS, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "446",
+    "594"
+   ],
+   "principal": "446",
+   "confianza": "media",
+   "motivo": "Imprenta Sanra: titular persona física y S.L., misma dirección y teléfono",
+   "nombres": [
+    "Dª MILAGROS MOLINOS MARTINEZ",
+    "IMPRENTA SANRA,S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "499",
+    "820",
+    "821",
+    "822"
+   ],
+   "principal": "499",
+   "confianza": "alta",
+   "motivo": "Implaser 99: mismo NIF, dirección y email; códigos por tipo de consumo",
+   "nombres": [
+    "IMPLASER 99, S.L.L.",
+    "IMPLASER 99, S.L.L.",
+    "IMPLASER 99, S.L.L.",
+    "IMPLASER 99, S.L.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1792",
+    "1793"
+   ],
+   "principal": "1792",
+   "confianza": "media",
+   "motivo": "POPO IMAGEN: misma razón social, población y CP 50003; dos direcciones del mismo negocio o un traslado",
+   "nombres": [
+    "POPO IMAGEN",
+    "POPO IMAGEN"
+   ]
+  },
+  {
+   "codigos": [
+    "570",
+    "1367"
+   ],
+   "principal": "1367",
+   "confianza": "media",
+   "motivo": "Color Base: mismo teléfono y móvil; Rótulos Color Base S.L. sucede a Color Base Digital S.L. (sin ventas)",
+   "nombres": [
+    "COLOR BASE DIGITAL, S.L.",
+    "ROTULOS COLOR BASE, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "625",
+    "2903"
+   ],
+   "principal": "2903",
+   "confianza": "alta",
+   "motivo": "Kronos (Menéndez Pelayo): mismo teléfono, email y dirección; relevo de titular",
+   "nombres": [
+    "ISABEL REPISO GARCIA",
+    "LASTIESAS REPISO, JAVIER"
+   ]
+  },
+  {
+   "codigos": [
+    "1713",
+    "1714"
+   ],
+   "principal": "1713",
+   "confianza": "media",
+   "motivo": "Pedro Berbegal Herrero: misma persona en Zaragoza con dos direcciones; sin ventas",
+   "nombres": [
+    "PEDRO BERBEGAL HERRERO",
+    "PEDRO BERBEGAL HERRERO"
+   ]
+  },
+  {
+   "codigos": [
+    "1561",
+    "1828"
+   ],
+   "principal": "1561",
+   "confianza": "alta",
+   "motivo": "Copy@rte: mismo email y dirección",
+   "nombres": [
+    "COPY@ARTE",
+    "COPISTERIA COPY@RTE"
+   ]
+  },
+  {
+   "codigos": [
+    "738",
+    "936"
+   ],
+   "principal": "738",
+   "confianza": "alta",
+   "motivo": "Medes Sport / Sportwear de Aragón: misma dirección, teléfono y email",
+   "nombres": [
+    "MEDES SPORT",
+    "SPORTWEAR DE ARAGON, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "906",
+    "2846"
+   ],
+   "principal": "2846",
+   "confianza": "alta",
+   "motivo": "Artesello: persona física sustituida por Artesello S.L. (deja de comprar uno cuando empieza el otro), mismo teléfono y email",
+   "nombres": [
+    "FRANCISCO JAVIER LAHOZ LANSAQUE",
+    "ARTESELLO S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1450",
+    "1927"
+   ],
+   "principal": "1450",
+   "confianza": "alta",
+   "motivo": "Imprenta Tubia (Haro): mismo email y dirección, A.L.→S.L.",
+   "nombres": [
+    "IMPRENTA TUBIA, A.L.",
+    "IMPRENTA TUBIA SL"
+   ]
+  },
+  {
+   "codigos": [
+    "991",
+    "1933"
+   ],
+   "principal": "991",
+   "confianza": "media",
+   "motivo": "ABZ (Logroño): mismo teléfono y calle; Gráficas ABZ S.A.L. antecesora de ABZ Impresores S.L.",
+   "nombres": [
+    "ABZ IMPRESORES, S.L.",
+    "GRAFICAS ABZ S.A.L"
+   ]
+  },
+  {
+   "codigos": [
+    "1042",
+    "1935"
+   ],
+   "principal": "1042",
+   "confianza": "alta",
+   "motivo": "Labelgrafic: misma razón, dirección y teléfono",
+   "nombres": [
+    "LABELGRAFIC S.A.",
+    "LABELGRAFIC, SA"
+   ]
+  },
+  {
+   "codigos": [
+    "1074",
+    "2060"
+   ],
+   "principal": "1074",
+   "confianza": "alta",
+   "motivo": "Grafo Serluanpa: mismo NIF y dirección; 2060 sección hoja",
+   "nombres": [
+    "GRAFO SERLUANPA, S.L.",
+    "GRAFO SERLUANPA, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1115",
+    "1117"
+   ],
+   "principal": "1115",
+   "confianza": "alta",
+   "motivo": "Alcodigital: misma persona, teléfono y email (alta duplicada)",
+   "nombres": [
+    "ALCOBER OLIETE, MIGUEL A.",
+    "MIGUEL A. ALCOBER OLIETE"
+   ]
+  },
+  {
+   "codigos": [
+    "1120",
+    "2082"
+   ],
+   "principal": "2082",
+   "confianza": "alta",
+   "motivo": "Tecnirótulo: persona física sustituida por Tecnirótulo Teruel S.L.U., mismo teléfono, email y nave",
+   "nombres": [
+    "OSCAR BARRERA ROYUELA",
+    "TECNIROTULO TERUEL SLU"
+   ]
+  },
+  {
+   "codigos": [
+    "1407",
+    "2171"
+   ],
+   "principal": "1407",
+   "confianza": "alta",
+   "motivo": "Gráfica Trazos: mismo NIF, S.C.→S.L.",
+   "nombres": [
+    "GRAFICA TRAZOS, S.C.",
+    "GRAFICA TRAZOS, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1193",
+    "1431"
+   ],
+   "principal": "1193",
+   "confianza": "media",
+   "motivo": "Rótulos Bia: Serviargos S.A.L. usa el nombre comercial ROTULOS BIA, mismo teléfono, email y dirección",
+   "nombres": [
+    "ROTULOS BIA, S.L.",
+    "SERVIARGOS, S.A.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1194",
+    "1286"
+   ],
+   "principal": "1194",
+   "confianza": "media",
+   "motivo": "Canal 0 / Canal Cero: mismo teléfono y dominio de email; JJL Autoinform (Canal 0) antecesora de Canal Cero S.L.",
+   "nombres": [
+    "JJL AUTOINFORM S.A.L. (CANAL 0)",
+    "CANAL CERO, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1214",
+    "1287"
+   ],
+   "principal": "1214",
+   "confianza": "alta",
+   "motivo": "PC Box Print Center Pamplona: mismo NIF, teléfono y email",
+   "nombres": [
+    "CENTRO ESPECIALIZADO EN PC GLOBAL",
+    "CENT.ESPEC.PC GLOBAL PC S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1240",
+    "2361"
+   ],
+   "principal": "1240",
+   "confianza": "alta",
+   "motivo": "Rotugraf: misma persona (José Florencio Montava Díaz) y mismo teléfono",
+   "nombres": [
+    "MONTAVA DIAZ, JOSE F.",
+    "MONTAVA DIAZ, JOSE FLORENCIO"
+   ]
+  },
+  {
+   "codigos": [
+    "1317",
+    "1555"
+   ],
+   "principal": "1317",
+   "confianza": "alta",
+   "motivo": "+D Rotulación: mismo teléfono, móvil, email y dirección (alta duplicada)",
+   "nombres": [
+    "+D ROTULACION",
+    "+ DE ROTULACION"
+   ]
+  },
+  {
+   "codigos": [
+    "1414",
+    "1503"
+   ],
+   "principal": "1414",
+   "confianza": "alta",
+   "motivo": "JC Inox: persona física y S.L.U. con mismo teléfono, móvil y email",
+   "nombres": [
+    "JUAN CARLOS NAVARRO, S.L.U.",
+    "NAVARRO COLON, JUAN CARLOS"
+   ]
+  },
+  {
+   "codigos": [
+    "1444",
+    "1445"
+   ],
+   "principal": "1444",
+   "confianza": "alta",
+   "motivo": "Adhesivos de Vinilo: misma persona (Gemma Gracia Crespo), teléfono y email",
+   "nombres": [
+    "GRACIA CRESPO, GEMMA",
+    "GEMMA GRACIA CRESPO"
+   ]
+  },
+  {
+   "codigos": [
+    "1451",
+    "1926"
+   ],
+   "principal": "1451",
+   "confianza": "media",
+   "motivo": "Viela (Haro): Imprenta Viela y Viela Artes Gráficas S.L. en la misma calle del polígono",
+   "nombres": [
+    "IMPRENTA VIELA",
+    "VIELA ARTES GRAFICAS SL"
+   ]
+  },
+  {
+   "codigos": [
+    "1514",
+    "2140"
+   ],
+   "principal": "1514",
+   "confianza": "alta",
+   "motivo": "Diversa Comunicación Gráfica: mismo NIF; 2140 sección servicio técnico",
+   "nombres": [
+    "DIVERSA COMUNICACION GRAFICA, S.L.",
+    "DIVERSA COMUNICACION GRAFICA, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1564",
+    "1799"
+   ],
+   "principal": "1564",
+   "confianza": "alta",
+   "motivo": "Fernando Barrio fotógrafo: mismo nombre, teléfono y dirección",
+   "nombres": [
+    "FERNANDO BARRIO FOTOGRAFO",
+    "FERNANDO BARRIO"
+   ]
+  },
+  {
+   "codigos": [
+    "1568",
+    "1737"
+   ],
+   "principal": "1568",
+   "confianza": "alta",
+   "motivo": "Samper Orlas: mismo nombre, teléfono y dirección",
+   "nombres": [
+    "SAMPER ORLAS",
+    "SAMPER - ORLAS"
+   ]
+  },
+  {
+   "codigos": [
+    "1569",
+    "1771"
+   ],
+   "principal": "1569",
+   "confianza": "alta",
+   "motivo": "Fotogenia (Fernando Aragüés): mismo teléfono y dirección en Sobrarbe",
+   "nombres": [
+    "FOTOGENIA",
+    "FOTOGENIA FERNANDO ARAGÜES"
+   ]
+  },
+  {
+   "codigos": [
+    "1580",
+    "1621"
+   ],
+   "principal": "1580",
+   "confianza": "alta",
+   "motivo": "Copy Center Utebo: mismo teléfono, email y dirección",
+   "nombres": [
+    "COPYCENTERUTEBO",
+    "COPY CENTER UTEBO"
+   ]
+  },
+  {
+   "codigos": [
+    "1583",
+    "1777"
+   ],
+   "principal": "1583",
+   "confianza": "alta",
+   "motivo": "Colectivo Fotográfico (ZPhoto): mismo teléfono y dirección",
+   "nombres": [
+    "ZPHOTO",
+    "COLECTIVO FOTOGRAFICO"
+   ]
+  },
+  {
+   "codigos": [
+    "1584",
+    "1810"
+   ],
+   "principal": "1584",
+   "confianza": "media",
+   "motivo": "Miranda Fotografía: mismo teléfono y calle",
+   "nombres": [
+    "MIRANDA FOTOGRAFIA",
+    "MIRANDA"
+   ]
+  },
+  {
+   "codigos": [
+    "1594",
+    "1823"
+   ],
+   "principal": "1594",
+   "confianza": "alta",
+   "motivo": "Fotorama / Fotos Rama: mismo teléfono y dirección",
+   "nombres": [
+    "FOTOGRAFIA FOTORAMA",
+    "FOTOS RAMA"
+   ]
+  },
+  {
+   "codigos": [
+    "1659",
+    "2471"
+   ],
+   "principal": "1659",
+   "confianza": "alta",
+   "motivo": "Deconeon: mismo nombre comercial, teléfono, email y dirección (titular → S.L.)",
+   "nombres": [
+    "ACIN INDACOECHEA , JOSE Mª",
+    "LUMINOSOS NAVARRA DECORACION NEON SL"
+   ]
+  },
+  {
+   "codigos": [
+    "1671",
+    "2502"
+   ],
+   "principal": "1671",
+   "confianza": "media",
+   "motivo": "Waldo Gargallo: Ábside d'Diseño S.L. lleva su nombre como comercial y misma dirección",
+   "nombres": [
+    "GARGALLO HERVIAS, WALDO",
+    "ABSIDE D'DISEÑO SL"
+   ]
+  },
+  {
+   "codigos": [
+    "1723",
+    "1724"
+   ],
+   "principal": "1723",
+   "confianza": "media",
+   "motivo": "María Jesús Espeso Jaso: misma persona en Zaragoza con dos direcciones; sin ventas",
+   "nombres": [
+    "MARIA JESUS ESPESO JASO",
+    "MARIA JESUS ESPESO JASO"
+   ]
+  },
+  {
+   "codigos": [
+    "1843",
+    "2301"
+   ],
+   "principal": "2301",
+   "confianza": "alta",
+   "motivo": "Estudios Pigmento: titular persona física → S.L., mismo teléfono, email y dirección",
+   "nombres": [
+    "MIQUELEZ ALZUETA, ALBERTO",
+    "ESTUDIOS PIGMENTO, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1892",
+    "2837"
+   ],
+   "principal": "1892",
+   "confianza": "media",
+   "motivo": "Zubillaga (Noáin): Gráficas Zubillaga → Imprenta Zubillaga S.L., misma nave",
+   "nombres": [
+    "GRAFICAS ZUBILLAGA",
+    "IMPRENTA ZUBILLAGA,S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "1920",
+    "2127"
+   ],
+   "principal": "1920",
+   "confianza": "alta",
+   "motivo": "Gráficas Berriainz: mismo NIF, persona y teléfono (alta duplicada)",
+   "nombres": [
+    "VILLANUEVA AOS, PEDRO",
+    "VILLANUEVA AOS, PEDRO"
+   ]
+  },
+  {
+   "codigos": [
+    "1923",
+    "2607"
+   ],
+   "principal": "2607",
+   "confianza": "media",
+   "motivo": "Gráficas Alzate S.L. → Alzate Norte S.L.U.: misma nave, teléfono y dominio",
+   "nombres": [
+    "GRAFICAS ALZATE SL",
+    "GRAFICAS ALZATE NORTE, SLU"
+   ]
+  },
+  {
+   "codigos": [
+    "1948",
+    "1965"
+   ],
+   "principal": "1948",
+   "confianza": "media",
+   "motivo": "Impremta Sol (Lleida): misma razón y calle; 1965 alta antigua sin NIF",
+   "nombres": [
+    "IMPREMTA SOL S.L.",
+    "IMPREMTA SOL"
+   ]
+  },
+  {
+   "codigos": [
+    "1953",
+    "1963"
+   ],
+   "principal": "1953",
+   "confianza": "alta",
+   "motivo": "Gráficas/Imprenta Minerva (Cervera): mismo teléfono y dirección",
+   "nombres": [
+    "GRAFICAS MINERVA",
+    "IMPRENTA MINERVA"
+   ]
+  },
+  {
+   "codigos": [
+    "1992",
+    "2164"
+   ],
+   "principal": "1992",
+   "confianza": "alta",
+   "motivo": "Rótulos Alto Gállego: mismo teléfono, email y calle",
+   "nombres": [
+    "ROTULOS ALGO GÁLLEGO",
+    "ROTULOS ALTO GALLEGO,S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "2086",
+    "2928"
+   ],
+   "principal": "2086",
+   "confianza": "alta",
+   "motivo": "DT Factory: titular persona física → S.L.U., mismo teléfono, email y dirección",
+   "nombres": [
+    "CABALLERO ENGUITA, JOSE ANGEL",
+    "DT FACTORY, S.L.U."
+   ]
+  },
+  {
+   "codigos": [
+    "2024",
+    "2908"
+   ],
+   "principal": "2908",
+   "confianza": "alta",
+   "motivo": "Bignilo: Marcos Gavín → Bignilo Impresión y Rotulación S.L., mismo teléfono, email y nave",
+   "nombres": [
+    "GAVIN CANTOS, MARCOS",
+    "BIGNILO IMRESION Y ROTULACION S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "2049",
+    "2685"
+   ],
+   "principal": "2049",
+   "confianza": "media",
+   "motivo": "Somos Rótulos: titular persona física y S.L., mismo teléfono y dominio",
+   "nombres": [
+    "LIDON MARTIN, JAVIER",
+    "SOMOS ROTULOS SL"
+   ]
+  },
+  {
+   "codigos": [
+    "2132",
+    "2486"
+   ],
+   "principal": "2132",
+   "confianza": "alta",
+   "motivo": "Ángel Pascual Jaén (1000 Páginas/1000 Globos): mismo NIF, teléfono y email",
+   "nombres": [
+    "ANGEL PASCUAL JAEN",
+    "PASCUAL JAEN, ANGEL"
+   ]
+  },
+  {
+   "codigos": [
+    "2157",
+    "2169"
+   ],
+   "principal": "2157",
+   "confianza": "alta",
+   "motivo": "Maydel Cars Services: misma razón, teléfono, móvil y email (NIF con errata)",
+   "nombres": [
+    "MAYDEL CARS SERVICES S.L.L.",
+    "MAYDEL CARS SERVICES, S.L.L."
+   ]
+  },
+  {
+   "codigos": [
+    "2196",
+    "2529"
+   ],
+   "principal": "2196",
+   "confianza": "media",
+   "motivo": "Cincaprint (Monzón): mismo nombre y teléfono, distinta calle",
+   "nombres": [
+    "CINCAPRINT",
+    "SERIGRAFIAS CINCAPRINT SRLL"
+   ]
+  },
+  {
+   "codigos": [
+    "2231",
+    "2274"
+   ],
+   "principal": "2231",
+   "confianza": "alta",
+   "motivo": "Soro Metalúrgica: misma razón, dirección y teléfono",
+   "nombres": [
+    "SORO METALURGICA SA",
+    "SORO METALURGICA, S.A."
+   ]
+  },
+  {
+   "codigos": [
+    "2232",
+    "2279"
+   ],
+   "principal": "2232",
+   "confianza": "media",
+   "motivo": "Itesal: mismo dominio propio itesal.es; 2232 alta incompleta",
+   "nombres": [
+    "ITESAL SISTEMAS",
+    "ITESAL, S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "2316",
+    "2441"
+   ],
+   "principal": "2316",
+   "confianza": "alta",
+   "motivo": "Singular Artes Gráficas: mismo email, teléfono y calle",
+   "nombres": [
+    "LORIENTE CANO, SARA",
+    "SINGULAR"
+   ]
+  },
+  {
+   "codigos": [
+    "2410",
+    "2481"
+   ],
+   "principal": "2410",
+   "confianza": "media",
+   "motivo": "Copilowcost: dos S.L. con el mismo nombre comercial en el mismo local",
+   "nombres": [
+    "COPYBRI SL.",
+    "COPYARDEAL,S.L."
+   ]
+  },
+  {
+   "codigos": [
+    "2489",
+    "2564"
+   ],
+   "principal": "2489",
+   "confianza": "media",
+   "motivo": "Botería Mairal: S.C.P. y titular persona física, mismo teléfono y calle",
+   "nombres": [
+    "BOTERIA MAIRAL S.C.P.",
+    "PEREZ CRESPO, ISMAEL"
+   ]
+  },
+  {
+   "codigos": [
+    "2500",
+    "2552"
+   ],
+   "principal": "2500",
+   "confianza": "media",
+   "motivo": "Deportes 92-98: C.B. y titular, mismo teléfono y nombre comercial",
+   "nombres": [
+    "DEPORTES 92 98 C B",
+    "LANAU BROTO, JORGE"
+   ]
+  },
+  {
+   "codigos": [
+    "2525",
+    "2555"
+   ],
+   "principal": "2525",
+   "confianza": "alta",
+   "motivo": "Rosario Rodríguez Montañés (Camisetas Albahaca): mismo NIF y dirección",
+   "nombres": [
+    "RODRIGUEZ MONTAÑES, ROSARIO",
+    "ROSARIO RODRIGUEZ MONTAÑES"
+   ]
+  },
+  {
+   "codigos": [
+    "2573",
+    "2850"
+   ],
+   "principal": "2850",
+   "confianza": "alta",
+   "motivo": "La Tipográfica Sanz (Caspe): Cimayek S.C. sucede a Pedro Pardo (uno deja de comprar cuando empieza el otro), misma dirección y teléfono",
+   "nombres": [
+    "PARDO GALLEGOS, PEDRO",
+    "CIMAYEK S.C."
+   ]
+  },
+  {
+   "codigos": [
+    "2581",
+    "2582"
+   ],
+   "principal": "2581",
+   "confianza": "media",
+   "motivo": "Dosnodos: Santiago Serrano compra con su NIF para el local de DOSNODOS (dirección 'TOMAS HIGUERA 44 LOCAL IZDA-DOSNODOS', email @dosnodos.com), mismo comercial y mismo tipo de producto",
+   "nombres": [
+    "DOSNODOS, S.L.U.",
+    "SERRANO SANCHEZ, SANTIAGO"
+   ]
+  },
+  {
+   "codigos": [
+    "2717",
+    "2794"
+   ],
+   "principal": "2794",
+   "confianza": "alta",
+   "motivo": "Villar Seco S.A.: mismo NIF, dirección y teléfono",
+   "nombres": [
+    "VILLAR SECO SA",
+    "VILLAR SECO, S.A."
+   ]
+  },
+  {
+   "codigos": [
+    "2725",
+    "2732"
+   ],
+   "principal": "2732",
+   "confianza": "media",
+   "motivo": "Fundación A La Par: fundación y su S.L. (Cademadrid) con mismo nombre comercial, teléfono y dirección",
+   "nombres": [
+    "FUNDACION CARMEN PARDO VALCARCE",
+    "CADEMADRID SL"
+   ]
+  },
+  {
+   "codigos": [
+    "2737",
+    "2739"
+   ],
+   "principal": "2737",
+   "confianza": "media",
+   "motivo": "CRA Films: Carlos Rafel Amat (RAYMI-CRA FILMS) y CRA Films S.L. con mismo teléfono",
+   "nombres": [
+    "RAFEL AMAT , CARLOS",
+    "CRA FILMS ENCAPSULACION LAMINACION S.L."
+   ]
+  }
+ ],
+ "revisados": [
+  "24",
+  "44",
+  "48",
+  "54",
+  "65",
+  "67",
+  "81",
+  "85",
+  "93",
+  "102",
+  "115",
+  "122",
+  "130",
+  "140",
+  "169",
+  "170",
+  "175",
+  "182",
+  "193",
+  "204",
+  "205",
+  "246",
+  "255",
+  "280",
+  "295",
+  "321",
+  "325",
+  "326",
+  "327",
+  "346",
+  "360",
+  "382",
+  "392",
+  "401",
+  "418",
+  "424",
+  "425",
+  "426",
+  "446",
+  "448",
+  "489",
+  "499",
+  "523",
+  "526",
+  "529",
+  "532",
+  "567",
+  "570",
+  "594",
+  "601",
+  "606",
+  "608",
+  "611",
+  "621",
+  "625",
+  "630",
+  "636",
+  "644",
+  "646",
+  "648",
+  "655",
+  "696",
+  "705",
+  "711",
+  "726",
+  "738",
+  "743",
+  "768",
+  "801",
+  "802",
+  "804",
+  "812",
+  "820",
+  "821",
+  "822",
+  "898",
+  "904",
+  "906",
+  "908",
+  "914",
+  "915",
+  "921",
+  "923",
+  "936",
+  "941",
+  "959",
+  "967",
+  "974",
+  "975",
+  "979",
+  "991",
+  "1009",
+  "1011",
+  "1019",
+  "1027",
+  "1030",
+  "1032",
+  "1042",
+  "1056",
+  "1072",
+  "1073",
+  "1074",
+  "1083",
+  "1086",
+  "1091",
+  "1115",
+  "1117",
+  "1120",
+  "1122",
+  "1127",
+  "1129",
+  "1137",
+  "1153",
+  "1176",
+  "1178",
+  "1179",
+  "1186",
+  "1193",
+  "1194",
+  "1198",
+  "1202",
+  "1205",
+  "1206",
+  "1212",
+  "1214",
+  "1216",
+  "1220",
+  "1226",
+  "1230",
+  "1232",
+  "1233",
+  "1235",
+  "1240",
+  "1244",
+  "1246",
+  "1252",
+  "1265",
+  "1283",
+  "1286",
+  "1287",
+  "1307",
+  "1309",
+  "1311",
+  "1312",
+  "1317",
+  "1324",
+  "1326",
+  "1333",
+  "1337",
+  "1338",
+  "1342",
+  "1350",
+  "1353",
+  "1355",
+  "1362",
+  "1367",
+  "1368",
+  "1377",
+  "1379",
+  "1407",
+  "1410",
+  "1412",
+  "1414",
+  "1417",
+  "1423",
+  "1424",
+  "1428",
+  "1429",
+  "1431",
+  "1435",
+  "1438",
+  "1444",
+  "1445",
+  "1446",
+  "1449",
+  "1450",
+  "1451",
+  "1459",
+  "1461",
+  "1470",
+  "1485",
+  "1487",
+  "1489",
+  "1496",
+  "1499",
+  "1503",
+  "1505",
+  "1514",
+  "1525",
+  "1527",
+  "1540",
+  "1542",
+  "1548",
+  "1551",
+  "1555",
+  "1556",
+  "1557",
+  "1561",
+  "1563",
+  "1564",
+  "1565",
+  "1566",
+  "1568",
+  "1569",
+  "1571",
+  "1572",
+  "1573",
+  "1574",
+  "1575",
+  "1580",
+  "1583",
+  "1584",
+  "1585",
+  "1587",
+  "1588",
+  "1589",
+  "1590",
+  "1591",
+  "1592",
+  "1594",
+  "1595",
+  "1596",
+  "1608",
+  "1611",
+  "1619",
+  "1620",
+  "1621",
+  "1622",
+  "1627",
+  "1637",
+  "1642",
+  "1652",
+  "1655",
+  "1656",
+  "1659",
+  "1661",
+  "1663",
+  "1671",
+  "1672",
+  "1673",
+  "1680",
+  "1681",
+  "1689",
+  "1690",
+  "1691",
+  "1692",
+  "1693",
+  "1696",
+  "1697",
+  "1698",
+  "1701",
+  "1706",
+  "1709",
+  "1713",
+  "1714",
+  "1721",
+  "1723",
+  "1724",
+  "1725",
+  "1728",
+  "1729",
+  "1731",
+  "1735",
+  "1737",
+  "1741",
+  "1745",
+  "1752",
+  "1756",
+  "1764",
+  "1770",
+  "1771",
+  "1772",
+  "1773",
+  "1775",
+  "1777",
+  "1779",
+  "1780",
+  "1781",
+  "1782",
+  "1783",
+  "1784",
+  "1786",
+  "1787",
+  "1789",
+  "1792",
+  "1793",
+  "1794",
+  "1797",
+  "1799",
+  "1809",
+  "1810",
+  "1811",
+  "1815",
+  "1818",
+  "1820",
+  "1823",
+  "1828",
+  "1830",
+  "1834",
+  "1841",
+  "1843",
+  "1847",
+  "1851",
+  "1870",
+  "1873",
+  "1881",
+  "1882",
+  "1892",
+  "1918",
+  "1920",
+  "1923",
+  "1926",
+  "1927",
+  "1929",
+  "1933",
+  "1935",
+  "1947",
+  "1948",
+  "1953",
+  "1962",
+  "1963",
+  "1965",
+  "1972",
+  "1982",
+  "1992",
+  "1995",
+  "2005",
+  "2008",
+  "2010",
+  "2011",
+  "2013",
+  "2015",
+  "2016",
+  "2024",
+  "2040",
+  "2045",
+  "2049",
+  "2055",
+  "2057",
+  "2060",
+  "2061",
+  "2064",
+  "2067",
+  "2081",
+  "2082",
+  "2085",
+  "2086",
+  "2097",
+  "2100",
+  "2114",
+  "2121",
+  "2124",
+  "2127",
+  "2128",
+  "2131",
+  "2132",
+  "2134",
+  "2139",
+  "2140",
+  "2144",
+  "2154",
+  "2157",
+  "2162",
+  "2163",
+  "2164",
+  "2167",
+  "2169",
+  "2171",
+  "2179",
+  "2183",
+  "2185",
+  "2196",
+  "2200",
+  "2220",
+  "2231",
+  "2232",
+  "2239",
+  "2246",
+  "2247",
+  "2250",
+  "2267",
+  "2274",
+  "2279",
+  "2281",
+  "2284",
+  "2286",
+  "2292",
+  "2294",
+  "2295",
+  "2296",
+  "2299",
+  "2300",
+  "2301",
+  "2309",
+  "2316",
+  "2323",
+  "2329",
+  "2330",
+  "2337",
+  "2344",
+  "2346",
+  "2347",
+  "2353",
+  "2358",
+  "2361",
+  "2368",
+  "2369",
+  "2372",
+  "2379",
+  "2381",
+  "2410",
+  "2413",
+  "2416",
+  "2441",
+  "2451",
+  "2457",
+  "2462",
+  "2469",
+  "2471",
+  "2479",
+  "2481",
+  "2482",
+  "2486",
+  "2489",
+  "2500",
+  "2502",
+  "2511",
+  "2512",
+  "2517",
+  "2524",
+  "2525",
+  "2528",
+  "2529",
+  "2541",
+  "2552",
+  "2555",
+  "2561",
+  "2562",
+  "2564",
+  "2565",
+  "2569",
+  "2572",
+  "2573",
+  "2576",
+  "2578",
+  "2579",
+  "2581",
+  "2582",
+  "2587",
+  "2590",
+  "2592",
+  "2595",
+  "2605",
+  "2607",
+  "2622",
+  "2625",
+  "2632",
+  "2637",
+  "2671",
+  "2683",
+  "2685",
+  "2709",
+  "2712",
+  "2713",
+  "2715",
+  "2717",
+  "2725",
+  "2732",
+  "2735",
+  "2737",
+  "2739",
+  "2743",
+  "2756",
+  "2760",
+  "2765",
+  "2775",
+  "2794",
+  "2807",
+  "2811",
+  "2814",
+  "2824",
+  "2837",
+  "2840",
+  "2846",
+  "2850",
+  "2854",
+  "2855",
+  "2863",
+  "2864",
+  "2888",
+  "2899",
+  "2903",
+  "2908",
+  "2926",
+  "2928",
+  "2935"
+ ]
+}

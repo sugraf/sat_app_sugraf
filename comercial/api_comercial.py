@@ -96,7 +96,8 @@ def listar_actividad(desde: str = '', hasta: str = '', comercial: str = '', clie
     try:
         registros = actividad.listar(_claves_visibles(s, comercial), desde, hasta)
         if cliente:
-            registros = [r for r in registros if r['COD_CLIENTE'] == cliente]
+            mismos = set(pirineos.codigos_hermanos(cliente))
+            registros = [r for r in registros if r['COD_CLIENTE'] in mismos]
         return {'registros': registros}
     except Exception as e:
         _error(e)
@@ -262,7 +263,24 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
             'IMPORTE': f'{p.precio:.4f}'.rstrip('0').rstrip('.'), 'OBSERVACIONES': p.nota})
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
-        return {'registro': actividad.crear(s.clave, s.nombre, d)}
+        anteriores = precios_dados(s, p.cod_cliente) if p.cod_cliente else []
+        registro = actividad.crear(s.clave, s.nombre, d)
+        # Aviso por correo a Lucía y Carolina (si falla, el precio queda apuntado igual).
+        correo_ok, correo_error = True, None
+        try:
+            from comercial import correo
+            c = pirineos.clientes().get(p.cod_cliente)
+            art = pirineos.articulos().get(p.referencia)
+            ap = _precio_aplicable(c, art, p.cod_cliente) if (c and art) else None
+            if ap:
+                ap['texto'] = (f"precio especial hasta {ap['hasta']}" if ap.get('hasta') else 'precio especial') if ap['clase'] == 'especial' else f"tarifa {ap['clase']}"
+            antes = [f"{r['FECHA']} · {r['COMERCIAL']} · {r['IMPORTE']} €" + (f" · {r['OBSERVACIONES']}" if r['OBSERVACIONES'] else '')
+                     for r in anteriores if r['PRODUCTOS'] == p.referencia][:5]
+            correo_ok, correo_error = correo.aviso_precio_dado(s.nombre, p.cliente, p.cod_cliente, p.referencia, p.descripcion, p.precio,
+                                                               p.nota, momento.strftime('%d/%m/%Y %H:%M'), ap, antes)
+        except Exception as e:
+            correo_ok, correo_error = False, str(e)
+        return {'registro': registro, 'correo': correo_ok, 'correo_error': correo_error}
     except Exception as e:
         _error(e)
 
@@ -270,7 +288,7 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
 def precios_dados(s, cliente='', comercial=''):
     regs = actividad.listar(_claves_visibles(s, comercial))
     return [r for r in reversed(regs) if r['TIPO'] == 'PRECIO' and r['ESTADO'] == actividad.REGISTRADA
-            and (not cliente or r['COD_CLIENTE'] == cliente)]
+            and (not cliente or r['COD_CLIENTE'] in set(pirineos.codigos_hermanos(cliente)))]
 
 
 @router.get('/precios_dados')
@@ -288,6 +306,7 @@ def listar_clientes(s: Sesion = Depends(sesion_actual)):
     try:
         mio = normalizar(s.pirineos)
         perfiles = analisis.perfiles_todos()
+        cl = pirineos.clientes()
         lista = []
         for c in pirineos.clientes().values():
             if c['grupo'].upper() == 'PROVEEDORES':
@@ -295,7 +314,8 @@ def listar_clientes(s: Sesion = Depends(sesion_actual)):
             lista.append({
                 'codigo': c['codigo'], 'nombre': c['nombre'], 'nombre_comercial': c['nombre_comercial'],
                 'poblacion': c['poblacion'], 'provincia': c['provincia'], 'comercial': c['comercial'],
-                'mio': bool(mio) and c['comercial_norm'] == mio,
+                'mio': bool(mio) and any(cl[h]['comercial_norm'] == mio for h in pirineos.codigos_hermanos(c['codigo']) if h in cl),
+                'otros_codigos': [h for h in pirineos.codigos_hermanos(c['codigo']) if h != c['codigo']],
                 'ultima_compra': perfiles.get(c['codigo'], {}).get('ultima', ''),
                 'estado': perfiles.get(c['codigo'], {}).get('estado', 'sin_compras'),
                 'ubicado': geo.coordenadas_cliente(c) is not None,
@@ -335,27 +355,32 @@ def ficha_cliente(codigo: str, s: Sesion = Depends(sesion_actual)):
             a = arts.get(p['referencia'])
             p['precio_actual'] = _precio_aplicable(c, a, codigo) if a else None
 
-        especiales = pirineos.precios_especiales(codigo)
+        mismos = pirineos.codigos_hermanos(codigo)
+        especiales = [dict(e, codigo=h) for h in mismos for e in pirineos.precios_especiales(h)]
         for e in especiales:
             a = arts.get(e['referencia'])
             e['descripcion'] = a['descripcion'] if a else ''
 
         registros = actividad.listar(_claves_visibles(s))
-        propios = [r for r in registros if r['COD_CLIENTE'] == codigo]
+        propios = [r for r in registros if r['COD_CLIENTE'] in mismos]
         visitas = [r for r in propios if r['TIPO'] == 'VISITA' and r['ESTADO'] == actividad.REGISTRADA]
         maquinas = pirineos.maquinas_cliente(codigo)
         avisos_abiertos, partes_recientes = sat.avisos_cliente(codigo)
-        ops = [o for o in sat.oportunidades() if o['codigo'] == codigo]
+        ops = [o for o in sat.oportunidades() if o['codigo'] in mismos]
         seguimientos = [r for r in propios if r['ESTADO'] == actividad.REGISTRADA and r['FECHA_SEGUIMIENTO']
                         and r['SEGUIMIENTO_HECHO'] != 'SI']
         ultimo = next((r for r in reversed(propios) if r['ESTADO'] == actividad.REGISTRADA and r['TIPO'] != 'PRECIO'), None)
         # Control de visitas de este cliente (visitas cerradas de cualquier comercial).
         todas = [r for r in actividad.listar(list(USUARIOS)) if r['TIPO'] == 'VISITA' and r['ESTADO'] == actividad.REGISTRADA]
-        del_cliente = [r['FECHA'] for r in todas if r['COD_CLIENTE'] == codigo]
-        de_su_comercial = [r for r in todas if normalizar(USUARIOS.get(clave_por_nombre(r['COMERCIAL']) or '', {}).get('pirineos', '')) == c['comercial_norm']]
+        del_cliente = [r['FECHA'] for r in todas if r['COD_CLIENTE'] in mismos]
+        cl = pirineos.clientes()
+        comerciales_cli = {cl[h]['comercial_norm'] for h in mismos if h in cl}
+        de_su_comercial = [r for r in todas if normalizar(USUARIOS.get(clave_por_nombre(r['COMERCIAL']) or '', {}).get('pirineos', '')) in comerciales_cli]
         estado_visitas = control.estado_cliente(c, del_cliente, control.compras_12_meses(), control.cadencias(), inicio_de(de_su_comercial) or date.today())
         return {
             'cliente': datos,
+            'otros_codigos': [{'codigo': h, 'nombre': cl[h]['nombre'], 'nombre_comercial': cl[h]['nombre_comercial'], 'comercial': cl[h]['comercial']}
+                              for h in mismos if h != codigo and h in cl],
             'resumen': {
                 'ultima_compra': lineas[0]['fecha'] if lineas else '',
                 'ultima_visita': max((r['FECHA'] for r in visitas), default=''),
@@ -455,12 +480,15 @@ def _es_mio(s, c):
 
 def _filtro_cartera(s, comercial=''):
     """Función que dice si un cliente entra en la cartera que se está mirando."""
+    cl = pirineos.clientes()
+    def del_grupo(pred):
+        return lambda c: any(pred(cl[h]) for h in pirineos.codigos_hermanos(c['codigo']) if h in cl)
     if not s.puede('ver_todos'):
-        return lambda c: _es_mio(s, c)
+        return del_grupo(lambda c: _es_mio(s, c))
     if comercial:
         clave = clave_por_nombre(comercial)
         objetivo = normalizar(USUARIOS[clave]['pirineos']) if clave else ''
-        return lambda c: c['comercial_norm'] == objetivo
+        return del_grupo(lambda c: c['comercial_norm'] == objetivo)
     return lambda c: True
 
 
@@ -469,7 +497,7 @@ def clientes_a_recuperar(s, comercial='', incluir_sin_compras=False):
     en_cartera = _filtro_cartera(s, comercial)
     lista = []
     for c in pirineos.clientes().values():
-        if c['grupo'].upper() == 'PROVEEDORES' or not en_cartera(c):
+        if c['grupo'].upper() == 'PROVEEDORES' or pirineos.principal(c['codigo']) != c['codigo'] or not en_cartera(c):
             continue
         p = perfiles.get(c['codigo'])
         if p and p['estado'] in ('dormido', 'en_riesgo'):
@@ -563,23 +591,23 @@ def candidatos_ruta(s, origen, radio_km=30, comercial='', solo_cartera=True):
     por_cliente = {}
     for r in registros:
         if r['COD_CLIENTE'] and r['ESTADO'] == actividad.REGISTRADA:
-            por_cliente.setdefault(r['COD_CLIENTE'], []).append(r)
+            por_cliente.setdefault(pirineos.principal(r['COD_CLIENTE']), []).append(r)
     ops = {}
     for o in oportunidades_visibles(s, comercial):
         if o['codigo'] and o['estado'] in sat.ABIERTOS:
-            ops.setdefault(o['codigo'], []).append(o)
+            ops.setdefault(pirineos.principal(o['codigo']), []).append(o)
     pedidos = {}
     for p in pirineos.pedidos_pendientes():
         if p['codigo']:
-            pedidos.setdefault(p['codigo'], []).append(p)
+            pedidos.setdefault(pirineos.principal(p['codigo']), []).append(p)
     averias = {}
     for a in sat.avisos_abiertos():
         if a['codigo']:
-            averias.setdefault(a['codigo'], []).append(a)
+            averias.setdefault(pirineos.principal(a['codigo']), []).append(a)
 
     resultado = []
     for c in pirineos.clientes().values():
-        if c['grupo'].upper() == 'PROVEEDORES' or not en_cartera(c):
+        if c['grupo'].upper() == 'PROVEEDORES' or pirineos.principal(c['codigo']) != c['codigo'] or not en_cartera(c):
             continue
         pos = geo.coordenadas_cliente(c)
         dist = geo.distancia_km(origen, pos) if pos else None
@@ -688,6 +716,7 @@ def fijar_frecuencia(codigo: str, f: Frecuencia, s: Sesion = Depends(sesion_actu
             raise HTTPException(status_code=403, detail='Solo Master puede cambiar la frecuencia de visita.')
         if not pirineos.clientes().get(codigo):
             raise HTTPException(status_code=404, detail='Cliente no encontrado.')
+        codigo = pirineos.principal(codigo)  # la frecuencia es del cliente, no de cada código
         control.fijar_cadencia(codigo, f.dias, s.nombre, actividad.ahora().strftime('%Y-%m-%d %H:%M'))
         return {'ok': True}
     except Exception as e:
