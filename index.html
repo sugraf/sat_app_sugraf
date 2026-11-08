@@ -270,6 +270,17 @@
           <p>Consulta los manuales por cliente, marca y modelo.</p>
           <div class="card-arrow">Abrir <span>&rarr;</span></div>
         </div>
+        <div class="card" id="card-incidencias" onclick="irA('incidencias')" style="display:none">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="#a9bcd6" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M12 9v4M12 17h.01" stroke="#2fd9b8" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Avisos a comerciales</h3>
+          <p>Marca problemas con un cliente (SAT sin resolver o sin pagar, quejas) para que los comerciales lo vean.</p>
+          <div class="card-arrow">Abrir <span>&rarr;</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -286,6 +297,8 @@
     let currentUser = localStorage.getItem("sugraf_user") || null;
 
     function applyUserPermissions() {
+        const cInc = document.getElementById("card-incidencias");
+        if (cInc) cInc.style.display = currentUser === "Master" ? "" : "none";
         if (currentUser === "Técnico 4") {
             const cGen = document.getElementById("card-generador");
             const cGes = document.getElementById("card-gestor");

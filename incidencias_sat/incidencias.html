@@ -1,0 +1,193 @@
+<!-- incidencias_sat/incidencias.html — Master del SAT avisa a los comerciales de problemas con clientes -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#10263B">
+  <title>Avisos a comerciales - Sugraf SAT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui-common.css">
+  <style>
+    :root{ --navy:#10263B; --navy-dark:#0a1826; --navy-light:#173654; --green:#006858; --green-dark:#004d40;
+      --green-soft:rgba(0,104,88,0.15); --grey:#B6BEC4; --ink:#f4f8fc; --muted:#a9bcd6; --red:#ef4444; }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    body{ font-family:'Montserrat',sans-serif; background-color:var(--navy); color:var(--ink); min-height:100vh;
+      background-image:radial-gradient(900px circle at 15% -5%, rgba(0,104,88,0.28) 0%, transparent 55%),
+                       radial-gradient(1200px circle at 50% 120%, rgba(0,104,88,0.12) 0%, transparent 60%);
+      background-attachment:fixed; }
+    .topbar{ background:#fff; height:64px; display:flex; align-items:center; padding:0 24px; justify-content:space-between;
+      position:sticky; top:0; z-index:100; box-shadow:0 1px 0 rgba(16,38,59,0.08), 0 4px 16px rgba(16,38,59,0.04); }
+    .topbar-left{ display:flex; align-items:center; gap:16px; height:100%; }
+    .topbar img{ height:35px; object-fit:contain; display:block; }
+    .btn-back{ display:flex; align-items:center; gap:6px; color:#4a5a72; text-decoration:none; font-weight:600; font-size:0.85rem;
+      padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0; }
+    .btn-back:hover{ background:#f1f5f8; }
+    .topbar-right{ color:#4a5a72; font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
+    .dot{ width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 0 4px var(--green-soft); }
+    .container{ max-width:860px; margin:0 auto; padding:20px; }
+    .header-title{ text-align:center; margin:34px 0 24px; }
+    .header-title h2{ font-size:1.8rem; margin-bottom:8px; }
+    .header-title p{ color:var(--muted); font-size:0.92rem; line-height:1.5; }
+    .panel{ background:rgba(16,38,59,0.72); border:1px solid rgba(182,190,196,0.18); border-radius:16px; padding:22px; margin-bottom:22px; }
+    .panel h3{ font-size:0.75rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:14px; }
+    label{ display:block; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    input, select, textarea{ width:100%; font-family:inherit; font-size:0.95rem; padding:11px 13px; border-radius:10px; border:1px solid var(--grey);
+      background:#fff; color:var(--navy); outline:none; }
+    input:focus, select:focus, textarea:focus{ border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    textarea{ min-height:90px; resize:vertical; }
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+    .btn{ font-family:inherit; font-weight:700; font-size:0.9rem; border:none; border-radius:10px; padding:12px 18px; cursor:pointer; }
+    .btn-verde{ background:var(--green); color:#fff; } .btn-verde:hover{ background:var(--green-dark); }
+    .btn-light{ background:#f1f5f8; color:#4a5a72; border:1px solid #e2e8f0; } .btn-sm{ padding:8px 12px; font-size:0.8rem; }
+    .acciones{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+    .wrap{ position:relative; }
+    .lista-cli{ display:none; position:absolute; z-index:50; left:0; right:0; top:100%; background:#fff; border:1px solid var(--grey);
+      border-radius:0 0 10px 10px; max-height:280px; overflow-y:auto; box-shadow:0 10px 20px rgba(0,0,0,.2); }
+    .lista-cli.show{ display:block; }
+    .lista-cli div{ padding:10px 14px; color:var(--navy); font-size:0.88rem; cursor:pointer; border-bottom:1px solid #eef2f5; }
+    .lista-cli div:hover{ background:var(--green-soft); }
+    .lista-cli small{ display:block; color:#7a8a9e; font-size:0.74rem; }
+    .elegido{ margin-top:8px; font-size:0.85rem; color:#7fe0cc; font-weight:600; }
+    .filtro{ display:flex; gap:8px; margin-bottom:12px; }
+    .chip{ font-family:inherit; font-size:0.78rem; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid rgba(182,190,196,.3);
+      background:transparent; color:var(--muted); cursor:pointer; }
+    .chip.on{ background:var(--green); border-color:var(--green); color:#fff; }
+    .inc{ border:1px solid rgba(182,190,196,.18); border-left:3px solid var(--red); border-radius:12px; padding:14px; margin-bottom:10px; background:rgba(10,24,38,.5); }
+    .inc.resuelta{ border-left-color:rgba(182,190,196,.4); opacity:.75; }
+    .inc .cab{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .inc b{ font-size:0.95rem; } .inc .tipo{ font-size:0.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:rgba(239,68,68,.18); color:#fca5a5; white-space:nowrap; }
+    .inc.resuelta .tipo{ background:rgba(182,190,196,.15); color:var(--muted); }
+    .inc p{ margin-top:6px; font-size:0.88rem; line-height:1.45; white-space:pre-wrap; }
+    .inc small{ display:block; margin-top:6px; color:var(--muted); font-size:0.75rem; }
+    .vacio{ text-align:center; color:var(--muted); padding:20px; font-size:0.9rem; }
+    @media (max-width:640px){ .grid{ grid-template-columns:1fr; } .topbar{ padding:0 14px; } .topbar img{ height:28px; } .header-title h2{ font-size:1.45rem; } }
+  </style>
+</head>
+<body>
+  <script src="/ui-common.js"></script>
+  <div class="topbar">
+    <div class="topbar-left">
+      <img src="/logo_grande.png" alt="Sugraf Logo" onerror="this.style.display='none'">
+      <a href="/sat" class="btn-back">&larr; Volver</a>
+    </div>
+    <div class="topbar-right"><div class="dot"></div><span id="user-name-text"></span></div>
+  </div>
+
+  <div class="container">
+    <div class="header-title">
+      <h2>Avisos a comerciales</h2>
+      <p>Si hay algún problema con un cliente (un SAT sin resolver, un SAT sin pagar, una queja...), apúntalo aquí.<br>
+         Los comerciales lo verán en la ficha del cliente antes de ir a visitarlo.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Nuevo aviso</h3>
+      <label for="q">Cliente</label>
+      <div class="wrap">
+        <input id="q" autocomplete="off" placeholder="Escribe el nombre, la población o el código..." oninput="buscarPronto()">
+        <div class="lista-cli" id="lista-cli"></div>
+      </div>
+      <div class="elegido" id="elegido"></div>
+      <div class="grid">
+        <div><label for="tipo">Tipo</label><select id="tipo"></select></div>
+      </div>
+      <label for="detalle">Qué pasa</label>
+      <textarea id="detalle" placeholder="Ej.: avería de la Roland sin resolver desde hace 3 semanas, el cliente está molesto. / Debe 2 partes de SAT."></textarea>
+      <div class="acciones"><button class="btn btn-verde" onclick="guardar()">Guardar aviso</button></div>
+    </div>
+
+    <div class="panel">
+      <h3>Avisos a comerciales</h3>
+      <div class="filtro">
+        <button class="chip on" id="f-ABIERTA" onclick="filtrar('ABIERTA')">Abiertos</button>
+        <button class="chip" id="f-" onclick="filtrar('')">Todos</button>
+      </div>
+      <div id="lista"><div class="vacio">Cargando...</div></div>
+    </div>
+  </div>
+
+  <script>
+    const usuario = localStorage.getItem('sugraf_user');
+    if (usuario !== 'Master') window.location.href = '/sat';
+    document.getElementById('user-name-text').textContent = usuario || '';
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fecha = f => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(f || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+    let TIPOS = {}, elegido = null, estado = 'ABIERTA', temporizador = null;
+    // Tipos que tiene sentido marcar desde el SAT, primero.
+    const ORDEN = ['SAT_NO_RESUELTO', 'SAT_NO_PAGADO', 'QUEJA', 'PAGOS', 'OTRA'];
+
+    async function api(ruta, opciones = {}) {
+      const r = await fetch('/api/comercial/sat' + ruta, {...opciones, headers: {'Content-Type': 'application/json'}});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || `Error ${r.status}`);
+      return d;
+    }
+    function buscarPronto() { clearTimeout(temporizador); temporizador = setTimeout(buscar, 250); }
+    async function buscar() {
+      const q = document.getElementById('q').value.trim(), cont = document.getElementById('lista-cli');
+      if (q.length < 2) { cont.classList.remove('show'); return; }
+      try {
+        const d = await api(`/clientes?usuario=${encodeURIComponent(usuario)}&q=${encodeURIComponent(q)}`);
+        cont.innerHTML = d.clientes.length ? d.clientes.map((c, i) => `<div onclick="elegir(${i})">${esc(c.nombre)}<small>${esc([c.nombre_comercial, c.poblacion, 'cód. ' + c.codigo, c.comercial ? 'comercial: ' + c.comercial : 'sin comercial'].filter(Boolean).join(' · '))}</small></div>`).join('')
+          : `<div onclick="elegirTexto()">No está en Pirineos: usar «${esc(q)}»<small>Se guardará solo con el nombre</small></div>`;
+        cont._clientes = d.clientes;
+        cont.classList.add('show');
+      } catch (e) { cont.innerHTML = `<div>${esc(e.message)}</div>`; cont.classList.add('show'); }
+    }
+    function elegir(i) {
+      const c = document.getElementById('lista-cli')._clientes[i];
+      elegido = c; document.getElementById('q').value = c.nombre;
+      document.getElementById('elegido').textContent = `✓ ${c.nombre} (cód. ${c.codigo})${c.comercial ? ' · comercial: ' + c.comercial : ''}`;
+      document.getElementById('lista-cli').classList.remove('show');
+    }
+    function elegirTexto() {
+      const q = document.getElementById('q').value.trim();
+      elegido = {codigo: '', nombre: q}; document.getElementById('elegido').textContent = `✓ ${q} (no está en Pirineos)`;
+      document.getElementById('lista-cli').classList.remove('show');
+    }
+    document.addEventListener('click', e => { if (!e.target.closest('.wrap')) document.getElementById('lista-cli').classList.remove('show'); });
+
+    async function guardar() {
+      const detalle = document.getElementById('detalle').value.trim();
+      if (!elegido) { await appAlert('Elige el cliente.', {type: 'error'}); return; }
+      if (!detalle) { await appAlert('Explica qué pasa.', {type: 'error'}); return; }
+      showLoading();
+      try {
+        await api('/incidencias', {method: 'POST', body: JSON.stringify({usuario, cod_cliente: elegido.codigo, cliente: elegido.nombre,
+          tipo: document.getElementById('tipo').value, detalle})});
+        hideLoading();
+        elegido = null; ['q', 'detalle'].forEach(id => document.getElementById(id).value = ''); document.getElementById('elegido').textContent = '';
+        await appAlert('Aviso guardado. Los comerciales lo verán en la ficha del cliente.', {type: 'success'});
+        cargar();
+      } catch (e) { hideLoading(); await appAlert(e.message, {type: 'error'}); }
+    }
+    function filtrar(e) { estado = e; document.querySelectorAll('.filtro .chip').forEach(b => b.classList.toggle('on', b.id === 'f-' + e)); cargar(); }
+    async function cargar() {
+      const cont = document.getElementById('lista');
+      try {
+        const d = await api(`/incidencias?usuario=${encodeURIComponent(usuario)}&estado=${estado}`);
+        if (!Object.keys(TIPOS).length) {
+          TIPOS = d.tipos;
+          document.getElementById('tipo').innerHTML = ORDEN.filter(k => TIPOS[k]).map(k => `<option value="${k}">${esc(TIPOS[k])}</option>`).join('');
+        }
+        cont.innerHTML = d.incidencias.length ? d.incidencias.map(i => `<div class="inc ${i.estado === 'RESUELTA' ? 'resuelta' : ''}">
+          <div class="cab"><b>${esc(i.cliente)}</b><span class="tipo">${esc(TIPOS[i.tipo] || i.tipo)}</span></div>
+          <p>${esc(i.detalle)}</p>
+          <small>${esc(i.creado_por)} · ${fecha(i.creado_en)}${i.codigo ? ' · cód. ' + esc(i.codigo) : ''}</small>
+          ${i.estado === 'RESUELTA' ? `<small style="color:#7fe0cc">Resuelta por ${esc(i.resuelto_por)} el ${fecha(i.resuelto_en)}${i.resolucion ? ': ' + esc(i.resolucion) : ''}</small>`
+            : `<div class="acciones" style="margin-top:10px"><button class="btn btn-light btn-sm" onclick="resolver('${esc(i.id)}')">Marcar resuelta</button></div>`}
+        </div>`).join('') : `<div class="vacio">${estado ? 'No hay avisos abiertos.' : 'Todavía no hay avisos.'}</div>`;
+      } catch (e) { cont.innerHTML = `<div class="vacio">${esc(e.message)}</div>`; }
+    }
+    async function resolver(id) {
+      if (!(await appConfirm('¿Marcar este aviso como resuelto? Dejará de salir como abierto a los comerciales.', {okText: 'Marcar resuelta'}))) return;
+      showLoading();
+      try { await api(`/incidencias/${encodeURIComponent(id)}/resolver`, {method: 'POST', body: JSON.stringify({usuario, nota: ''})}); hideLoading(); cargar(); }
+      catch (e) { hideLoading(); await appAlert(e.message, {type: 'error'}); }
+    }
+    cargar();
+  </script>
+</body>
+</html>

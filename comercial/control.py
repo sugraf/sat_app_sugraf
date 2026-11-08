@@ -35,6 +35,11 @@ _lock = threading.Lock()
 _cache = {'datos': None, 'leido': 0.0}
 
 
+def _dmy(f):
+    f = str(f or '')[:10]
+    return f'{f[8:10]}/{f[5:7]}/{f[:4]}' if len(f) == 10 and f[4] == '-' else f
+
+
 def nombre_frecuencia(dias):
     for d, n in OPCIONES_FRECUENCIA:
         if d == dias:
@@ -58,6 +63,20 @@ def fijar_cadencia(codigo, dias, usuario, momento):
             datos.pop(str(codigo), None)
         else:
             datos[str(codigo)] = {'dias': int(dias), 'por': usuario, 'fecha': momento}
+        almacen.guardar_json_propio(FICHERO, datos, meta)
+        _cache.update(datos=datos, leido=0.0)
+
+
+def marcar_no_visitar(codigo, si, motivo, usuario, momento):
+    """«No visitar» (lo puede marcar el comercial o Master). Al quitarlo vuelve la frecuencia automática."""
+    with _lock:
+        meta, datos = almacen.leer_json_propio(FICHERO, {})
+        datos = datos or {}
+        if si:
+            datos[str(codigo)] = {'dias': 0, 'no_visitar': True, 'motivo': ' '.join(str(motivo or '').split())[:300],
+                                  'por': usuario, 'fecha': momento}
+        else:
+            datos.pop(str(codigo), None)
         almacen.guardar_json_propio(FICHERO, datos, meta)
         _cache.update(datos=datos, leido=0.0)
 
@@ -102,7 +121,10 @@ def estado_cliente(c, visitas_cliente, compras, cad_fijadas, inicio_uso, hoy=Non
     dias = (hoy - desde).days if desde else None
 
     estado, texto = 'ok', ''
-    if dias_freq:
+    if fijada and fijada.get('no_visitar'):
+        estado = 'no_visitar'
+        texto = 'No visitar' + (f": {fijada['motivo']}" if fijada.get('motivo') else '') + f" (lo marcó {fijada.get('por', '')} el {_dmy(fijada.get('fecha', ''))})"
+    elif dias_freq:
         previstas = VENTANA_DIAS / dias_freq
         if recientes > max(2 * previstas, previstas + 2):
             estado, texto = 'demasiado', f'{recientes} visitas en 90 días (lo previsto son unas {round(previstas) or 1})'
@@ -118,6 +140,7 @@ def estado_cliente(c, visitas_cliente, compras, cad_fijadas, inicio_uso, hoy=Non
         'frecuencia': nombre_frecuencia(dias_freq) if (dias_freq or fijada) else 'Sin frecuencia',
         'fijada': bool(fijada), 'compras_12m': importe, 'ultima_visita': ultima, 'dias_sin_visita': dias if ultima else None,
         'visitas_90d': recientes, 'estado': estado, 'texto': texto,
+        'no_visitar': bool(fijada and fijada.get('no_visitar')), 'motivo_no_visitar': (fijada or {}).get('motivo', ''),
     }
 
 
@@ -148,6 +171,6 @@ def control_cartera(nombre_pirineos_comercial, visitas, inicio_uso=None, hoy=Non
         e = estado_cliente(c, por_cliente.get(pr, []), compras, cad, inicio_uso, hoy)
         lista.append({'codigo': c['codigo'], 'nombre': c['nombre'], 'poblacion': c['poblacion'],
                       'comercial': c['comercial'], 'otros_codigos': [h for h in pirineos.codigos_hermanos(pr) if h != pr], **e})
-    orden = {'toca': 0, 'demasiado': 1, 'pronto': 2, 'ok': 3}
+    orden = {'toca': 0, 'demasiado': 1, 'pronto': 2, 'ok': 3, 'no_visitar': 4}
     lista.sort(key=lambda x: (orden[x['estado']], -(x['dias_sin_visita'] or 0), -x['compras_12m']))
     return lista

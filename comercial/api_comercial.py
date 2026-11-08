@@ -21,7 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-from comercial import actividad, analisis, control, geo, pirineos, sat  # noqa: E402
+from comercial import actividad, analisis, control, geo, incidencias, pirineos, sat  # noqa: E402
 from comercial.usuarios import (USUARIOS, Sesion, clave_por_nombre, comerciales, comprobar_clave,  # noqa: E402
                                 crear_token, normalizar, sesion_actual)
 
@@ -299,6 +299,25 @@ def listar_precios_dados(cliente: str = '', comercial: str = '', s: Sesion = Dep
         _error(e)
 
 
+# ---------------------------------------------------------------- alertas de cliente
+def alertas_por_cliente():
+    """{codigo_principal: {'incidencias': n, 'sat': n}}: incidencias abiertas y avisos del SAT abiertos.
+    Si algo falla (p. ej. falta un fichero) se devuelve lo que se pueda: no debe romper las listas."""
+    res = {}
+    try:
+        for cod, n in incidencias.abiertas_por_cliente().items():
+            res.setdefault(cod, {'incidencias': 0, 'sat': 0})['incidencias'] = n
+    except Exception:
+        pass
+    try:
+        for a in sat.avisos_abiertos():
+            if a['codigo']:
+                res.setdefault(pirineos.principal(a['codigo']), {'incidencias': 0, 'sat': 0})['sat'] += 1
+    except Exception:
+        pass
+    return res
+
+
 # ---------------------------------------------------------------- clientes
 @router.get('/clientes')
 def listar_clientes(s: Sesion = Depends(sesion_actual)):
@@ -307,6 +326,8 @@ def listar_clientes(s: Sesion = Depends(sesion_actual)):
         mio = normalizar(s.pirineos)
         perfiles = analisis.perfiles_todos()
         cl = pirineos.clientes()
+        alertas = alertas_por_cliente()
+        cad = control.cadencias()
         lista = []
         for c in pirineos.clientes().values():
             if c['grupo'].upper() == 'PROVEEDORES':
@@ -316,6 +337,8 @@ def listar_clientes(s: Sesion = Depends(sesion_actual)):
                 'poblacion': c['poblacion'], 'provincia': c['provincia'], 'comercial': c['comercial'],
                 'mio': bool(mio) and any(cl[h]['comercial_norm'] == mio for h in pirineos.codigos_hermanos(c['codigo']) if h in cl),
                 'otros_codigos': [h for h in pirineos.codigos_hermanos(c['codigo']) if h != c['codigo']],
+                'alertas': alertas.get(pirineos.principal(c['codigo'])),
+                'no_visitar': bool((cad.get(pirineos.principal(c['codigo'])) or {}).get('no_visitar')),
                 'ultima_compra': perfiles.get(c['codigo'], {}).get('ultima', ''),
                 'estado': perfiles.get(c['codigo'], {}).get('estado', 'sin_compras'),
                 'ubicado': geo.coordenadas_cliente(c) is not None,
@@ -392,6 +415,8 @@ def ficha_cliente(codigo: str, s: Sesion = Depends(sesion_actual)):
             'actividad': [r for r in reversed(propios) if r['TIPO'] != 'PRECIO'],
             'precios_dados': [r for r in reversed(propios) if r['TIPO'] == 'PRECIO'],
             'control': estado_visitas,
+            'incidencias': _incidencias_seguras(codigo),
+            'tipos_incidencia': incidencias.TIPOS,
             'frecuencias': control.OPCIONES_FRECUENCIA,
             'periodo_ventas': {'leidos': leidos, 'faltan': faltan},
             'preparar': {
@@ -682,7 +707,10 @@ def control_visitas(s, comercial=''):
         u = USUARIOS[k]
         propias = [r for r in visitas if r['COMERCIAL'] == u['nombre']]
         resultado += [{**x, 'usuario': u['nombre']} for x in control.control_cartera(u['pirineos'], visitas, inicio_de(propias))]
-    orden = {'toca': 0, 'demasiado': 1, 'pronto': 2, 'ok': 3}
+    orden = {'toca': 0, 'demasiado': 1, 'pronto': 2, 'ok': 3, 'no_visitar': 4}
+    alertas = alertas_por_cliente()
+    for x in resultado:
+        x['alertas'] = alertas.get(x['codigo'])
     resultado.sort(key=lambda x: (orden[x['estado']], -(x['dias_sin_visita'] or 0), -x['compras_12m']))
     return resultado
 
@@ -804,3 +832,145 @@ def asistente(req: PeticionAsistente, s: Sesion = Depends(sesion_actual)):
         else:
             detalle = str(e)
         raise HTTPException(status_code=503, detail=f'El asistente no está disponible ahora: {detalle}')
+
+
+# ---------------------------------------------------------------- incidencias de clientes
+def _incidencias_seguras(codigo):
+    try:
+        return incidencias.listar(codigo)
+    except Exception as e:
+        return [{'id': '', 'error': str(e)}]
+
+
+class NuevaIncidencia(BaseModel):
+    cod_cliente: str = ''
+    cliente: str = ''
+    tipo: str
+    detalle: str
+
+
+class Resolucion(BaseModel):
+    nota: str = ''
+
+
+@router.get('/incidencias')
+def listar_incidencias(cliente: str = '', estado: str = '', s: Sesion = Depends(sesion_actual)):
+    try:
+        return {'incidencias': incidencias.listar(cliente, estado), 'tipos': incidencias.TIPOS}
+    except Exception as e:
+        _error(e)
+
+
+@router.post('/incidencias')
+def nueva_incidencia(d: NuevaIncidencia, s: Sesion = Depends(sesion_actual)):
+    try:
+        return {'incidencia': incidencias.crear(d.cod_cliente, d.cliente, d.tipo, d.detalle, s.nombre, 'Comercial', actividad.ahora())}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _error(e)
+
+
+@router.post('/incidencias/{id_inc}/resolver')
+def resolver_incidencia(id_inc: str, r: Resolucion, s: Sesion = Depends(sesion_actual)):
+    try:
+        return {'incidencia': incidencias.resolver(id_inc, s.nombre, r.nota, actividad.ahora())}
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _error(e)
+
+
+# ---------------------------------------------------------------- no visitar
+class NoVisitar(BaseModel):
+    no_visitar: bool
+    motivo: str = ''
+
+
+@router.put('/no_visitar/{codigo}')
+def marcar_no_visitar(codigo: str, d: NoVisitar, s: Sesion = Depends(sesion_actual)):
+    """El comercial (o Master) marca un cliente como «no visitar» con un motivo, o lo quita."""
+    try:
+        if not pirineos.clientes().get(codigo):
+            raise HTTPException(status_code=404, detail='Cliente no encontrado.')
+        if d.no_visitar and not d.motivo.strip():
+            raise HTTPException(status_code=400, detail='Indica el motivo para no visitarlo.')
+        control.marcar_no_visitar(pirineos.principal(codigo), d.no_visitar, d.motivo, s.nombre,
+                                  actividad.ahora().strftime('%Y-%m-%d %H:%M'))
+        return {'ok': True}
+    except Exception as e:
+        _error(e)
+
+
+# ---------------------------------------------------------------- desde la SAT App (Master del SAT)
+# La SAT App no tiene sesiones en el servidor (el usuario se elige en el navegador), así que
+# esto se limita a lo imprescindible: buscar clientes por nombre y apuntar / ver / resolver
+# incidencias. Solo responde si quien llama dice ser «Master» del SAT.
+USUARIOS_SAT_GESTION = {'Master'}
+
+
+def _usuario_sat(usuario):
+    if usuario not in USUARIOS_SAT_GESTION:
+        raise HTTPException(status_code=403, detail='Solo Master del SAT puede gestionar las incidencias para comerciales.')
+    return f'{usuario} (SAT)'
+
+
+class IncidenciaSAT(NuevaIncidencia):
+    usuario: str
+
+
+class ResolucionSAT(Resolucion):
+    usuario: str
+
+
+@router.get('/sat/clientes')
+def sat_buscar_clientes(q: str = '', usuario: str = ''):
+    try:
+        _usuario_sat(usuario)
+        palabras = normalizar(q).split()
+        if not palabras:
+            return {'clientes': []}
+        res = []
+        for c in pirineos.clientes().values():
+            t = normalizar(f"{c['nombre']} {c['nombre_comercial']} {c['poblacion']} {c['codigo']}")
+            if all(p in t for p in palabras) and c['grupo'].upper() != 'PROVEEDORES':
+                res.append({'codigo': c['codigo'], 'nombre': c['nombre'], 'nombre_comercial': c['nombre_comercial'],
+                            'poblacion': c['poblacion'], 'comercial': c['comercial']})
+        return {'clientes': res[:25]}
+    except Exception as e:
+        _error(e)
+
+
+@router.get('/sat/incidencias')
+def sat_incidencias(usuario: str = '', estado: str = ''):
+    try:
+        _usuario_sat(usuario)
+        return {'incidencias': incidencias.listar('', estado), 'tipos': incidencias.TIPOS}
+    except Exception as e:
+        _error(e)
+
+
+@router.post('/sat/incidencias')
+def sat_nueva_incidencia(d: IncidenciaSAT):
+    try:
+        quien = _usuario_sat(d.usuario)
+        return {'incidencia': incidencias.crear(d.cod_cliente, d.cliente, d.tipo, d.detalle, quien, 'SAT', actividad.ahora())}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _error(e)
+
+
+@router.post('/sat/incidencias/{id_inc}/resolver')
+def sat_resolver_incidencia(id_inc: str, r: ResolucionSAT):
+    try:
+        quien = _usuario_sat(r.usuario)
+        return {'incidencia': incidencias.resolver(id_inc, quien, r.nota, actividad.ahora())}
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _error(e)

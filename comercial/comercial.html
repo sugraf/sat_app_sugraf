@@ -171,6 +171,12 @@
     .app-modal-icon.info, .app-modal-icon.success, .app-modal-icon.question{ background:rgba(47,111,176,.14) !important; color:#2f6fb0 !important; }
     .app-spinner{ border-top-color:#8fc4ec !important; }
     .link-ahora{ background:none; border:none; color:var(--accent); font-family:inherit; font-size:0.72rem; font-weight:600; padding:6px 2px 0; cursor:pointer; }
+    .alerta{ display:flex; gap:10px; align-items:flex-start; margin-top:10px; padding:11px 13px; border-radius:12px; font-size:0.82rem; line-height:1.4; cursor:pointer; }
+    .alerta b{ display:block; font-size:0.72rem; letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px; }
+    .alerta.roja{ background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.4); color:#fecaca; }
+    .alerta.ambar{ background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:#fde68a; }
+    .alerta.gris{ background:rgba(182,190,196,.08); border:1px solid rgba(182,190,196,.3); color:#d6dde3; }
+    .estado-no_visitar{ border-left:3px solid rgba(182,190,196,.5); opacity:.85; }
     .estado-toca{ border-left:3px solid var(--red); } .estado-demasiado{ border-left:3px solid var(--amber); } .estado-pronto{ border-left:3px solid #8fc4ec; }
     .hist{ font-size:0.75rem; color:var(--muted); border-left:2px solid var(--line); padding:4px 0 4px 10px; margin:6px 0; }
   </style>
@@ -469,10 +475,17 @@ function filtrarClientes(q, soloMios) {
   });
 }
 
+// Marcas de alerta de un cliente: incidencias abiertas, avisos del SAT abiertos y «no visitar».
+function badgesAlerta(a, noVisitar) {
+  a = a || {};
+  return (a.incidencias ? `<span class="badge bad">Incidencia${a.incidencias > 1 ? ' ×' + a.incidencias : ''}</span>` : '') +
+         (a.sat ? `<span class="badge warn">SAT abierto</span>` : '') +
+         (noVisitar ? '<span class="badge">No visitar</span>' : '');
+}
 function filaCliente(c, accion) {
   const est = c.estado === 'dormido' ? '<span class="badge bad">Dormido</span>' : c.estado === 'en_riesgo' ? '<span class="badge warn">En riesgo</span>' : '';
   return `<div class="card click" onclick="${accion}('${esc(c.codigo)}')">
-    <div class="row between"><div class="t-strong">${esc(c.nombre)}</div><span class="row" style="gap:4px;">${est}${c.mio ? `<span class="badge ok">${esc(YO.nombre)}</span>` : ''}</span></div>
+    <div class="row between" style="align-items:flex-start;"><div class="t-strong">${esc(c.nombre)}</div><span class="row wrap" style="gap:4px; justify-content:flex-end;">${badgesAlerta(c.alertas, c.no_visitar)}${est}${c.mio ? `<span class="badge ok">${esc(YO.nombre)}</span>` : ''}</span></div>
     <div class="t-small">${esc([c.nombre_comercial, c.poblacion, c.provincia].filter(Boolean).join(' · '))}</div>
     <div class="t-small">${c.comercial ? 'Comercial: ' + esc(c.comercial) : 'Sin comercial asignado'}${c.ultima_compra ? ' · Última compra ' + fechaCorta(c.ultima_compra) : ''}</div>
   </div>`;
@@ -508,10 +521,10 @@ async function pintarControl() {
   if (filtroClientes === 'toca') lista = lista.filter(c => c.estado === 'toca' || c.estado === 'pronto');
   if (filtroClientes === 'demasiado') lista = lista.filter(c => c.estado === 'demasiado');
   const textos = {toca: 'No hay clientes a los que toque visitar.', demasiado: 'Ningún cliente se está visitando de más.', cartera: 'No hay clientes en la cartera.'};
-  const etiqueta = {toca: ['bad', 'Toca visitar'], pronto: ['', 'Pronto'], demasiado: ['warn', 'De más'], ok: ['ok', 'Al día']};
+  const etiqueta = {toca: ['bad', 'Toca visitar'], pronto: ['', 'Pronto'], demasiado: ['warn', 'De más'], ok: ['ok', 'Al día'], no_visitar: ['', 'No visitar']};
   cont.innerHTML = `<div class="aviso info">${esc(CONTROL.criterio)}</div>` + (lista.length ? lista.slice(0, 120).map(c => `
     <div class="card click estado-${c.estado}" onclick="abrirFicha('${esc(c.codigo)}')">
-      <div class="row between"><span class="t-strong">${esc(c.nombre)}</span><span class="badge ${etiqueta[c.estado][0]}">${etiqueta[c.estado][1]}</span></div>
+      <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(c.nombre)}</span><span class="row wrap" style="gap:4px; justify-content:flex-end;">${badgesAlerta(c.alertas)}<span class="badge ${etiqueta[c.estado][0]}">${etiqueta[c.estado][1]}</span></span></div>
       <div class="t-small">${esc(c.poblacion)}${YO.permisos.ver_todos ? ' · ' + esc(c.usuario) : ''} · ${esc(c.frecuencia)}${c.fijada ? '' : ' (propuesta)'}</div>
       <div class="t-small">Última visita: ${c.ultima_visita ? fechaCorta(c.ultima_visita) + ` (hace ${c.dias_sin_visita} días)` : 'ninguna registrada'} · ${c.visitas_90d} en 90 días</div>
       ${c.texto ? `<div class="t-small" style="margin-top:4px; color:${c.estado === 'toca' ? '#fca5a5' : c.estado === 'demasiado' ? '#fde68a' : 'var(--accent)'}">${esc(c.texto)}</div>` : ''}
@@ -599,7 +612,10 @@ async function cargarFicha(codigo) {
       <button class="btn btn-primary grande" onclick="nuevaActividad('VISITA', clienteFicha())">&#43;&nbsp; Nueva visita</button>
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA', clienteFicha())">Llamada</button>
       <button class="btn btn-ghost" onclick="preciosDeFicha()">Precios cliente</button>
+      <button class="btn btn-ghost" onclick="nuevaIncidencia()">&#9888;&nbsp; Incidencia</button>
+      <button class="btn btn-ghost" onclick="cambiarNoVisitar()">${FICHA.control.no_visitar ? 'Volver a visitar' : '&#8856;&nbsp; No visitar'}</button>
     </div>
+    ${htmlAlertasFicha()}
     ${htmlControlFicha()}
     <div class="stats" style="margin-top:14px;">
       <div class="stat"><b>${r.ultima_compra ? fechaCorta(r.ultima_compra) : '—'}</b><span>Últ. compra</span></div>
@@ -616,6 +632,7 @@ async function cargarFicha(codigo) {
       <button onclick="tabFicha('maquinas', this)">Máquinas (${FICHA.maquinas.filter(m => !m.baja).length})</button>
       <button onclick="tabFicha('pedidos', this)">Pedidos (${FICHA.preparar.pedidos.length})</button>
       <button onclick="tabFicha('sat', this)">SAT (${FICHA.preparar.avisos_sat.length})</button>
+      <button onclick="tabFicha('incidencias', this)">Incidencias (${incAbiertas().length})</button>
       <button onclick="tabFicha('especiales', this)">Precios especiales (${FICHA.especiales.filter(e=>e.vigente).length})</button>
     </div>
     <div id="ficha-tab"></div>`;
@@ -697,10 +714,69 @@ function htmlPreparar() {
   return h;
 }
 function buscarEnPrecios(ref) { precioCliente = clienteFicha(); pintarClientePrecios(); document.getElementById('pre-q').value = ref; irA('precios'); buscarPrecios(); }
+// ---- incidencias, avisos del SAT y «no visitar» (arriba de la ficha, para que se vean antes de ir)
+const TAB_FICHA = {preparar: 0, datos: 1, actividad: 2, compras: 3, precios_dados: 4, maquinas: 5, pedidos: 6, sat: 7, incidencias: 8, especiales: 9};
+function irTabFicha(t) { const b = document.querySelectorAll('#ficha-tabs button')[TAB_FICHA[t]]; tabFicha(t, b); b.scrollIntoView({block: 'nearest', inline: 'center'}); document.getElementById('ficha-tabs').scrollIntoView({behavior: 'smooth'}); }
+function incAbiertas() { return (FICHA.incidencias || []).filter(i => i.estado === 'ABIERTA'); }
+function nombreTipoInc(t) { return (FICHA && FICHA.tipos_incidencia || TIPOS_INC)[t] || t; }
+const TIPOS_INC = {PAGOS: 'Problemas de pago', SAT_NO_RESUELTO: 'SAT no resuelto', SAT_NO_PAGADO: 'SAT no pagado', QUEJA: 'Queja / descontento', OTRA: 'Otra'};
+function htmlAlertasFicha() {
+  const inc = incAbiertas(), sat = FICHA.preparar.avisos_sat, k = FICHA.control;
+  const err = (FICHA.incidencias || []).find(i => i.error);
+  return (err ? `<div class="aviso">${esc(err.error)}</div>` : '') +
+    inc.map(i => `<div class="alerta roja" onclick="irTabFicha('incidencias')"><span>&#9888;</span><div><b>${esc(nombreTipoInc(i.tipo))}</b>${esc(i.detalle)}
+      <div class="t-small" style="color:#fca5a5; margin-top:3px;">${esc(i.creado_por)} · ${fechaCorta(i.creado_en)}${i.origen === 'SAT' ? ' · desde el SAT' : ''}</div></div></div>`).join('') +
+    (sat.length ? `<div class="alerta ambar" onclick="irTabFicha('sat')"><span>&#128295;</span><div><b>${sat.length} aviso${sat.length > 1 ? 's' : ''} del SAT abierto${sat.length > 1 ? 's' : ''}</b>
+      ${esc(sat.slice(0, 2).map(a => (a.maquina || a.modelo || 'Máquina') + ': ' + (a.descripcion || '').slice(0, 70)).join(' · '))}</div></div>` : '') +
+    (k.no_visitar ? `<div class="alerta gris" onclick="cambiarNoVisitar()"><span>&#8856;</span><div><b>No visitar</b>${esc(k.motivo_no_visitar || '')}
+      <div class="t-small" style="margin-top:3px;">${esc(k.frecuencia_origen.replace('fijada por', 'Marcado por'))}</div></div></div>` : '');
+}
+function htmlIncidencias() {
+  const lista = FICHA.incidencias.filter(i => !i.error);
+  return `<button class="btn btn-primary btn-sm" style="margin-bottom:10px;" onclick="nuevaIncidencia()">+ Apuntar incidencia</button>` +
+    (lista.length ? lista.map(i => `<div class="card borde-${i.estado === 'ABIERTA' ? 'rojo' : 'gris'}">
+      <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(nombreTipoInc(i.tipo))}</span>
+        <span class="badge ${i.estado === 'ABIERTA' ? 'bad' : 'ok'}">${i.estado === 'ABIERTA' ? 'Abierta' : 'Resuelta'}</span></div>
+      <div class="t-txt">${esc(i.detalle)}</div>
+      <div class="t-small" style="margin-top:4px;">${esc(i.creado_por)} · ${fechaCorta(i.creado_en)}${i.origen !== 'Comercial' ? ' · desde ' + (i.origen === 'SAT' ? 'el SAT' : 'la oficina') : ''}${FICHA.otros_codigos.length ? ' · cód. ' + esc(i.codigo) : ''}</div>
+      ${i.estado === 'RESUELTA' ? `<div class="t-small" style="margin-top:4px; color:#86efac;">Resuelta por ${esc(i.resuelto_por)} el ${fechaCorta(i.resuelto_en)}${i.resolucion ? ': ' + esc(i.resolucion) : ''}</div>`
+        : `<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="resolverIncidencia('${esc(i.id)}')">Marcar resuelta</button>`}</div>`).join('')
+    : '<div class="empty">Sin incidencias apuntadas.</div>');
+}
+async function nuevaIncidencia() {
+  const tipos = FICHA.tipos_incidencia || TIPOS_INC;
+  const r = await pedirTexto(`Incidencia de ${FICHA.cliente.nombre}\nTipo y explicación (la verán los comerciales, Master y la oficina):`,
+    {opciones: Object.values(tipos), valor: tipos.PAGOS, texto: '', placeholder: 'Qué pasa: impago, queja, avería sin resolver...'});
+  if (!r) return;
+  if (!r.texto) { await appAlert('Explica la incidencia.', {type: 'error'}); return; }
+  const tipo = Object.keys(tipos).find(k => tipos[k] === r.opcion) || 'OTRA';
+  const ok = await conCarga(() => api('/incidencias', {method: 'POST', body: JSON.stringify({cod_cliente: FICHA.cliente.codigo, cliente: FICHA.cliente.nombre, tipo, detalle: r.texto})}));
+  if (ok) { CLIENTES = null; clientesCargando = null; CONTROL = null; cargarFicha(FICHA.cliente.codigo); }
+}
+async function resolverIncidencia(id) {
+  const nota = await pedirTexto('¿Cómo se ha resuelto? (opcional)', {estructurado: true, texto: '', placeholder: 'Ej.: ya ha pagado, el técnico volvió y quedó bien...'});
+  if (!nota) return;
+  const ok = await conCarga(() => api(`/incidencias/${encodeURIComponent(id)}/resolver`, {method: 'POST', body: JSON.stringify({nota: nota.texto})}));
+  if (ok) { CLIENTES = null; clientesCargando = null; CONTROL = null; cargarFicha(FICHA.cliente.codigo); }
+}
+async function cambiarNoVisitar() {
+  const k = FICHA.control;
+  if (k.no_visitar) {
+    if (!(await appConfirm(`¿Volver a visitar a ${FICHA.cliente.nombre}? Se quita la marca «No visitar» y vuelve la frecuencia automática.`, {okText: 'Volver a visitar'}))) return;
+  }
+  let motivo = '';
+  if (!k.no_visitar) {
+    motivo = await pedirTexto(`¿Por qué no hay que visitar a ${FICHA.cliente.nombre}?`, {placeholder: 'Ej.: impagos, ha cerrado, no le interesa, lo lleva otra persona...'});
+    if (!motivo) return;
+  }
+  const ok = await conCarga(() => api('/no_visitar/' + encodeURIComponent(FICHA.cliente.codigo), {method: 'PUT', body: JSON.stringify({no_visitar: !k.no_visitar, motivo})}));
+  if (ok) { CLIENTES = null; clientesCargando = null; CONTROL = null; cargarFicha(FICHA.cliente.codigo); }
+}
+
 function htmlControlFicha() {
-  const k = FICHA.control, color = {toca: 'rojo', demasiado: 'ambar', pronto: 'gris', ok: 'verde'}[k.estado];
+  const k = FICHA.control, color = {toca: 'rojo', demasiado: 'ambar', pronto: 'gris', ok: 'verde', no_visitar: 'gris'}[k.estado];
   return `<div class="card borde-${color}" style="margin-top:14px;">
-    <div class="row between"><span class="t-strong">Visitas</span>${{toca: '<span class="badge bad">Toca visitar</span>', demasiado: '<span class="badge warn">Visitado de más</span>', pronto: '<span class="badge">Pronto</span>', ok: '<span class="badge ok">Al día</span>'}[k.estado]}</div>
+    <div class="row between"><span class="t-strong">Visitas</span>${{toca: '<span class="badge bad">Toca visitar</span>', demasiado: '<span class="badge warn">Visitado de más</span>', pronto: '<span class="badge">Pronto</span>', ok: '<span class="badge ok">Al día</span>', no_visitar: '<span class="badge">No visitar</span>'}[k.estado]}</div>
     <div class="dato"><span>Frecuencia</span><span>${esc(k.frecuencia)}<br><small class="t-small">${esc(k.frecuencia_origen)}</small></span></div>
     <div class="dato"><span>Última visita</span><span>${k.ultima_visita ? fechaCorta(k.ultima_visita) + ` (hace ${k.dias_sin_visita} días)` : 'Ninguna registrada'}</span></div>
     <div class="dato"><span>Últimos 90 días</span><span>${k.visitas_90d} visita${k.visitas_90d === 1 ? '' : 's'}</span></div>
@@ -756,6 +832,8 @@ function tabFicha(tab, boton) {
       <div class="buscador"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input type="search" placeholder="Buscar producto comprado..." oninput="pintarCompras(this.value)"></div><div id="compras-lista" style="margin-top:10px;"></div>`;
     pintarCompras('');
+  } else if (tab === 'incidencias') {
+    el.innerHTML = htmlIncidencias();
   } else if (tab === 'especiales') {
     const lista = FICHA.especiales.slice().sort((a,b) => (b.vigente - a.vigente) || (b.desde||'').localeCompare(a.desde||''));
     el.innerHTML = lista.length ? lista.map(e => `<div class="card"><div class="row between"><div class="t-strong">${esc(e.descripcion || 'Ref. ' + e.referencia)}</div>
@@ -1139,7 +1217,7 @@ function pedirTexto(mensaje, opts = {}) {
       <div class="app-modal-actions"><button type="button" class="app-modal-btn-secondary" id="pt-no">Cancelar</button><button type="button" class="app-modal-btn-primary" id="pt-si">Aceptar</button></div></div>`;
     document.body.appendChild(ov);
     const fin = v => { ov.remove(); resolve(v); };
-    const estructurado = opts.opciones || opts.numero;
+    const estructurado = opts.opciones || opts.numero || opts.estructurado;
     ov.querySelector('#pt-no').onclick = () => fin(estructurado ? null : '');
     ov.querySelector('#pt-si').onclick = () => fin(estructurado
       ? {opcion: opts.opciones ? ov.querySelector('#pt-sel').value : '', numero: opts.numero ? ov.querySelector('#pt-num').value.trim() : '',
@@ -1364,7 +1442,7 @@ const FORM_ABIERTO = 'Hay una visita o llamada abierta en pantalla. Guárdala (g
 function definirAccionesRobot() {
   const O = YO.opciones, obj = (props, req = []) => ({type: 'object', properties: props, required: req, additionalProperties: false});
   const VISTAS_NAV = ['hoy', 'clientes', 'precios', 'agenda', 'ruta'];
-  const PESTANAS = {preparar: 0, datos: 1, actividad: 2, compras: 3, precios_dados: 4, maquinas: 5, pedidos: 6, sat: 7, especiales: 8};
+  const PESTANAS = TAB_FICHA;
   window.sugrafBotAcciones = {
     ir_a: {
       descripcion: 'Cambia de pantalla: hoy (visitas sin terminar, actividad y seguimientos), clientes (control de visitas), precios, agenda o ruta.',
@@ -1560,6 +1638,20 @@ function definirAccionesRobot() {
             referencia: art.referencia, descripcion: art.descripcion, precio: Number(a.precio), nota: a.nota || ''})});
         } catch (e) { return {ok: false, error: e.message}; }
         return {ok: true, mensaje: `Apuntado: ${art.descripcion} a ${a.precio} € para ${precioCliente.nombre}.` + (r.correo === false ? ' (El aviso por correo no se ha podido enviar.)' : ' Se ha avisado por correo a Lucía y Carolina.')};
+      },
+    },
+    apuntar_incidencia: {
+      descripcion: 'Apunta una incidencia en el cliente abierto en la ficha (problema de pago, SAT no resuelto o no pagado, queja...). Solo si el usuario lo pide.',
+      parametros: obj({tipo: {type: 'string', enum: Object.keys(TIPOS_INC)}, detalle: {type: 'string'}}, ['tipo', 'detalle']),
+      etiqueta: a => `Apuntando incidencia: ${TIPOS_INC[a.tipo] || a.tipo}`,
+      ejecutar: async a => {
+        if (!FICHA || vistaActualRobot() !== 'ficha') return {ok: false, error: 'Abre antes la ficha del cliente (abrir_ficha_cliente).'};
+        try {
+          await api('/incidencias', {method: 'POST', body: JSON.stringify({cod_cliente: FICHA.cliente.codigo, cliente: FICHA.cliente.nombre, tipo: a.tipo, detalle: a.detalle})});
+        } catch (e) { return {ok: false, error: e.message}; }
+        CLIENTES = null; clientesCargando = null; CONTROL = null;
+        await cargarFicha(FICHA.cliente.codigo);
+        return {ok: true, mensaje: 'Incidencia apuntada en ' + FICHA.cliente.nombre};
       },
     },
     ver_agenda: {

@@ -75,6 +75,11 @@ def view_historicos():
 def view_manuales():
     return get_html(os.path.join(os.path.dirname(__file__), "manuales", "manuales.html"))
 
+# Master del SAT: avisos a comerciales sobre clientes (SAT sin resolver o sin pagar, quejas...)
+@app.get("/vista/incidencias", response_class=HTMLResponse)
+def view_incidencias_sat():
+    return get_html(os.path.join(os.path.dirname(__file__), "incidencias_sat", "incidencias.html"))
+
 # ---- App de comerciales: independiente del SAT (su propio acceso y su propio icono)
 @app.get("/comercial", response_class=HTMLResponse)
 def view_comercial():
