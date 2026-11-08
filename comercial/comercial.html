@@ -966,7 +966,7 @@ async function apuntarPrecio(a) {
 function pintarLeyenda() {
   document.getElementById('leyenda').innerHTML = '<div class="t-small" style="margin-bottom:8px;">Leyenda interna (no la enseñes al cliente)</div>' +
     Object.entries(YO.colores).map(([k, c]) => `<div class="row" style="margin:5px 0;"><i style="width:12px;height:12px;border-radius:50%;background:${c.color};display:inline-block"></i><span class="t-small" style="color:#fff">${esc(c.nombre)} = ${esc(c.etiqueta)}</span></div>`).join('') +
-    '<div class="t-small" style="margin-top:8px;">El precio grande es el que se puede ofrecer a ese cliente (su precio especial vigente o su tarifa).</div>';
+    '<div class="t-small" style="margin-top:8px;">Con un cliente elegido solo se ve su precio (su precio especial vigente o su tarifa).</div>';
 }
 
 // ===================================================================== actividad: tarjetas
@@ -1008,7 +1008,7 @@ async function cargarHoy() {
   pintarProgramadasHoy(pend.programadas || [], hoy);
   cargarSeguimientoHoy(com);
   const st = pend.sin_terminar;
-  document.getElementById('hoy-sin-terminar').innerHTML = st.length ? seccion('Visitas sin terminar', '<div class="t-small" style="margin:-4px 2px 8px;">Complétalas y pulsa «Cerrar visita».</div>' +
+  document.getElementById('hoy-sin-terminar').innerHTML = st.length ? seccion('Visitas sin terminar', '<div class="t-small" style="margin:-4px 2px 8px;">Complétalas y pulsa «Visita finalizada».</div>' +
     st.map(r => `<div class="card click borde-ambar" onclick="abrirVisita('${esc(r.ID)}')">
       <div class="row between"><span class="t-strong">${esc(r.CLIENTE)}</span><span class="t-small">${fechaCorta(r.FECHA)}</span></div>
       <div class="t-small">${r.HORA_INICIO ? 'Entrada ' + esc(r.HORA_INICIO) : 'Sin hora de entrada'}${r.HORA_FIN ? ' · salida ' + esc(r.HORA_FIN) : ' · falta la salida'}${YO.permisos.ver_todos ? ' · ' + esc(r.COMERCIAL) : ''}</div>
@@ -1115,11 +1115,10 @@ function opcionesSelect(lista, valor, vacio = '— Elegir —') {
 function horaActual() { const a = new Date(); return String(a.getHours()).padStart(2,'0') + ':' + String(a.getMinutes()).padStart(2,'0'); }
 function ponerAhora(id) { document.getElementById(id).value = horaActual(); verDuracion(); }
 // Campos que hacen falta para cerrar una visita (los marca con * en el formulario).
-function obligatorio(campo) { return FORM.tipo === 'VISITA' && (YO.para_cerrar || []).includes(campo) ? ' <span style="color:#fca5a5">*</span>' : ''; }
+function obligatorio(campo) { return (YO.para_cerrar || []).includes(campo) ? ' <span style="color:#fca5a5">*</span>' : ''; }
 
 function abrirFormulario() {
   const r = FORM.registro, t = FORM.tipo, O = YO.opciones;
-  const temas = (r.TEMAS || '').split(';').map(s => s.trim()).filter(Boolean);
   const cerrada = r.ESTADO === 'REGISTRADA';
   document.getElementById('f-titulo').textContent = t === 'VISITA'
     ? (FORM.modo === 'nuevo' ? 'Nueva visita' : cerrada ? 'Editar visita' : 'Completar visita')
@@ -1127,44 +1126,51 @@ function abrirFormulario() {
   if (r.ESTADO === 'PROGRAMADA') document.getElementById('f-titulo').textContent = (r.SUBTIPO || 'Visita') + ' programada: rellénala';
   const segTipo = FORM.modo === 'nuevo' ? `<div class="seg" style="margin-top:10px;">${['VISITA','LLAMADA'].map(x =>
     `<button class="${x === t ? 'on' : ''}" onclick="cambiarTipo('${x}')">${{VISITA:'Visita', LLAMADA:'Llamada'}[x]}</button>`).join('')}</div>` : '';
-  const chipsTemas = `<div class="chips" id="f-temas">${O.temas.map(x => `<button type="button" class="chip ${temas.includes(x) ? 'on' : ''}" onclick="this.classList.toggle('on')">${esc(x)}</button>`).join('')}</div>`;
   const ayuda = (r.MOTIVO ? `<div class="aviso info">Objetivo previsto: ${esc(r.MOTIVO)}</div>` : '') + (t === 'VISITA' && !cerrada
-    ? '<div class="aviso info">Puedes ir guardando la visita (por ejemplo, al entrar, con la hora de entrada) y completarla después. Cuando esté todo, pulsa «Cerrar visita». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '');
+    ? '<div class="aviso info">Puedes ir guardando la visita (por ejemplo, al entrar, con la hora de entrada) y completarla después. Cuando esté todo, pulsa «Visita finalizada». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '');
   let html = segTipo + ayuda + `
     <label>Cliente${obligatorio('CLIENTE')}</label>
     <div class="campo-cliente" onclick="cambiarClienteForm()"><span id="f-cliente" class="${FORM.cliente ? '' : 'vacio'}">${FORM.cliente ? esc(FORM.cliente.nombre) : 'Elegir cliente...'}</span><span class="t-small">cambiar</span></div>
     <label>Fecha${obligatorio('FECHA')}</label><input type="date" id="f-FECHA" value="${esc(r.FECHA)}" max="${hoyISO()}">
     <div class="grid2">
-      <div><label>${t === 'VISITA' ? 'Hora de entrada' : 'Hora inicio'}${obligatorio('HORA_INICIO')}</label><input type="time" id="f-HORA_INICIO" value="${esc(r.HORA_INICIO)}" oninput="verDuracion()">
-        <button type="button" class="link-ahora" onclick="ponerAhora('f-HORA_INICIO')">poner hora actual</button></div>
-      <div><label>${t === 'VISITA' ? 'Hora de salida' : 'Hora fin'}${obligatorio('HORA_FIN')}</label><input type="time" id="f-HORA_FIN" value="${esc(r.HORA_FIN)}" oninput="verDuracion()">
-        <button type="button" class="link-ahora" onclick="ponerAhora('f-HORA_FIN')">poner hora actual</button></div>
+      <div><label>${t === 'VISITA' ? 'Hora de entrada' : 'Hora inicio'}${obligatorio('HORA_INICIO')}</label><input type="time" id="f-HORA_INICIO" value="${esc(r.HORA_INICIO)}" oninput="verDuracion()"></div>
+      <div><label>${t === 'VISITA' ? 'Hora de salida' : 'Hora fin'}${obligatorio('HORA_FIN')}</label><input type="time" id="f-HORA_FIN" value="${esc(r.HORA_FIN)}" oninput="verDuracion()"></div>
     </div>
     <div class="duracion" id="f-duracion"></div>
-    ${t === 'LLAMADA' ? `<label>Tipo de llamada</label><select id="f-SUBTIPO">${opcionesSelect(O.tipos_llamada, r.SUBTIPO)}</select>` : ''}
-    <label>Persona de contacto</label><input id="f-CONTACTO" value="${esc(r.CONTACTO)}" placeholder="Con quién has hablado">
-    <label>Temas tratados${obligatorio('TEMAS')}</label>${chipsTemas}
     <label>Qué se ha hablado${obligatorio('DESCRIPCION')}</label><textarea id="f-DESCRIPCION" data-dictado placeholder="Resumen de la conversación">${esc(r.DESCRIPCION)}</textarea>
     <label>Resultado${obligatorio('RESULTADO')}</label><select id="f-RESULTADO">${opcionesSelect(O.resultados, r.RESULTADO)}</select>
-    <div class="grid2"><div><label>Próxima acción</label><input id="f-PROXIMA_ACCION" value="${esc(r.PROXIMA_ACCION)}" placeholder="Opcional"></div>
-      <div><label>Fecha de seguimiento</label><input type="date" id="f-FECHA_SEGUIMIENTO" value="${esc(r.FECHA_SEGUIMIENTO)}"></div></div>
+    <label>Recordar visita el día… <span style="text-transform:none; letter-spacing:0; font-weight:600;">(se apunta en tu agenda)</span></label>
+    <div class="grid2"><select id="f-REC_TIPO">${['Visita', 'Llamada'].map(x => `<option ${(recordatorio(r.PROXIMA_ACCION) || {}).tipo === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <input type="date" id="f-REC_FECHA" min="${hoyISO()}" value="${(recordatorio(r.PROXIMA_ACCION) || {}).fecha || ''}"></div>
     <label>Observaciones</label><textarea id="f-OBSERVACIONES" style="min-height:56px;" placeholder="Opcional">${esc(r.OBSERVACIONES)}</textarea>`;
   document.getElementById('f-cuerpo').innerHTML = html;
   document.querySelectorAll('#f-cuerpo textarea[data-dictado]').forEach(x => window.activarDictado && activarDictado(x));
   // Botones: una visita abierta tiene «Guardar» y «Cerrar visita»; una ya cerrada o una llamada, solo «Guardar».
   document.getElementById('f-pie').innerHTML = t === 'VISITA' && !cerrada
-    ? `<button class="btn btn-ghost" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button><button class="btn btn-primary" id="f-cerrar" onclick="guardarFormulario(true)">&#10003; Cerrar visita</button>`
+    ? `<button class="btn btn-ghost" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button><button class="btn btn-primary" id="f-cerrar" onclick="guardarFormulario(true)">Visita finalizada</button>`
     : `<button class="btn btn-ghost" onclick="cerrarFormulario()">Cancelar</button><button class="btn btn-primary" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button>`;
   verDuracion();
   abrirHoja('sh-form');
 }
 
+function textoRecordatorio(tipo, iso) { return `Recordar ${tipo.toLowerCase()} el ${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`; }
+function recordatorio(texto) {
+  const m = /^Recordar (visita|llamada) el (\d{2})\/(\d{2})\/(\d{4})/i.exec(texto || '');
+  return m ? {tipo: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase(), fecha: `${m[4]}-${m[3]}-${m[2]}`} : null;
+}
 function leerFormulario() {
   const val = id => { const el = document.getElementById('f-' + id); return el ? el.value.trim() : ''; };
   const d = {TIPO: FORM.tipo, COD_CLIENTE: FORM.cliente ? FORM.cliente.codigo : '', CLIENTE: FORM.cliente ? FORM.cliente.nombre : '',
              POBLACION: FORM.cliente ? FORM.cliente.poblacion : ''};
-  ['FECHA','HORA_INICIO','HORA_FIN','SUBTIPO','CONTACTO','DESCRIPCION','RESULTADO','PROXIMA_ACCION','FECHA_SEGUIMIENTO','OBSERVACIONES'].forEach(k => d[k] = val(k));
-  d.TEMAS = [...document.querySelectorAll('#f-temas .chip.on')].map(c => c.textContent).join('; ');
+  ['FECHA','HORA_INICIO','HORA_FIN','DESCRIPCION','RESULTADO','OBSERVACIONES'].forEach(k => d[k] = val(k));
+  d.SUBTIPO = FORM.registro.SUBTIPO || '';   // ya no se pregunta (se conserva el de las programadas y antiguas)
+  // «Recordar visita el día…»: se guarda en PROXIMA_ACCION («Recordar visita el 20/11/2026») y, al guardar, se programa en la agenda.
+  const recF = val('REC_FECHA'), recT = val('REC_TIPO') || 'Visita';
+  d.PROXIMA_ACCION = recF ? textoRecordatorio(recT, recF) : (recordatorio(FORM.registro.PROXIMA_ACCION) ? '' : (FORM.registro.PROXIMA_ACCION || ''));
+  d.FECHA_SEGUIMIENTO = FORM.registro.FECHA_SEGUIMIENTO || '';
+  // Contacto y temas ya no se piden; se conserva lo que tuvieran los registros antiguos.
+  d.CONTACTO = FORM.registro.CONTACTO || '';
+  d.TEMAS = FORM.registro.TEMAS || '';
   if (FORM.registro.SEGUIMIENTO_HECHO) d.SEGUIMIENTO_HECHO = FORM.registro.SEGUIMIENTO_HECHO;
   if (d.FECHA_SEGUIMIENTO !== (FORM.registro.FECHA_SEGUIMIENTO || '')) d.SEGUIMIENTO_HECHO = '';
   return d;
@@ -1189,6 +1195,14 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
   const aviso = async (texto, tipo) => { if (!silencioso) await appAlert(texto, {type: tipo}); };
   const d = leerFormulario();
   if (!d.CLIENTE) { await aviso('Elige el cliente.', 'error'); return {ok: false, error: 'Falta el cliente.'}; }
+  if (FORM.tipo === 'LLAMADA') {
+    // Una llamada se guarda de una vez: tiene que llevar todo lo obligatorio.
+    const faltan = (YO.para_cerrar || []).filter(c => !d[c]).map(c => ({HORA_INICIO: 'hora de inicio', HORA_FIN: 'hora de fin'}[c] || NOMBRES_CAMPOS[c] || c));
+    if (faltan.length) {
+      await aviso('Para guardar la llamada falta: ' + faltan.join(', ') + '.', 'error');
+      return {ok: false, error: 'Para guardar la llamada falta: ' + faltan.join(', ') + '.'};
+    }
+  }
   if (cerrar || FORM.registro.ESTADO === 'REGISTRADA') {
     const faltan = (YO.para_cerrar || []).filter(c => !d[c]).map(c => NOMBRES_CAMPOS[c] || c);
     if (FORM.tipo === 'VISITA' && faltan.length) {
@@ -1202,10 +1216,17 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
     const cuerpo = JSON.stringify({datos: d, confirmar_solape: confirmarSolape, cerrar});
     if (FORM.modo === 'nuevo') await api('/actividad', {method:'POST', body: cuerpo});
     else await api('/actividad/' + encodeURIComponent(FORM.id), {method:'PUT', body: cuerpo});
+    // Recordatorio nuevo (o cambiado): se programa la visita o llamada en la agenda de ese día.
+    const rec = recordatorio(d.PROXIMA_ACCION);
+    if (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '')) {
+      await api('/programar', {method: 'POST', body: JSON.stringify({cod_cliente: d.COD_CLIENTE, cliente: d.CLIENTE, poblacion: d.POBLACION,
+        fecha: rec.fecha, tipo: rec.tipo === 'Llamada' ? 'LLAMADA' : 'VISITA', objetivo: d.DESCRIPCION ? 'Seguimiento: ' + d.DESCRIPCION.slice(0, 120) : 'Seguimiento'})});
+    }
     hideLoading();
     const tipo = FORM.tipo, abierta = tipo === 'VISITA' && !cerrar && FORM.registro.ESTADO !== 'REGISTRADA';
-    const mensaje = abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
-                            : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.';
+    const mensaje = (abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
+                             : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.') +
+      (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '') ? `\n\n${rec.tipo} apuntada en tu agenda para el ${fechaLarga(rec.fecha)}.` : '');
     cerrarFormulario();
     await aviso(mensaje, 'success');
     mostrarVista();
@@ -1590,12 +1611,10 @@ function definirAccionesRobot() {
       parametros: obj({
         codigo_cliente: {type: 'string', description: 'Cambia el cliente'},
         fecha: {type: 'string'}, hora_entrada: {type: 'string'}, hora_salida: {type: 'string'},
-        tipo_llamada: {type: 'string', enum: O.tipos_llamada},
-        contacto: {type: 'string', description: 'Persona con la que se ha hablado'},
-        temas: {type: 'array', items: {type: 'string', enum: O.temas}, description: 'Temas tratados (sustituye a los marcados)'},
         descripcion: {type: 'string', description: 'Qué se ha hablado'},
         resultado: {type: 'string', enum: O.resultados},
-        proxima_accion: {type: 'string'}, fecha_seguimiento: {type: 'string'}, observaciones: {type: 'string'},
+        recordar_tipo: {type: 'string', enum: ['Visita', 'Llamada'], description: 'Recordar visita/llamada el día… (se apunta en la agenda)'},
+        recordar_fecha: {type: 'string', description: 'AAAA-MM-DD'}, observaciones: {type: 'string'},
       }),
       etiqueta: () => 'Rellenando la visita',
       ejecutar: async a => {
@@ -1606,20 +1625,14 @@ function definirAccionesRobot() {
           FORM.cliente = c;
           const el = document.getElementById('f-cliente'); if (bot()) await bot().resaltar(el.parentElement); el.textContent = c.nombre; el.className = '';
         }
-        const campos = {fecha: 'FECHA', hora_entrada: 'HORA_INICIO', hora_salida: 'HORA_FIN', tipo_llamada: 'SUBTIPO', contacto: 'CONTACTO',
-                        descripcion: 'DESCRIPCION', resultado: 'RESULTADO', proxima_accion: 'PROXIMA_ACCION', fecha_seguimiento: 'FECHA_SEGUIMIENTO', observaciones: 'OBSERVACIONES'};
+        const campos = {fecha: 'FECHA', hora_entrada: 'HORA_INICIO', hora_salida: 'HORA_FIN',
+                        descripcion: 'DESCRIPCION', resultado: 'RESULTADO', recordar_tipo: 'REC_TIPO', recordar_fecha: 'REC_FECHA', observaciones: 'OBSERVACIONES'};
         for (const [k, id] of Object.entries(campos)) {
           if (a[k] === undefined || a[k] === null) continue;
           const el = document.getElementById('f-' + id);
           if (!el) { avisos.push(`${k}: no existe en este formulario`); continue; }
           await bot().escribir(el, a[k]);
           if (String(a[k]) && el.value !== String(a[k])) avisos.push(`${k}: valor no válido «${a[k]}»`);
-        }
-        if (Array.isArray(a.temas)) {
-          const chips = [...document.querySelectorAll('#f-temas .chip')];
-          if (chips[0] && bot()) await bot().resaltar(chips[0].parentElement);
-          chips.forEach(ch => ch.classList.toggle('on', a.temas.includes(ch.textContent)));
-          a.temas.filter(t => !chips.some(ch => ch.textContent === t)).forEach(t => avisos.push(`tema desconocido «${t}»`));
         }
         verDuracion();
         const duracion = document.getElementById("f-duracion").textContent;
@@ -1637,7 +1650,7 @@ function definirAccionesRobot() {
       },
     },
     cerrar_visita: {
-      descripcion: 'Cierra la visita abierta (queda como bien visitada). Exige cliente, fecha, horas de entrada y salida, temas, qué se ha hablado y resultado.',
+      descripcion: 'Cierra la visita abierta (queda como bien visitada). Exige cliente, fecha, horas de entrada y salida, qué se ha hablado y resultado.',
       parametros: obj({confirmar_solape: {type: 'boolean', description: 'Solo si el usuario ha confirmado guardar aunque se solape con otra'}}),
       etiqueta: () => 'Cerrando la visita',
       ejecutar: async a => {

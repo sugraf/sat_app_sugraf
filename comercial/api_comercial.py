@@ -154,13 +154,19 @@ class Registro(BaseModel):
 
 # Lo que tiene que estar relleno para poder cerrar una visita (darla por bien hecha).
 CAMPOS_PARA_CERRAR = [('CLIENTE', 'cliente'), ('FECHA', 'fecha'), ('HORA_INICIO', 'hora de entrada'),
-                      ('HORA_FIN', 'hora de salida'), ('TEMAS', 'temas tratados'), ('DESCRIPCION', 'qué se ha hablado'),
+                      ('HORA_FIN', 'hora de salida'), ('DESCRIPCION', 'qué se ha hablado'),
                       ('RESULTADO', 'resultado')]
 
 
 def _estado(d, cerrar, anterior=''):
     """Una visita queda SIN TERMINAR (se puede ir guardando) hasta que se pulsa «Cerrar visita»,
     que exige hora de entrada y de salida. Una visita ya cerrada sigue cerrada al editarla."""
+    if d['TIPO'] == 'LLAMADA':
+        # Las llamadas se guardan de una vez y llevan lo mismo que una visita terminada.
+        faltan = [nombre.replace('entrada', 'inicio').replace('salida', 'fin') for campo, nombre in CAMPOS_PARA_CERRAR if not d.get(campo)]
+        if faltan:
+            raise HTTPException(status_code=400, detail='Para guardar la llamada falta: ' + ', '.join(faltan) + '.')
+        return actividad.REGISTRADA
     if d['TIPO'] != 'VISITA':
         return actividad.REGISTRADA
     if cerrar or anterior == actividad.REGISTRADA:
