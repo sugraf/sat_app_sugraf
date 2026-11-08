@@ -178,6 +178,18 @@
     .alerta.gris{ background:rgba(182,190,196,.08); border:1px solid rgba(182,190,196,.3); color:#d6dde3; }
     .card.borde-azul{ border-left:3px solid #8fc4ec; }
     .badge.prog{ background:rgba(143,196,236,.16); color:#bfe0f7; }
+    .cal-cab, .cal{ display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; }
+    .cal-cab{ margin:14px 0 6px; } .cal-cab span{ text-align:center; font-size:0.62rem; font-weight:800; letter-spacing:.08em; color:var(--muted); }
+    .cal .d{ aspect-ratio:1; border-radius:11px; background:rgba(255,255,255,.03); border:1px solid var(--line); display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:0.86rem; color:#5c7291; cursor:pointer; transition:transform .1s; }
+    .cal .d.vacio{ visibility:hidden; }
+    .cal .d.con{ color:#fff; background:rgba(47,111,176,.30); border-color:rgba(143,196,236,.55); }
+    .cal .d.con.mucho{ background:rgba(47,111,176,.55); }
+    .cal .d.prog{ border-style:dashed; border-color:rgba(143,196,236,.7); color:#cfe6f8; }
+    .cal .d.hoy{ outline:2px solid var(--accent); outline-offset:1px; }
+    .cal .d.sel{ background:#2f6fb0; color:#fff; border-color:#8fc4ec; transform:scale(1.06); }
+    .cal .pts{ display:flex; gap:3px; height:5px; } .cal .pt{ width:5px; height:5px; border-radius:50%; }
+    .cal-ley{ display:flex; flex-wrap:wrap; gap:10px; margin:8px 2px 0; font-size:0.68rem; color:var(--muted); } .cal-ley i{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px; }
     .dia-plan{ display:flex; justify-content:space-between; align-items:center; margin:16px 2px 6px; }
     .dia-plan .t-strong{ text-transform:capitalize; font-size:0.86rem; }
     .dia-plan.hoy .t-strong{ color:var(--accent); }
@@ -1921,7 +1933,7 @@ async function cargarSeguimientoHoy(com) {
 }
 
 // ===================================================================== AGENDA
-let modoAg = 'semana', tiposAg = new Set(['VISITA','LLAMADA']);
+let modoAg = 'semana', tiposAg = new Set(['VISITA','LLAMADA','PRECIO']), diaMes = '';
 function modoAgenda(m) { modoAg = m; ['dia','semana','mes'].forEach(x => document.getElementById('ag-' + x).classList.toggle('on', x === m)); cargarAgenda(); }
 function moverAgenda(n) {
   const el = document.getElementById('ag-fecha'); const [y,m,d] = (el.value || hoyISO()).split('-').map(Number);
@@ -1952,8 +1964,10 @@ async function cargarAgenda() {
   catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
   const regs = d.registros.filter(r => r.FECHA >= desde && r.FECHA <= hasta && tiposAg.has(r.TIPO));
   AGENDA_REGS = regs;
-  const titulo = modoAg === 'dia' ? fechaLarga(desde) : `${fechaCorta(desde)} – ${fechaCorta(hasta)}`;
-  let html = `<h3 style="margin-top:14px;">${esc(titulo)}</h3><div class="stats dos">${resumenJornada(regs)}</div>`;
+  const titulo = modoAg === 'dia' ? fechaLarga(desde) : modoAg === 'mes'
+    ? new Date(desde + 'T12:00').toLocaleDateString('es-ES', {month: 'long', year: 'numeric'}) : `${fechaCorta(desde)} – ${fechaCorta(hasta)}`;
+  let html = `<h3 style="margin-top:14px;">${esc(titulo)}</h3>` + (modoAg === 'mes' ? htmlCalendario(regs, desde, hasta) : '') +
+    `<div class="stats dos" style="margin-top:14px;">${resumenJornada(regs)}</div>`;
   // Visitas diarias y tiempos (visitas cerradas), por comercial y día
   try {
     const R = await api(`/resumen?desde=${desde}&hasta=${hasta}${com ? '&comercial=' + encodeURIComponent(com) : ''}`);
@@ -1967,7 +1981,7 @@ async function cargarAgenda() {
         <div class="t-small">Horario = primera entrada y última salida del día. Media = tiempo medio por visita.</div>`;
     }
   } catch (e) {}
-  if (!regs.length && modoAg !== 'semana') { cont.innerHTML = html + '<div class="empty">Sin actividad registrada.</div>'; return; }
+  if (!regs.length && modoAg === 'dia') { cont.innerHTML = html + '<div class="empty">Sin actividad registrada.</div>'; return; }
   html += '<h3>Detalle</h3>';
   if (modoAg === 'dia') {
     html += '<h3>Cronología</h3>' + regs.map(r => `<div class="timeline-item"><div class="timeline-hora">${esc(r.HORA_INICIO || '—')}<small>${esc(r.HORA_FIN || '')}</small></div>${itemActividad(r)}</div>`).join('');
@@ -1981,12 +1995,44 @@ async function cargarAgenda() {
         ((porDia[f] || []).map(itemActividad).join('') || '<div class="t-small" style="padding:0 2px 6px;">Nada.</div>')).join('');
       return;
     }
+    if (modoAg === 'mes') { cont.innerHTML = html.replace('<h3>Detalle</h3>', ''); pintarDiaMes(); return; }
     html += Object.keys(porDia).sort().map(f => {
       const lista = porDia[f]; const mins = lista.filter(r => r.TIPO === 'VISITA').reduce((s, r) => s + (+r.DURACION_MIN || 0), 0);
       return `<div class="dia-cab"><span style="text-transform:capitalize;">${esc(fechaLarga(f))}</span><span class="t-small">${lista.length} act.${mins ? ' · ' + dur(mins) + ' en visitas' : ''}</span></div>` + lista.map(itemActividad).join('');
     }).join('');
   }
   cont.innerHTML = html;
+}
+
+// ---- vista Mes: calendario con los días que tienen algo «encendidos»; al tocar un día se ve su detalle debajo.
+const COLOR_TIPO = {VISITA: '#8fc4ec', LLAMADA: '#3b82f6', PRECIO: '#a855f7', PROGRAMADA: '#fcd34d'};
+function htmlCalendario(regs, desde, hasta) {
+  const porDia = {}; regs.forEach(r => (porDia[r.FECHA] = porDia[r.FECHA] || []).push(r));
+  if (!diaMes || diaMes < desde || diaMes > hasta) diaMes = hoyISO() >= desde && hoyISO() <= hasta ? hoyISO() : '';
+  const primero = new Date(desde + 'T12:00'), huecos = (primero.getDay() + 6) % 7;
+  let celdas = Array(huecos).fill('<div class="d vacio"></div>');
+  for (let f = new Date(primero); isoDe(f) <= hasta; f.setDate(f.getDate() + 1)) {
+    const iso = isoDe(f), lista = porDia[iso] || [];
+    const hechas = lista.filter(r => r.ESTADO !== 'PROGRAMADA'), prog = lista.filter(r => r.ESTADO === 'PROGRAMADA');
+    const tipos = [...new Set(lista.map(r => r.ESTADO === 'PROGRAMADA' ? 'PROGRAMADA' : r.TIPO))];
+    const cls = ['d', hechas.length ? 'con' : '', hechas.length >= 4 ? 'mucho' : '', !hechas.length && prog.length ? 'prog' : '',
+                 iso === hoyISO() ? 'hoy' : '', iso === diaMes ? 'sel' : ''].filter(Boolean).join(' ');
+    celdas.push(`<div class="${cls}" onclick="diaMes='${iso}'; document.querySelectorAll('.cal .d').forEach(x => x.classList.remove('sel')); this.classList.add('sel'); pintarDiaMes()"
+      title="${lista.length} anotación(es)"><span>${f.getDate()}</span><span class="pts">${tipos.map(t => `<i class="pt" style="background:${COLOR_TIPO[t]}"></i>`).join('')}</span></div>`);
+  }
+  return `<div class="cal-cab">${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(x => `<span>${x}</span>`).join('')}</div><div class="cal">${celdas.join('')}</div>
+    <div class="cal-ley"><span><i style="background:${COLOR_TIPO.VISITA}"></i>Visita</span><span><i style="background:${COLOR_TIPO.LLAMADA}"></i>Llamada</span>
+      <span><i style="background:${COLOR_TIPO.PRECIO}"></i>Precio dado</span><span><i style="background:${COLOR_TIPO.PROGRAMADA}"></i>Programada</span></div>
+    <div id="ag-dia-mes"></div>`;
+}
+function pintarDiaMes() {
+  const el = document.getElementById('ag-dia-mes');
+  if (!el) return;
+  if (!diaMes) { el.innerHTML = '<div class="t-small" style="margin:12px 2px;">Toca un día para ver lo que hay.</div>'; return; }
+  const lista = AGENDA_REGS.filter(r => r.FECHA === diaMes);
+  el.innerHTML = `<div class="dia-plan ${diaMes === hoyISO() ? 'hoy' : ''}"><span class="t-strong">${esc(fechaLarga(diaMes))}</span>
+      ${diaMes >= hoyISO() ? `<button class="btn btn-ghost btn-sm" onclick="programarVisita(null, '${diaMes}')">+ Programar</button>` : ''}</div>` +
+    (lista.map(itemActividad).join('') || '<div class="t-small" style="padding:0 2px 6px;">Nada anotado este día.</div>');
 }
 
 // ===================================================================== arranque
