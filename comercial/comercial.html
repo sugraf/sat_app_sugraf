@@ -1139,6 +1139,7 @@ function abrirFormulario() {
     <div class="duracion" id="f-duracion"></div>
     <label>Qué se ha hablado${obligatorio('DESCRIPCION')}</label><textarea id="f-DESCRIPCION" data-dictado placeholder="Resumen de la conversación">${esc(r.DESCRIPCION)}</textarea>
     <label>Resultado${obligatorio('RESULTADO')}</label><select id="f-RESULTADO">${opcionesSelect(O.resultados, r.RESULTADO)}</select>
+    ${htmlOfertaForm(r)}
     <label>Recordar visita el día… <span style="text-transform:none; letter-spacing:0; font-weight:600;">(se apunta en tu agenda)</span></label>
     <div class="grid2"><select id="f-REC_TIPO">${['Visita', 'Llamada'].map(x => `<option ${(recordatorio(r.PROXIMA_ACCION) || {}).tipo === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <input type="date" id="f-REC_FECHA" min="${hoyISO()}" value="${(recordatorio(r.PROXIMA_ACCION) || {}).fecha || ''}"></div>
@@ -1150,7 +1151,66 @@ function abrirFormulario() {
     ? `<button class="btn btn-ghost" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button><button class="btn btn-primary" id="f-cerrar" onclick="guardarFormulario(true)">Visita finalizada</button>`
     : `<button class="btn btn-ghost" onclick="cerrarFormulario()">Cancelar</button><button class="btn btn-primary" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button>`;
   verDuracion();
+  pintarArticuloOferta();
   abrirHoja('sh-form');
+}
+
+// ---- «¿Se ha conseguido una oferta?» (Sí / No). Con Sí: qué (artículo del buscador) y/o una breve descripción.
+function htmlOfertaForm(r) {
+  FORM.oferta = r.OFERTA || '';
+  FORM.ofertaArt = r.OFERTA === 'SI' ? (r.PRODUCTOS || '') : '';
+  const req = FORM.registro.ESTADO === 'REGISTRADA' && !r.OFERTA ? '' : ' <span style="color:#fca5a5">*</span>';
+  return `<label>¿Se ha conseguido una oferta?${req}</label>
+    <div class="seg" id="f-oferta-seg">${[['NO', 'No'], ['SI', 'Sí']].map(([v, n]) =>
+      `<button type="button" data-v="${v}" class="${FORM.oferta === v ? 'on' : ''}" onclick="marcarOferta('${v}')">${n}</button>`).join('')}</div>
+    <div id="f-oferta-det" style="display:${FORM.oferta === 'SI' ? 'block' : 'none'}; margin-top:2px;">
+      <div class="t-small" style="margin:8px 2px 0;">Indica qué artículo o escribe una breve descripción (al menos una de las dos).</div>
+      <label>Qué (referencia o nombre)</label>
+      <div id="f-oferta-elegido"></div>
+      <input id="f-oferta-buscar" type="search" autocomplete="off" placeholder="Buscar artículo por referencia o nombre..." oninput="buscarArticuloOferta(this.value)">
+      <div id="f-oferta-res"></div>
+      <label>Descripción</label>
+      <textarea id="f-NECESIDADES" data-dictado style="min-height:56px;" placeholder="Qué se le va a ofertar (máquina, consumible, cantidades...)">${esc(r.OFERTA === 'SI' ? r.NECESIDADES : '')}</textarea>
+    </div>`;
+}
+function marcarOferta(v) {
+  FORM.oferta = FORM.oferta === v ? '' : v;
+  document.querySelectorAll('#f-oferta-seg button').forEach(b => b.classList.toggle('on', b.dataset.v === FORM.oferta));
+  document.getElementById('f-oferta-det').style.display = FORM.oferta === 'SI' ? 'block' : 'none';
+  pintarArticuloOferta();
+}
+function pintarArticuloOferta() {
+  const el = document.getElementById('f-oferta-elegido'), bus = document.getElementById('f-oferta-buscar');
+  if (!el) return;
+  el.innerHTML = FORM.ofertaArt ? `<div class="card" style="display:flex; align-items:center; gap:10px; padding:10px 12px; margin:6px 0;">
+      <span style="flex:1;">${esc(FORM.ofertaArt)}</span><button class="btn btn-ghost btn-sm" type="button" onclick="quitarArticuloOferta()">Quitar</button></div>` : '';
+  if (bus) bus.style.display = FORM.ofertaArt ? 'none' : '';
+}
+function quitarArticuloOferta() { FORM.ofertaArt = ''; pintarArticuloOferta(); setTimeout(() => document.getElementById('f-oferta-buscar')?.focus(), 50); }
+let _tOferta = null, _nOferta = 0;
+function buscarArticuloOferta(q) {
+  clearTimeout(_tOferta);
+  const res = document.getElementById('f-oferta-res');
+  if (q.trim().length < 2) { res.innerHTML = ''; return; }
+  _tOferta = setTimeout(async () => {
+    const n = ++_nOferta;
+    res.innerHTML = '<div class="t-small" style="padding:8px 2px;">Buscando...</div>';
+    let d;
+    try { d = await api(`/articulos?limite=15&q=${encodeURIComponent(q)}${FORM.cliente && FORM.cliente.codigo ? '&cliente=' + encodeURIComponent(FORM.cliente.codigo) : ''}`); }
+    catch (e) { if (n === _nOferta) res.innerHTML = `<div class="t-small" style="padding:8px 2px;">${esc(e.message)}</div>`; return; }
+    if (n !== _nOferta) return;
+    window._artsOferta = d.articulos || [];
+    res.innerHTML = window._artsOferta.length ? window._artsOferta.map((a, i) => `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer;" onclick="elegirArticuloOferta(${i})">
+        <div class="t-strong" style="font-size:0.88rem;">${esc(a.descripcion)}</div><div class="t-small">Ref. ${esc(a.referencia)}${a.familia ? ' · ' + esc(a.familia) : ''}</div></div>`).join('')
+      : '<div class="t-small" style="padding:8px 2px;">No se ha encontrado ningún artículo. Puedes escribirlo en la descripción.</div>';
+  }, 300);
+}
+function elegirArticuloOferta(i) {
+  const a = (window._artsOferta || [])[i]; if (!a) return;
+  FORM.ofertaArt = `${a.referencia} · ${a.descripcion}`;
+  document.getElementById('f-oferta-res').innerHTML = '';
+  document.getElementById('f-oferta-buscar').value = '';
+  pintarArticuloOferta();
 }
 
 function textoRecordatorio(tipo, iso) { return `Recordar ${tipo.toLowerCase()} el ${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`; }
@@ -1163,6 +1223,9 @@ function leerFormulario() {
   const d = {TIPO: FORM.tipo, COD_CLIENTE: FORM.cliente ? FORM.cliente.codigo : '', CLIENTE: FORM.cliente ? FORM.cliente.nombre : '',
              POBLACION: FORM.cliente ? FORM.cliente.poblacion : ''};
   ['FECHA','HORA_INICIO','HORA_FIN','DESCRIPCION','RESULTADO','OBSERVACIONES'].forEach(k => d[k] = val(k));
+  d.OFERTA = FORM.oferta || '';
+  d.PRODUCTOS = d.OFERTA === 'SI' ? (FORM.ofertaArt || '') : '';
+  d.NECESIDADES = d.OFERTA === 'SI' ? val('NECESIDADES') : '';
   d.SUBTIPO = FORM.registro.SUBTIPO || '';   // ya no se pregunta (se conserva el de las programadas y antiguas)
   // «Recordar visita el día…»: se guarda en PROXIMA_ACCION («Recordar visita el 20/11/2026») y, al guardar, se programa en la agenda.
   const recF = val('REC_FECHA'), recT = val('REC_TIPO') || 'Visita';
@@ -1188,7 +1251,12 @@ function verDuracion() {
 function cerrarFormulario() { cerrarHoja('sh-form'); FORM = null; }
 
 const NOMBRES_CAMPOS = {CLIENTE: 'cliente', FECHA: 'fecha', HORA_INICIO: 'hora de entrada', HORA_FIN: 'hora de salida',
-                        TEMAS: 'temas tratados', DESCRIPCION: 'qué se ha hablado', RESULTADO: 'resultado'};
+                        TEMAS: 'temas tratados', DESCRIPCION: 'qué se ha hablado', RESULTADO: 'resultado',
+                        OFERTA: 'si se ha conseguido una oferta'};
+// La pregunta de la oferta no se exige al editar visitas cerradas antes de que existiera.
+function faltanCampos(d, cerrar) {
+  return (YO.para_cerrar || []).filter(c => !d[c] && !(c === 'OFERTA' && !cerrar && FORM.registro.ESTADO === 'REGISTRADA' && !FORM.registro.OFERTA));
+}
 
 // silencioso (lo usa el robot): sin avisos que esperen a que se pulse Aceptar; devuelve {ok, mensaje|error}.
 async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = false) {
@@ -1197,18 +1265,22 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
   if (!d.CLIENTE) { await aviso('Elige el cliente.', 'error'); return {ok: false, error: 'Falta el cliente.'}; }
   if (FORM.tipo === 'LLAMADA') {
     // Una llamada se guarda de una vez: tiene que llevar todo lo obligatorio.
-    const faltan = (YO.para_cerrar || []).filter(c => !d[c]).map(c => ({HORA_INICIO: 'hora de inicio', HORA_FIN: 'hora de fin'}[c] || NOMBRES_CAMPOS[c] || c));
+    const faltan = faltanCampos(d, false).map(c => ({HORA_INICIO: 'hora de inicio', HORA_FIN: 'hora de fin'}[c] || NOMBRES_CAMPOS[c] || c));
     if (faltan.length) {
       await aviso('Para guardar la llamada falta: ' + faltan.join(', ') + '.', 'error');
       return {ok: false, error: 'Para guardar la llamada falta: ' + faltan.join(', ') + '.'};
     }
   }
   if (cerrar || FORM.registro.ESTADO === 'REGISTRADA') {
-    const faltan = (YO.para_cerrar || []).filter(c => !d[c]).map(c => NOMBRES_CAMPOS[c] || c);
+    const faltan = faltanCampos(d, cerrar).map(c => NOMBRES_CAMPOS[c] || c);
     if (FORM.tipo === 'VISITA' && faltan.length) {
       await aviso('Para cerrar la visita falta: ' + faltan.join(', ') + '.\n\nPuedes pulsar «Guardar» y completarla más tarde.', 'error');
       return {ok: false, error: 'Para cerrar la visita falta: ' + faltan.join(', ') + '. Se puede guardar sin cerrar.'};
     }
+  }
+  if (d.OFERTA === 'SI' && !d.PRODUCTOS && !d.NECESIDADES) {
+    await aviso('Has marcado que se ha conseguido una oferta: elige qué artículo o escribe una breve descripción.', 'error');
+    return {ok: false, error: 'Oferta conseguida: falta qué (artículo) o una descripción.'};
   }
   document.querySelectorAll('#f-pie .btn').forEach(b => b.disabled = true);
   showLoading();
@@ -1224,9 +1296,11 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
     }
     hideLoading();
     const tipo = FORM.tipo, abierta = tipo === 'VISITA' && !cerrar && FORM.registro.ESTADO !== 'REGISTRADA';
+    const ofertaNueva = d.OFERTA === 'SI' && (FORM.registro.OFERTA !== 'SI' || FORM.registro.PRODUCTOS !== d.PRODUCTOS || (FORM.registro.NECESIDADES || '') !== d.NECESIDADES);
     const mensaje = (abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
                              : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.') +
-      (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '') ? `\n\n${rec.tipo} apuntada en tu agenda para el ${fechaLarga(rec.fecha)}.` : '');
+      (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '') ? `\n\n${rec.tipo} apuntada en tu agenda para el ${fechaLarga(rec.fecha)}.` : '') +
+      (ofertaNueva ? '\n\nOferta avisada a la oficina para que la prepare.' : '');
     cerrarFormulario();
     await aviso(mensaje, 'success');
     mostrarVista();
@@ -1256,7 +1330,8 @@ async function verActividad(id) {
     : [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE + (r.COD_CLIENTE ? ` (${r.COD_CLIENTE})` : ' · no está en Pirineos')],
     ['Fecha', fechaLarga(r.FECHA)], ['Horario', r.HORA_INICIO ? `${r.HORA_INICIO}${r.HORA_FIN ? ' – ' + r.HORA_FIN : ' – (falta la salida)'}` : ''],
     ['Duración', dur(r.DURACION_MIN)], ['Tipo', r.SUBTIPO], ['Objetivo', r.MOTIVO], ['Contacto', r.CONTACTO], ['Temas', r.TEMAS], ['Qué se ha hablado', r.DESCRIPCION],
-    ['Resultado', r.RESULTADO], ['Próxima acción', r.PROXIMA_ACCION], ['Seguimiento', r.FECHA_SEGUIMIENTO ? fechaCorta(r.FECHA_SEGUIMIENTO) + (r.SEGUIMIENTO_HECHO === 'SI' ? ' (hecho)' : '') : ''],
+    ['Resultado', r.RESULTADO], ['Oferta conseguida', r.OFERTA === 'SI' ? 'Sí' + [r.PRODUCTOS, r.NECESIDADES].filter(Boolean).map(x => ' — ' + x).join('') : r.OFERTA === 'NO' ? 'No' : ''],
+    ['Próxima acción', r.PROXIMA_ACCION], ['Seguimiento', r.FECHA_SEGUIMIENTO ? fechaCorta(r.FECHA_SEGUIMIENTO) + (r.SEGUIMIENTO_HECHO === 'SI' ? ' (hecho)' : '') : ''],
     ['Observaciones', r.OBSERVACIONES], ['Estado', r.ESTADO === 'REGISTRADA' ? (r.TIPO === 'VISITA' ? 'Cerrada' : 'Registrada') : r.ESTADO === 'SIN TERMINAR' ? 'Sin terminar' : r.ESTADO === 'PROGRAMADA' ? 'Programada (aún no hecha)' : r.ESTADO]];
   const ubic = [];
   const hist = d.historial.map(h => `<div class="hist">${esc(h.FECHA_CAMBIO)} · ${esc(h.USUARIO)} · ${esc(h.ACCION)}${h.CAMPO ? `: ${esc(h.CAMPO)} «${esc(h.VALOR_ANTERIOR)}» → «${esc(h.VALOR_NUEVO)}»` : ''}</div>`).join('');
@@ -1615,6 +1690,9 @@ function definirAccionesRobot() {
         resultado: {type: 'string', enum: O.resultados},
         recordar_tipo: {type: 'string', enum: ['Visita', 'Llamada'], description: 'Recordar visita/llamada el día… (se apunta en la agenda)'},
         recordar_fecha: {type: 'string', description: 'AAAA-MM-DD'}, observaciones: {type: 'string'},
+        oferta: {type: 'string', enum: ['SI', 'NO'], description: '¿Se ha conseguido una oferta? (obligatorio para cerrar)'},
+        oferta_articulo: {type: 'string', description: 'Si hay oferta: referencia o nombre del artículo; se busca y se elige el primero que coincida'},
+        oferta_descripcion: {type: 'string', description: 'Si hay oferta: breve descripción libre de lo que se oferta'},
       }),
       etiqueta: () => 'Rellenando la visita',
       ejecutar: async a => {
@@ -1634,6 +1712,16 @@ function definirAccionesRobot() {
           await bot().escribir(el, a[k]);
           if (String(a[k]) && el.value !== String(a[k])) avisos.push(`${k}: valor no válido «${a[k]}»`);
         }
+        if (a.oferta && a.oferta !== FORM.oferta) marcarOferta(a.oferta);
+        if (a.oferta_articulo && FORM.oferta === 'SI') {
+          try {
+            const r = await api(`/articulos?limite=5&q=${encodeURIComponent(a.oferta_articulo)}`);
+            const art = (r.articulos || [])[0];
+            if (art) { FORM.ofertaArt = `${art.referencia} · ${art.descripcion}`; pintarArticuloOferta(); }
+            else avisos.push(`oferta_articulo: no se encuentra «${a.oferta_articulo}» (ponlo en oferta_descripcion)`);
+          } catch (e) { avisos.push('oferta_articulo: ' + e.message); }
+        }
+        if (a.oferta_descripcion != null && FORM.oferta === 'SI') await bot().escribir(document.getElementById('f-NECESIDADES'), a.oferta_descripcion);
         verDuracion();
         const duracion = document.getElementById("f-duracion").textContent;
         return {ok: true, formulario: estadoFormularioRobot(), duracion, avisos};

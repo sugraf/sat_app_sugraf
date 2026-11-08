@@ -155,7 +155,64 @@ class Registro(BaseModel):
 # Lo que tiene que estar relleno para poder cerrar una visita (darla por bien hecha).
 CAMPOS_PARA_CERRAR = [('CLIENTE', 'cliente'), ('FECHA', 'fecha'), ('HORA_INICIO', 'hora de entrada'),
                       ('HORA_FIN', 'hora de salida'), ('DESCRIPCION', 'qué se ha hablado'),
-                      ('RESULTADO', 'resultado')]
+                      ('RESULTADO', 'resultado'), ('OFERTA', 'si se ha conseguido una oferta')]
+# «¿Se ha conseguido una oferta?» (OFERTA = SI / NO). Si es SI: PRODUCTOS = «referencia · artículo» elegido del
+# buscador y/o NECESIDADES = descripción libre (al menos una de las dos). Avisa a la oficina en Generación de ofertas.
+OFERTA_SI, OFERTA_NO = 'SI', 'NO'
+
+
+def _faltan(d, anterior=''):
+    # Las visitas cerradas antes de existir la pregunta de la oferta se pueden seguir editando sin contestarla.
+    return [(c, n) for c, n in CAMPOS_PARA_CERRAR if not d.get(c) and not (c == 'OFERTA' and anterior == actividad.REGISTRADA)]
+
+
+def _comprobar_oferta(d):
+    d['OFERTA'] = d.get('OFERTA', '').upper()
+    if d['OFERTA'] not in ('', OFERTA_SI, OFERTA_NO):
+        raise HTTPException(status_code=400, detail='Oferta: indica Sí o No.')
+    if d['OFERTA'] == OFERTA_SI and not d.get('PRODUCTOS') and not d.get('NECESIDADES'):
+        raise HTTPException(status_code=400, detail='Has marcado que se ha conseguido una oferta: indica qué (artículo) o escribe una breve descripción.')
+    if d['OFERTA'] != OFERTA_SI and d['TIPO'] in ('VISITA', 'LLAMADA'):
+        d['PRODUCTOS'] = d['NECESIDADES'] = ''
+
+
+PALABRAS_MAQUINA = ('MAQUIN', 'IMPRESORA', 'PLOTTER', 'PLOTER', 'EQUIPO', 'CORTADORA', 'LAMINADORA', 'GUILLOTINA', 'PRENSA',
+                    'ROUTER', 'ESCANER', 'ESCÁNER', 'PLEGADORA', 'HENDIDORA', 'ENCUADERNADORA', 'INSOLADORA', 'PROCESADORA', 'CTP')
+
+
+def _modulo_oferta(d):
+    """Generación de ofertas de maquinaria o de consumibles: por la familia del artículo elegido o, si solo hay
+    descripción, por sus palabras (máquina, impresora, plotter…)."""
+    ref = (d.get('PRODUCTOS') or '').split(' · ')[0].strip()
+    art = pirineos.articulos().get(ref) if ref else None
+    if art:
+        texto = art.get('grupo', '') + ' ' + art.get('familia', '')
+    else:
+        texto = (d.get('PRODUCTOS') or '') + ' ' + (d.get('NECESIDADES') or '')
+    texto = normalizar(texto).upper()
+    return 'ofertas_maquinaria' if any(normalizar(p).upper() in texto for p in PALABRAS_MAQUINA) else 'ofertas_consumibles'
+
+
+def _avisar_oferta(s, d, registro, previo=None):
+    """Aviso en la app de escritorio (campana del módulo de ofertas) cuando una visita o llamada pasa a tener
+    oferta conseguida, o cambia lo que se ha ofertado. Si falla, la visita queda guardada igual."""
+    previo = previo or {}
+    if d.get('OFERTA') != OFERTA_SI:
+        return
+    if previo.get('OFERTA') == OFERTA_SI and previo.get('PRODUCTOS', '') == d.get('PRODUCTOS', '') \
+            and previo.get('NECESIDADES', '') == d.get('NECESIDADES', ''):
+        return
+    try:
+        que = ' — '.join(x for x in (d.get('PRODUCTOS'), d.get('NECESIDADES')) if x)
+        tipo = 'la visita' if d['TIPO'] == 'VISITA' else 'la llamada'
+        notificaciones.crear('OFERTA_CONSEGUIDA', _modulo_oferta(d), f'Oferta conseguida: {d["CLIENTE"]}',
+                             f'{s.nombre} ha conseguido una oferta en {tipo} a {d["CLIENTE"]} del {d["FECHA"][8:10]}/{d["FECHA"][5:7]}: '
+                             f'{que}. ¿Preparar la oferta?',
+                             {'cliente': d['CLIENTE'], 'codigo': d.get('COD_CLIENTE', ''), 'articulo': d.get('PRODUCTOS', ''),
+                              'descripcion': d.get('NECESIDADES', ''), 'comercial': s.nombre, 'registro': registro.get('ID', '')},
+                             actividad.ahora())
+    except Exception:
+        pass
 
 
 def _estado(d, cerrar, anterior=''):
@@ -163,21 +220,22 @@ def _estado(d, cerrar, anterior=''):
     que exige hora de entrada y de salida. Una visita ya cerrada sigue cerrada al editarla."""
     if d['TIPO'] == 'LLAMADA':
         # Las llamadas se guardan de una vez y llevan lo mismo que una visita terminada.
-        faltan = [nombre.replace('entrada', 'inicio').replace('salida', 'fin') for campo, nombre in CAMPOS_PARA_CERRAR if not d.get(campo)]
+        faltan = [nombre.replace('entrada', 'inicio').replace('salida', 'fin') for campo, nombre in _faltan(d, anterior)]
         if faltan:
             raise HTTPException(status_code=400, detail='Para guardar la llamada falta: ' + ', '.join(faltan) + '.')
         return actividad.REGISTRADA
     if d['TIPO'] != 'VISITA':
         return actividad.REGISTRADA
     if cerrar or anterior == actividad.REGISTRADA:
-        faltan = [nombre for campo, nombre in CAMPOS_PARA_CERRAR if not d.get(campo)]
+        faltan = [nombre for campo, nombre in _faltan(d, '' if cerrar else anterior)]
         if faltan:
             raise HTTPException(status_code=400, detail='Para cerrar la visita falta: ' + ', '.join(faltan) + '.')
         return actividad.REGISTRADA
     return actividad.SIN_TERMINAR
 
 
-def _comprobar_y_guardar(s, clave, d, id_registro=None, confirmar_solape=False, cerrar=False, anterior=''):
+def _comprobar_y_guardar(s, clave, d, id_registro=None, confirmar_solape=False, cerrar=False, anterior='', previo=None):
+    _comprobar_oferta(d)
     estado = _estado(d, cerrar, anterior)
     if not confirmar_solape:
         cruzadas = actividad.solapes(clave, d, excluir_id=id_registro or '')
@@ -185,8 +243,11 @@ def _comprobar_y_guardar(s, clave, d, id_registro=None, confirmar_solape=False, 
             lista = '; '.join(f"{r['HORA_INICIO']}-{r['HORA_FIN']} {r['CLIENTE']}" for r in cruzadas)
             raise HTTPException(status_code=409, detail=f'SOLAPE|Este horario se cruza con: {lista}. ¿Guardar igualmente?')
     if id_registro:
-        return actividad.actualizar(clave, s.nombre, id_registro, {**d, 'ESTADO': estado})
-    return actividad.crear(clave, s.nombre, d, estado=estado)
+        registro = actividad.actualizar(clave, s.nombre, id_registro, {**d, 'ESTADO': estado})
+    else:
+        registro = actividad.crear(clave, s.nombre, d, estado=estado)
+    _avisar_oferta(s, d, registro, previo)
+    return registro
 
 
 @router.post('/actividad')
@@ -214,7 +275,7 @@ def editar_actividad(id_registro: str, reg: Registro, s: Sesion = Depends(sesion
         d, errores = actividad.validar(reg.datos)
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
-        return {'registro': _comprobar_y_guardar(s, clave, d, id_registro, reg.confirmar_solape, reg.cerrar, r['ESTADO'])}
+        return {'registro': _comprobar_y_guardar(s, clave, d, id_registro, reg.confirmar_solape, reg.cerrar, r['ESTADO'], previo=r)}
     except Exception as e:
         _error(e)
 
