@@ -712,7 +712,7 @@ def candidatos_ruta(s, origen, radio_km=30, comercial='', solo_cartera=True):
         elif pend:
             puntos += 1; motivos.append(f"Seguimiento el {pend[0]['FECHA_SEGUIMIENTO']}")
         if ops.get(c['codigo']):
-            puntos += 3; motivos.append('Oportunidad del SAT: ' + (ops[c['codigo']][0]['detalle'] or 'ver detalle')[:80])
+            puntos += 3; motivos.append('Oportunidad de venta: ' + (ops[c['codigo']][0]['detalle'] or 'ver detalle')[:80])
         if pedidos.get(c['codigo']):
             puntos += 0.5; motivos.append(f"{len(pedidos[c['codigo']])} línea(s) de pedido pendientes")
         if averias.get(c['codigo']):

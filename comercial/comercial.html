@@ -338,7 +338,7 @@
     <label>Distancia máxima</label>
     <div class="chips" id="ruta-radios"></div>
     <label class="toggle"><input type="checkbox" id="ruta-cartera" checked onchange="cargarRuta()"> Solo clientes de la cartera</label>
-    <div class="aviso info">Ordenados por interés: dormidos, seguimientos vencidos, oportunidades del SAT, pedidos y avisos abiertos. Marca los que quieras visitar y pulsa «Ordenar ruta».</div>
+    <div class="aviso info">Ordenados por interés: dormidos, seguimientos vencidos, oportunidades de venta, pedidos y avisos abiertos. Marca los que quieras visitar y pulsa «Ordenar ruta».</div>
     <div id="ruta-lista"></div>
     <div id="ruta-orden"></div>
     <div style="height:70px"></div>
@@ -736,7 +736,7 @@ function htmlPreparar() {
   if (P.seguimientos.length) h += seccion('Seguimientos abiertos', P.seguimientos.map(r => `<div class="card click" onclick="verActividad('${esc(r.ID)}')">
       <span class="badge ${r.FECHA_SEGUIMIENTO < hoyISO() ? 'bad' : 'warn'}">${fechaCorta(r.FECHA_SEGUIMIENTO)}</span> <span class="t-strong">${esc(r.PROXIMA_ACCION || 'Seguimiento')}</span></div>`).join(''), P.seguimientos.length);
   if (P.avisos_sat.length) h += seccion('Avisos del SAT abiertos', '<div class="aviso">Tiene avisos de servicio técnico sin cerrar: conviene saberlo antes de entrar.</div>' + plegable(P.avisos_sat.map(htmlAviso), 3), P.avisos_sat.length);
-  if (P.oportunidades_sat.length) h += seccion('Oportunidades del SAT', P.oportunidades_sat.map(htmlOportunidad).join(''), P.oportunidades_sat.length);
+  if (P.oportunidades_sat.length) h += seccion('Oportunidades de venta', P.oportunidades_sat.map(htmlOportunidad).join(''), P.oportunidades_sat.length);
   const ofs = (FICHA.ofertas || []).filter(o => o.estado === 'ABIERTA');
   if (ofs.length) h += seccion('Ofertas abiertas', ofs.map(o => `<div class="card borde-ambar">
       <div class="row between"><span class="t-strong">${esc(o.tipo)} · oferta ${esc(o.numero)}</span><span class="t-small">${fechaCorta(o.fecha)} (hace ${o.dias} días)</span></div>
@@ -1046,7 +1046,7 @@ async function cargarControlHoy(com) {
   } catch (e) { el.innerHTML = ''; }
 }
 
-// ---- oportunidades del SAT (las marcan los técnicos en el parte)
+// ---- oportunidades de venta (las marcan los técnicos en el parte del SAT)
 function htmlOportunidad(o) {
   const cerrada = ['GANADA', 'PERDIDA', 'DESCARTADA'].includes(o.estado);
   return `<div class="card borde-${cerrada ? 'gris' : 'verde'}">

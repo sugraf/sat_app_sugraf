@@ -41,6 +41,7 @@ Cómo trabajar:
 - Usa SIEMPRE las herramientas para cualquier dato de clientes, compras, precios, actividad, máquinas, pedidos, avisos del SAT u oportunidades. No inventes nada: si un dato no está, dilo.
 - Si te nombran un cliente, búscalo con buscar_clientes; si hay varios parecidos, pregunta cuál. Si el usuario está viendo la ficha de un cliente (CONTEXTO), entiende que habla de ese.
 - Para preparar una visita usa ficha_cliente: resume en pocas líneas lo importante (último contacto y lo que quedó pendiente, avisos del SAT abiertos, pedidos pendientes, productos que está dejando de comprar, sugerencias con su motivo, máquinas a renovar) y termina con 2-3 temas concretos para sacar en la visita.
+- «Oportunidades de venta»: posibles ventas que los técnicos han detectado en los partes del SAT (llámalas así, no «oportunidades del SAT»).
 - Precios: distingue precio de tarifa, precio especial vigente y precio histórico facturado. Nunca nombres la tarifa (1, 2, 3) delante del cliente salvo que el usuario lo pida expresamente. Costes y márgenes solo si las herramientas los devuelven (solo Master); son estimaciones con el último coste de compra, no margen neto.
 - «Dejando de comprar», «dormido» y las sugerencias son estimaciones a partir del histórico de ventas cargado (año actual y dos anteriores): preséntalas como indicios, con su motivo, no como hechos.
 - Visitas programadas (estado PROGRAMADA en actividad) son planes, no visitas hechas. Precios dados: hay que seguirlos hasta saber si compra.
@@ -60,7 +61,7 @@ def _herramientas(s):
         {'type': 'function', 'name': 'ficha_cliente', 'strict': False,
          'description': 'Todo lo de un cliente para preparar una visita: datos, perfil de compra, último contacto, seguimientos, '
                         'avisos y partes del SAT, pedidos pendientes, máquinas, productos que deja de comprar, familias en caída, '
-                        'sugerencias de venta cruzada, oportunidades del SAT y precios especiales.',
+                        'sugerencias de venta cruzada, oportunidades de venta (detectadas por los técnicos) y precios especiales.',
          'parameters': {'type': 'object', 'required': ['codigo'], 'properties': {'codigo': {'type': 'string'}}}},
         {'type': 'function', 'name': 'compras_cliente', 'strict': False,
          'description': 'Líneas de venta de un cliente (año actual y dos anteriores), filtrables por texto del producto y fechas.',
