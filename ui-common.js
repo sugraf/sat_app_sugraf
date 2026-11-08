@@ -282,3 +282,40 @@
     document.querySelectorAll('textarea[data-dictado]').forEach(activarDictado);
   });
 })();
+
+// ---------------------------------------------------------------------------------------------
+// Avisos antes de ir (SAT): incidencias abiertas del cliente (problemas de pago, SAT no pagado, quejas...)
+// que han apuntado comerciales, oficina o Master. Se enseñan en los avisos de técnicos y de Master.
+(function () {
+  const ALERTAS = {};
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  async function cargarAlertasClientes(nombres, usuario) {
+    const lista = [...new Set((nombres || []).filter(Boolean))];
+    if (!lista.length || !usuario) return ALERTAS;
+    try {
+      const r = await fetch('/api/comercial/sat/alertas', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                           body: JSON.stringify({usuario, clientes: lista})});
+      if (!r.ok) return ALERTAS;
+      const d = await r.json();
+      lista.forEach(n => { delete ALERTAS[n]; });
+      Object.assign(ALERTAS, d.alertas || {});
+    } catch (e) { /* sin conexión: los avisos se ven igual, sin las alertas */ }
+    return ALERTAS;
+  }
+  // Etiquetas rojas para la tarjeta del aviso.
+  function badgesAlertaCliente(nombre) {
+    const l = ALERTAS[nombre] || [];
+    return l.map(i => `<span class="badge" title="${esc(i.detalle)} (${esc(i.creado_por)}, ${esc(String(i.creado_en).slice(0, 10))})"
+      style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">&#9888; ${esc(i.tipo_texto)}</span>`).join('');
+  }
+  // Recuadro con el detalle, para debajo de la tarjeta o dentro del parte.
+  function htmlAlertaCliente(nombre) {
+    const l = ALERTAS[nombre] || [];
+    if (!l.length) return '';
+    return `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(239,68,68,0.10); border:1px solid rgba(239,68,68,0.35); color:#fca5a5; font-size:0.82rem; line-height:1.4;">
+      <b>&#9888; Antes de ir:</b> ${l.map(i => `<b>${esc(i.tipo_texto)}</b> — ${esc(i.detalle)} <span style="opacity:.75">(${esc(i.creado_por)}, ${esc(String(i.creado_en).slice(0, 10))})</span>`).join('<br>')}</div>`;
+  }
+  window.cargarAlertasClientes = cargarAlertasClientes;
+  window.badgesAlertaCliente = badgesAlertaCliente;
+  window.htmlAlertaCliente = htmlAlertaCliente;
+})();

@@ -704,6 +704,8 @@
         }
         renderAvisos();
         cargarManuales(misAvisos.filter(a => a['ESTADO'] !== 'Cerrado'));
+        // Avisos antes de ir: incidencias abiertas de esos clientes (pagos, quejas...). Se pintan al llegar.
+        cargarAlertasClientes(misAvisos.filter(a => a['ESTADO'] !== 'Cerrado').map(a => a['CLIENTE']), currentUser).then(renderAvisos);
       } catch (e) {
         console.error(e);
         box.innerHTML = `<p class="empty-msg" style='color:#fca5a5;'>Error: ${e.message}</p>`;
@@ -811,6 +813,7 @@
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
         if(av['PIRINEOS'] === 'SI') badgesHtml += `<span class="badge bg-urg">Pirineos</span>`;
         if(av['OPCIÓN A VENTA'] === 'SI') badgesHtml += `<span class="badge" style="background:rgba(236,72,153,0.18); color:#f472b6; border-color:rgba(236,72,153,0.4);">Venta Posible</span>`;
+        if (av['ESTADO'] !== 'Cerrado') badgesHtml += badgesAlertaCliente(av['CLIENTE']);   // pagos, quejas... (avisos antes de ir)
         
         if(av['ESTADO PIEZAS'] === 'Sí necesita Piezas' || av['PIEZAS'] === 'Pendiente') {
             badgesHtml += `<span class="badge" style="background:#ffedd5; color:#f97316; border-color:#fdba74;">Piezas Pendientes</span>`;
@@ -844,6 +847,7 @@
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
             </div>
             <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fecha:</strong> ${fechasDisplay} &nbsp;|&nbsp; <strong>Total Horas:</strong> ${horasTotales} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['ASIGNADO A']}</div>
+            ${av['ESTADO'] !== 'Cerrado' ? htmlAlertaCliente(av['CLIENTE']) : ''}
         </div>
         `;
     }

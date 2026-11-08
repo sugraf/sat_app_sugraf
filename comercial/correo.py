@@ -46,8 +46,9 @@ def enviar(destinos, asunto, cuerpo):
         return False, str(e)
 
 
-def aviso_precio_dado(comercial, cliente, cod_cliente, referencia, descripcion, precio, nota, momento, precio_cliente=None, otros_precios=None):
-    asunto = f'Precio dado · {cliente} · {referencia} a {_eur(precio)} ({comercial})'
+def aviso_precio_dado(comercial, cliente, cod_cliente, referencia, descripcion, precio, nota, momento, precio_cliente=None, otros_precios=None,
+                      precio_bajo=None):
+    asunto = ('⚠ PRECIO BAJO · ' if precio_bajo else '') + f'Precio dado · {cliente} · {referencia} a {_eur(precio)} ({comercial})'
     lineas = [
         f'{comercial} ha apuntado un precio dado en la app comercial.',
         '',
@@ -60,6 +61,8 @@ def aviso_precio_dado(comercial, cliente, cod_cliente, referencia, descripcion, 
         if precio_cliente['precio']:
             dif = (float(precio) - precio_cliente['precio']) / precio_cliente['precio'] * 100
             lineas.append(f'Diferencia:   {dif:+.1f} %'.replace('.', ','))
+    if precio_bajo:
+        lineas.append(f"ATENCIÓN:     margen del {precio_bajo['margen']:g} %, por debajo del mínimo del {precio_bajo['minimo']:g} %".replace('.', ','))
     if nota:
         lineas.append(f'Nota:         {nota}')
     if otros_precios:

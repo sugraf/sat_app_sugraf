@@ -478,8 +478,105 @@ def pedidos_pendientes():
 
 
 def pedidos_cliente(codigo):
+    """Pedidos pendientes de servir de un cliente (todos sus códigos), con retraso, llegada prevista del
+    proveedor y si se ha reclamado (lo que se marca en Pedidos pendientes del escritorio)."""
     codigos = set(codigos_hermanos(codigo))
-    return sorted((p for p in pedidos_pendientes() if p['codigo'] in codigos), key=lambda p: p['fecha'], reverse=True)
+    hoy = date.today().isoformat()
+    lleg = llegadas_por_referencia()
+    recl = reclamaciones()
+    salida = []
+    for p in pedidos_pendientes():
+        if p['codigo'] not in codigos:
+            continue
+        p = dict(p)
+        p['retraso'] = (date.today() - date.fromisoformat(p['entrega'])).days if p['entrega'] and p['entrega'] < hoy else 0
+        prox = lleg.get(p['referencia'], [])
+        p['llegada'] = prox[0] if prox else None
+        p['reclamado'] = recl.get((p['pedido'], p['referencia'])) or recl.get(('', p['referencia'], clave_nombre(p['cliente_nombre'])))
+        salida.append(p)
+    return sorted(salida, key=lambda p: (-p['retraso'], p['fecha']), reverse=False)
+
+
+def comprometido_por_referencia():
+    """{referencia: unidades pendientes de servir a clientes}."""
+    res = {}
+    for p in pedidos_pendientes():
+        if p['referencia']:
+            res[p['referencia']] = res.get(p['referencia'], 0) + (p['cantidad'] or 0)
+    return res
+
+
+# ---------------------------------------------------------------- pedidos pendientes a proveedores
+def _col(d, *nombres, excluir=()):
+    """Valor de la primera columna cuyo nombre (sin tildes, espacios ni guiones) coincide o empieza por uno de
+    los dados. Los Excel de Pirineos cambian a veces el nombre exacto de la columna."""
+    claves = {''.join(ch for ch in normalizar(k) if ch.isalnum()).lower(): k for k in d if k}
+    for n in nombres:
+        if n in claves and n not in excluir:
+            return d[claves[n]]
+    for n in nombres:
+        for k, orig in claves.items():
+            if k.startswith(n) and k not in excluir:
+                return d[orig]
+    return None
+
+
+def _procesar_pedidos_proveedor(contenido):
+    lista = []
+    for d in _filas(contenido):
+        ref = _texto(_col(d, 'referencia'))
+        if not ref:
+            continue
+        prevista = _fecha_o_vacio(_col(d, 'fechaprevistarecepcion', 'fechaprevista', 'fecharecepcion', 'fechaentrega',
+                                       excluir=('fecharecepcion2', 'fechaprevistarecepcion3')))
+        lista.append({'proveedor': _texto(_col(d, 'nombreproveedor', 'proveedor')), 'pedido': _texto(_col(d, 'npedido', 'pedido')),
+                      'fecha': _fecha(_col(d, 'fecha')), 'prevista': prevista, 'referencia': ref,
+                      'descripcion': _texto(_col(d, 'descripcion')), 'cantidad': _num(_col(d, 'cantidad'))})
+    return lista
+
+
+def pedidos_proveedor():
+    datos = _cargado('pedidos_proveedor', lambda: almacen.buscar_pirineos('PedidosPendientesProveedor.xlsx', 'Pedidos pendientes'),
+                     _procesar_pedidos_proveedor)
+    return datos or []
+
+
+def llegadas_por_referencia():
+    """{referencia: [{prevista, cantidad, proveedor, pedido, retrasada}]} de lo pedido a proveedores, por fecha."""
+    hoy = date.today().isoformat()
+    res = {}
+    for p in pedidos_proveedor():
+        res.setdefault(p['referencia'], []).append({'prevista': p['prevista'], 'cantidad': p['cantidad'], 'proveedor': p['proveedor'],
+                                                    'pedido': p['pedido'], 'retrasada': bool(p['prevista'] and p['prevista'] < hoy)})
+    for v in res.values():
+        v.sort(key=lambda x: x['prevista'] or '9999')
+    return res
+
+
+# ---------------------------------------------------------------- reclamaciones (Pedidos pendientes del escritorio)
+def _procesar_reclamados(contenido):
+    try:
+        regs = json.loads(contenido.decode('utf-8')).get('reclamaciones', [])
+    except Exception:
+        return []
+    return [r for r in regs if isinstance(r, dict) and r.get('fecha')]
+
+
+def reclamaciones():
+    """{(pedido cliente, referencia): registro} y {('', referencia, clave cliente): registro}. Lo marca la oficina
+    en «Mi unidad/Pedidos Pendientes/Reclamados.json» (compartido con la cuenta de la app)."""
+    try:
+        regs = _cargado('reclamados', lambda: almacen.buscar_compartido('Reclamados.json'), _procesar_reclamados) or []
+    except Exception:
+        regs = []
+    res = {}
+    for r in regs:
+        info = {'fecha': r.get('fecha', ''), 'veces': len(r.get('historial') or [r.get('fecha')]), 'proveedor': r.get('proveedor', '')}
+        if r.get('pedido_cliente') not in (None, '', '-'):
+            res[(str(r['pedido_cliente']), r.get('referencia', ''))] = info
+        if r.get('cliente'):
+            res[('', r.get('referencia', ''), clave_nombre(r['cliente']))] = info
+    return res
 
 
 # ---------------------------------------------------------------- todas las ventas (para análisis)

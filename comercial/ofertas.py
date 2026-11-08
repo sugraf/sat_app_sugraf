@@ -83,7 +83,8 @@ def leer_ofertas():
         precio = _num(d.get('Precio especial')) or _num(d.get('Precio tarifa'))
         ofertas[f'M{num}'] = {'id': f'M{num}', 'numero': num, 'tipo': 'Maquinaria', 'categoria': _txt(d.get('Categoría')),
                               'fecha': fecha, 'cliente': _txt(d.get('Cliente')), 'validez': _txt(d.get('Validez oferta')),
-                              'lineas': [{'texto': _txt(d.get('Maquina')), 'precio': precio}], 'total': precio}
+                              'lineas': [{'texto': _txt(d.get('Maquina')), 'producto': _txt(d.get('Maquina')), 'precio': precio}],
+                              'total': precio}
     vistos = 0
     for nombre, familia in FICHEROS_CONSUMIBLES.items():
         meta, filas = _filas(nombre)
@@ -98,6 +99,7 @@ def leer_ofertas():
                        for k in ('Precio unitario', 'Precio m²', 'Precio Litro', 'Precio Kg')]
             precios = [p for p in precios if p[0]]
             linea = {'texto': _txt(d.get('Producto')) + (f" · {precios[0][2]}" if precios and precios[0][2] else ''),
+                     'producto': _txt(d.get('Producto')),
                      'precio': precios[0][0] if precios else None,
                      'unidad': {'Precio unitario': '€/ud', 'Precio m²': '€/m²', 'Precio Litro': '€/l', 'Precio Kg': '€/kg'}[precios[0][1]] if precios else ''}
             k = f'C{num}|{_txt(d.get("Cliente")).upper()}'
@@ -113,6 +115,81 @@ def leer_ofertas():
         o['codigo'] = pirineos.codigo_por_nombre(o['cliente'])
         o['dias'] = (date.today() - date.fromisoformat(o['fecha'])).days
     return list(ofertas.values()), avisos
+
+
+# ---------------------------------------------------------------- ofertas que se ganan solas
+# Si después de la fecha de la oferta el cliente compra (ventas de Pirineos) algo de lo ofertado, la oferta pasa
+# sola a GANADA, igual que los precios dados. Las ofertas no llevan referencia: se compara el nombre del producto
+# ofertado con la descripción de lo vendido (los códigos de modelo, como «HD7725CE» o «556», tienen que estar
+# todos) y, si el diccionario de sinónimos dice qué referencia es ese producto, también por referencia.
+VACIAS = {'de', 'del', 'la', 'el', 'los', 'las', 'para', 'con', 'sin', 'y', 'en', 'por', 'mm', 'cm', 'uds', 'ud', 'kg', 'gr',
+          'litro', 'litros', 'garrafa', 'bidon', 'caja', 'cajas', 'rollo', 'rollos', 'formato', 'unidad', 'unidades'}
+
+
+def _tokens(texto):
+    from comercial.usuarios import normalizar
+    t = ''.join(c if c.isalnum() else ' ' for c in normalizar(texto))
+    return [w for w in t.split() if len(w) >= 3 and w not in VACIAS]
+
+
+def _encaja(producto, linea_venta, refs_diccionario):
+    if linea_venta['referencia'] and linea_venta['referencia'] in refs_diccionario:
+        return True
+    toks = _tokens(producto)
+    if not toks:
+        return False
+    venta = set(_tokens(linea_venta['descripcion'] + ' ' + linea_venta['referencia']))
+    fuertes = [w for w in toks if any(c.isdigit() for c in w)]
+    debiles = [w for w in toks if w not in fuertes]
+    if fuertes:
+        return all(w in venta for w in fuertes) and (not debiles or any(w in venta for w in debiles))
+    return len(toks) >= 2 and sum(w in venta for w in toks) >= max(2, -(-len(toks) * 3 // 4))
+
+
+def compra_de_oferta(o, ventas):
+    """Primera compra del cliente, desde la fecha de la oferta, de algo ofertado; o None."""
+    if not o.get('codigo'):
+        return None
+    lineas = [l for l in ventas.get(o['codigo'], []) if l['fecha'] >= o['fecha'] and l['cantidad'] > 0]
+    if not lineas:
+        return None
+    try:
+        from comercial import diccionario
+    except Exception:
+        diccionario = None
+    if o.get('tipo') == 'Maquinaria':
+        # Que compre tóner o consumibles de esa máquina no es comprar la máquina: tiene que ser una venta de
+        # maquinaria (por grupo o familia) o de un importe parecido al ofertado.
+        total = o.get('total') or 0
+        lineas = [l for l in lineas if 'MAQUIN' in (l.get('grupo', '') + ' ' + l.get('familia', '')).upper()
+                  or (total and abs(l.get('importe') or 0) >= 0.3 * total)]
+    for l in sorted(lineas, key=lambda l: l['fecha']):
+        for ofertado in o['lineas']:
+            try:
+                refs = diccionario.referencias(ofertado['producto']) if diccionario and ofertado.get('producto') else {}
+            except Exception:
+                refs = {}
+            if _encaja(ofertado.get('producto') or ofertado['texto'], l, refs):
+                return {'fecha': l['fecha'], 'documento': l['documento'], 'referencia': l['referencia'], 'descripcion': l['descripcion'],
+                        'cantidad': l['cantidad'], 'precio': l['precio'], 'ofertado': ofertado.get('producto') or ofertado['texto']}
+    return None
+
+
+def con_estado(lista):
+    """Añade a cada oferta su seguimiento y su estado: el marcado a mano o, si no hay, GANADA cuando el cliente
+    ya ha comprado lo ofertado (compra_pirineos) y ABIERTA si no."""
+    seg = seguimiento()
+    try:
+        ventas, _ = pirineos.todas_las_ventas()
+    except Exception:
+        ventas = {}
+    for o in lista:
+        o['seguimiento'] = seg.get(o['id'], {})
+        o['compra_pirineos'] = compra_de_oferta(o, ventas)
+        manual = o['seguimiento'].get('estado')
+        o['estado'] = manual or ('GANADA' if o['compra_pirineos'] else 'ABIERTA')
+        o['ganada_sola'] = not manual and bool(o['compra_pirineos'])
+    return lista
 
 
 def seguimiento():

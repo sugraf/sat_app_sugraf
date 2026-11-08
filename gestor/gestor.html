@@ -400,6 +400,8 @@
         const data = await res.json();
         avisosGlobales = data.avisos || [];
         renderGestionAvisos();
+        // Avisos antes de ir: incidencias abiertas de esos clientes (pagos, quejas...) para decidir si se va.
+        cargarAlertasClientes(avisosGlobales.filter(a => a['ESTADO'] !== 'Cerrado').map(a => a['CLIENTE']), currentUser).then(renderGestionAvisos);
       } catch (e) { document.getElementById('contenedor-gestionar').innerHTML = "<p class='empty-msg' style='color:#fca5a5;'>Error al cargar los avisos.</p>"; }
       finally { hideLoading(); }
     }
@@ -488,6 +490,7 @@
         if(av['MANTENIMIENTO'] === 'SI') badgesHtml += `<span class="badge bg-man">Mantenimiento</span>`;
         if(av['INSTALACIÓN'] === 'SI') badgesHtml += `<span class="badge bg-ins">Instalación</span>`;
         if(av['REVISAR'] === 'SI') badgesHtml += `<span class="badge bg-rev">Revisar</span>`;
+        if (estadoAviso !== 'Cerrado') badgesHtml += badgesAlertaCliente(av['CLIENTE']);   // pagos, quejas... (avisos antes de ir)
         
         let btnDelete = "";
         if (currentUser === "Master") {
@@ -519,6 +522,7 @@
               </div>
             </div>
             <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}</div>
+            ${estadoAviso !== 'Cerrado' ? htmlAlertaCliente(av['CLIENTE']) : ''}
           </div>
         `;
       });

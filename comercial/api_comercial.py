@@ -32,9 +32,8 @@ OPCIONES = {
     'temas': ['Reposición de consumibles', 'Revisión de precios', 'Presentación de productos',
               'Demostración de maquinaria', 'Venta de maquinaria', 'Servicio técnico', 'Incidencia o reclamación',
               'Negociación comercial', 'Seguimiento de oferta', 'Prospección', 'Recuperación de cliente', 'Otros'],
-    'resultados': ['Pedido conseguido', 'Oferta solicitada', 'Oferta pendiente de preparar', 'Seguimiento pendiente',
-                   'Nueva oportunidad detectada', 'Cliente sin necesidades actuales', 'Cliente no disponible',
-                   'Visita aplazada', 'Incidencia detectada', 'Sin resultado comercial', 'Otro'],
+    # Pocas opciones a propósito; la oferta va aparte («¿Se ha conseguido una oferta?»).
+    'resultados': ['Pedido conseguido', 'Seguimiento pendiente', 'Sin necesidades ahora', 'Incidencia detectada'],
     'tipos_llamada': ['Prospección', 'Seguimiento de oferta', 'Negociación de precios', 'Reposición de consumibles',
                       'Venta de maquinaria', 'Recuperación de cliente', 'Incidencia', 'Coordinación de visita', 'Otro'],
 }
@@ -318,6 +317,29 @@ class PrecioDado(BaseModel):
     descripcion: str = ''
     precio: float
     nota: str = ''
+    confirmar_precio_bajo: bool = False
+
+
+# Margen mínimo (sobre el precio de venta, con el último coste de compra). Se puede fijar por grupo o familia de
+# artículos de Pirineos (en mayúsculas, como salen en Pirineos); lo que no esté aquí usa el de por defecto.
+MARGEN_MINIMO_DEFECTO = 15.0
+MARGENES_MINIMOS = {}      # p. ej. {'MAQUINARIA': 10, 'PLANCHAS': 12}
+
+
+def margen_minimo(art):
+    for clave in (art.get('subfamilia', ''), art.get('familia', ''), art.get('grupo', '')):
+        if clave and clave.upper() in MARGENES_MINIMOS:
+            return float(MARGENES_MINIMOS[clave.upper()])
+    return MARGEN_MINIMO_DEFECTO
+
+
+def _precio_bajo(art, precio):
+    """{margen, minimo} si el precio deja menos margen del mínimo; None si está bien o no hay coste."""
+    if not art or not art.get('coste') or not precio:
+        return None
+    m = _margen(precio, art['coste'])
+    minimo = margen_minimo(art)
+    return {'margen': m['pct_venta'], 'minimo': minimo} if m and m['pct_venta'] < minimo else None
 
 
 @router.post('/precios_dados')
@@ -326,6 +348,12 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
     try:
         if p.precio <= 0:
             raise HTTPException(status_code=400, detail='Indica un precio mayor que cero.')
+        art_pb = pirineos.articulos().get(p.referencia)
+        bajo = _precio_bajo(art_pb, p.precio)
+        if bajo and not p.confirmar_precio_bajo:
+            # No se enseña el coste: solo que está por debajo del margen mínimo y que se avisará a la oficina.
+            raise HTTPException(status_code=409, detail='PRECIO_BAJO|Este precio queda por debajo del margen mínimo '
+                                f"({bajo['minimo']:g} %). Si lo apuntas, se avisará a la oficina. ¿Apuntarlo igualmente?")
         momento = actividad.ahora()
         d, errores = actividad.validar({
             'TIPO': 'PRECIO', 'COD_CLIENTE': p.cod_cliente, 'CLIENTE': p.cliente, 'FECHA': momento.strftime('%Y-%m-%d'),
@@ -350,7 +378,7 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
             antes = [f"{r['FECHA']} · {r['COMERCIAL']} · {r['IMPORTE']} €" + (f" · {r['OBSERVACIONES']}" if r['OBSERVACIONES'] else '')
                      for r in anteriores if r['PRODUCTOS'] == p.referencia][:5]
             correo_ok, correo_error = correo.aviso_precio_dado(s.nombre, p.cliente, p.cod_cliente, p.referencia, p.descripcion, p.precio,
-                                                               p.nota, momento.strftime('%d/%m/%Y %H:%M'), ap, antes)
+                                                               p.nota, momento.strftime('%d/%m/%Y %H:%M'), ap, antes, bajo)
         except Exception as e:
             correo_ok, correo_error = False, str(e)
         # Aviso en la app de escritorio (campana y «!» en el módulo de ofertas) para preparar la oferta.
@@ -358,14 +386,16 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
             art = pirineos.articulos().get(p.referencia) or {}
             maquina = 'MAQUIN' in (art.get('grupo', '') + ' ' + art.get('familia', '')).upper()
             notificaciones.crear('PRECIO_DADO', 'ofertas_maquinaria' if maquina else 'ofertas_consumibles',
-                                 f'Precio dado a {p.cliente}',
+                                 ('⚠ PRECIO BAJO · ' if bajo else '') + f'Precio dado a {p.cliente}',
                                  f"{s.nombre} ha dado precio a {p.cliente}: {p.descripcion or ''} (ref. {p.referencia}) a "
-                                 + f"{p.precio:.2f} €".replace('.', ',') + (f'. Nota: {p.nota}' if p.nota else '') + '. ¿Preparar oferta?',
+                                 + f"{p.precio:.2f} €".replace('.', ',')
+                                 + (f" — margen {bajo['margen']:g} %, por debajo del mínimo del {bajo['minimo']:g} %".replace('.', ',') if bajo else '')
+                                 + (f'. Nota: {p.nota}' if p.nota else '') + '. ¿Preparar oferta?',
                                  {'cliente': p.cliente, 'codigo': p.cod_cliente, 'referencia': p.referencia, 'descripcion': p.descripcion,
-                                  'precio': p.precio, 'comercial': s.nombre, 'registro': registro['ID']}, momento)
+                                  'precio': p.precio, 'comercial': s.nombre, 'registro': registro['ID'], 'precio_bajo': bajo}, momento)
         except Exception:
             pass
-        return {'registro': registro, 'correo': correo_ok, 'correo_error': correo_error}
+        return {'registro': registro, 'correo': correo_ok, 'correo_error': correo_error, 'precio_bajo': bool(bajo)}
     except Exception as e:
         _error(e)
 
@@ -404,11 +434,9 @@ def _con_seguimiento_precio(regs):
 def _ofertas_cliente(codigos):
     try:
         lista, _ = ofertas.leer_ofertas()
-        seg = ofertas.seguimiento()
+        res = ofertas.con_estado([dict(o) for o in lista if o['codigo'] and o['codigo'] in set(codigos)])
     except Exception:
         return []
-    res = [dict(o, seguimiento=seg.get(o['id'], {}), estado=seg.get(o['id'], {}).get('estado', 'ABIERTA'))
-           for o in lista if o['codigo'] and o['codigo'] in set(codigos)]
     return sorted(res, key=lambda o: o['fecha'], reverse=True)
 
 
@@ -604,13 +632,32 @@ def buscar_articulos(q: str = '', cliente: str = '', limite: int = 40, s: Sesion
             return (not exacto, -completas, -en_desc, a['stock'] <= 0, a['descripcion'])
 
         encontrados = sorted((a for a in arts.values() if all(p in a['_buscar'] for p in palabras)), key=orden)
+        # Diccionario de sinónimos: lo que el diccionario dice que es «eso» va primero.
+        try:
+            from comercial import diccionario
+            por_sinonimo = diccionario.referencias(q, c['nombre'] if c else '')
+        except Exception:
+            por_sinonimo = {}
+        if por_sinonimo:
+            ya = {a['referencia'] for a in encontrados}
+            extra = [arts[r] for r in por_sinonimo if r in arts and r not in ya]
+            encontrados = [a for a in encontrados if a['referencia'] in por_sinonimo] + extra + \
+                          [a for a in encontrados if a['referencia'] not in por_sinonimo]
         ver_costes = s.puede('ver_costes')
+        try:
+            llegadas, comprometido = pirineos.llegadas_por_referencia(), pirineos.comprometido_por_referencia()
+        except Exception:
+            llegadas, comprometido = {}, {}
         resultado = []
         for a in encontrados[:max(1, min(limite, 100))]:
             fila = {
                 'referencia': a['referencia'], 'ref_proveedor': a['ref_proveedor'], 'descripcion': a['descripcion'],
                 'familia': a['familia'], 'subfamilia': a['subfamilia'], 'marca': a['marca'],
                 'hay_stock': a['stock'] > 0,
+                # Stock y pedidos a proveedor: lo que hay, lo ya comprometido con pedidos de clientes y lo que llega.
+                'stock_uds': a['stock'], 'comprometido': comprometido.get(a['referencia'], 0),
+                'llegadas': [{k: x[k] for k in ('prevista', 'cantidad', 'retrasada')} for x in llegadas.get(a['referencia'], [])[:3]],
+                'sinonimo': por_sinonimo.get(a['referencia'], ''),
                 'tarifas': [{'clase': k, 'precio': v} for k, v in a['tarifas'].items() if v],
                 'aplicable': _precio_aplicable(c, a, cliente) if c else None,
             }
@@ -1071,6 +1118,38 @@ def sat_buscar_clientes(q: str = '', usuario: str = ''):
         _error(e)
 
 
+class ClientesSAT(BaseModel):
+    usuario: str
+    clientes: list[str] = []
+
+
+@router.post('/sat/alertas')
+def sat_alertas(d: ClientesSAT):
+    """Avisos antes de ir: para cada nombre de cliente de los avisos del SAT, sus incidencias abiertas (pagos,
+    SAT no pagado, quejas...) apuntadas por comerciales, oficina o Master. Lo ven técnicos y Master del SAT."""
+    try:
+        if not d.usuario.strip():
+            raise HTTPException(status_code=401, detail='Falta el usuario.')
+        abiertas = incidencias.listar('', incidencias.ABIERTA)
+        por_codigo = {}
+        for i in abiertas:
+            if i.get('codigo'):
+                por_codigo.setdefault(pirineos.principal(i['codigo']), []).append(i)
+        por_nombre = {pirineos.clave_nombre(i['cliente']): i for i in abiertas if not i.get('codigo')}
+        res = {}
+        for nombre in list(dict.fromkeys(x for x in d.clientes if x))[:400]:
+            cod = pirineos.codigo_por_nombre(nombre)
+            lista = por_codigo.get(pirineos.principal(cod), []) if cod else []
+            if not lista and pirineos.clave_nombre(nombre) in por_nombre:
+                lista = [por_nombre[pirineos.clave_nombre(nombre)]]
+            if lista:
+                res[nombre] = [{'tipo': i['tipo'], 'tipo_texto': incidencias.TIPOS.get(i['tipo'], i['tipo']), 'detalle': i['detalle'],
+                                'creado_por': i['creado_por'], 'creado_en': i['creado_en']} for i in lista]
+        return {'alertas': res}
+    except Exception as e:
+        _error(e)
+
+
 @router.get('/sat/incidencias')
 def sat_incidencias(usuario: str = '', estado: str = ''):
     try:
@@ -1220,27 +1299,66 @@ def estado_precio(id_registro: str, e: EstadoPrecio, s: Sesion = Depends(sesion_
         _error(e2)
 
 
+# Ofertas pedidas en una visita o llamada («¿Se ha conseguido una oferta?» = Sí). Estado en ESTADO_OPERACION:
+#   (vacío) pendiente de la oficina -> ENVIADA (la oficina ya la ha hecho: se detecta sola en los Excel de ofertas,
+#   o se marca a mano) -> GANADA / PERDIDA; o CANCELADA si ya no hace falta.
+ESTADOS_PEDIDA = {'PENDIENTE': 'Pendiente de la oficina', 'ENVIADA': 'Oferta enviada', 'GANADA': 'Ganada',
+                  'PERDIDA': 'Perdida', 'CANCELADA': 'Ya no hace falta'}
+
+
+def _ofertas_pedidas(regs, lista_ofertas):
+    """Une cada oferta pedida con la oferta que la oficina haya hecho después a ese cliente (cualquiera de sus códigos)."""
+    por_codigo = {}
+    for o in lista_ofertas:
+        if o.get('codigo'):
+            por_codigo.setdefault(pirineos.principal(o['codigo']), []).append(o)
+    usadas, salida = set(), []
+    for r in sorted(regs, key=lambda r: r['FECHA']):
+        r = dict(r)
+        candidatas = [o for o in por_codigo.get(pirineos.principal(r['COD_CLIENTE']), []) if r['COD_CLIENTE']
+                      and o['fecha'] >= r['FECHA'] and o['id'] not in usadas]
+        o = min(candidatas, key=lambda o: o['fecha']) if candidatas else None
+        if o:
+            usadas.add(o['id'])
+            o.setdefault('pedida', {'id': r['ID'], 'fecha': r['FECHA'], 'comercial': r['COMERCIAL'], 'tipo': r['TIPO'],
+                                    'que': ' — '.join(x for x in (r['PRODUCTOS'], r['NECESIDADES']) if x)})
+        manual = r['ESTADO_OPERACION'] if r['ESTADO_OPERACION'] in ESTADOS_PEDIDA else ''
+        r['oferta_oficina'] = o['id'] if o else ''
+        # Hecha por la oficina: desde ahí se sigue en la oferta (ganada / perdida); si no, lo marcado a mano.
+        r['estado_pedida'] = manual if manual in ('CANCELADA', 'GANADA', 'PERDIDA') else 'ENVIADA' if (o or manual == 'ENVIADA') else 'PENDIENTE'
+        r['dias'] = (date.today() - date.fromisoformat(r['FECHA'])).days
+        salida.append(r)
+    return sorted(salida, key=lambda r: r['FECHA'], reverse=True)
+
+
 def seguimiento_comercial(s, comercial=''):
-    """Precios dados con su estado y ofertas de la oficina con su seguimiento."""
-    regs = [r for r in actividad.listar(_claves_visibles(s, comercial)) if r['TIPO'] == 'PRECIO' and r['ESTADO'] == actividad.REGISTRADA]
+    """Precios dados, ofertas pedidas en visitas, ofertas de la oficina y oportunidades de venta, con su estado."""
+    todas = actividad.listar(_claves_visibles(s, comercial))
+    regs = [r for r in todas if r['TIPO'] == 'PRECIO' and r['ESTADO'] == actividad.REGISTRADA]
     precios = sorted(_con_seguimiento_precio(regs), key=lambda r: r['FECHA'], reverse=True)
+    pedidas_regs = [r for r in todas if r['TIPO'] in ('VISITA', 'LLAMADA') and r.get('OFERTA') == OFERTA_SI
+                    and r['ESTADO'] in (actividad.REGISTRADA, actividad.SIN_TERMINAR)]
     try:
         lista, avisos = ofertas.leer_ofertas()
     except Exception as e:
         lista, avisos = [], [f'No se han podido leer las ofertas: {e}']
-    seg = ofertas.seguimiento()
+    lista = ofertas.con_estado([dict(o) for o in lista])
     cl = pirineos.clientes()
     mio = normalizar(s.pirineos)
     for o in lista:
-        o['seguimiento'] = seg.get(o['id'], {})
-        o['estado'] = o['seguimiento'].get('estado', 'ABIERTA')
         c = cl.get(o['codigo']) if o['codigo'] else None
         o['comercial'] = c['comercial'] if c else ''
         o['mio'] = bool(c and mio and any(cl[h]['comercial_norm'] == mio for h in pirineos.codigos_hermanos(c['codigo']) if h in cl))
     lista.sort(key=lambda o: o['fecha'], reverse=True)    # más recientes primero
     lista.sort(key=lambda o: o['estado'] != 'ABIERTA')     # y las abiertas arriba
+    pedidas = _ofertas_pedidas(pedidas_regs, lista)
+    try:
+        oportunidades = oportunidades_visibles(s, comercial)
+    except Exception:
+        oportunidades = []
     return {'precios': precios, 'estados_precio': ESTADOS_PRECIO, 'ofertas': lista, 'avisos_ofertas': avisos,
-            'validez_dias': ofertas.VALIDEZ_DIAS}
+            'validez_dias': ofertas.VALIDEZ_DIAS, 'pedidas': pedidas, 'estados_pedida': ESTADOS_PEDIDA,
+            'oportunidades': oportunidades, 'estados_oportunidad': sat.ESTADOS}
 
 
 @router.get('/seguimiento')
@@ -1249,6 +1367,30 @@ def ver_seguimiento(comercial: str = '', s: Sesion = Depends(sesion_actual)):
         return seguimiento_comercial(s, comercial)
     except Exception as e:
         _error(e)
+
+
+class EstadoPedida(BaseModel):
+    estado: str
+    nota: str = ''
+
+
+@router.post('/actividad/{id_registro}/oferta_pedida')
+def estado_oferta_pedida(id_registro: str, e: EstadoPedida, s: Sesion = Depends(sesion_actual)):
+    """Seguimiento de una oferta pedida en una visita: ENVIADA, GANADA, PERDIDA, CANCELADA o PENDIENTE (reabrir)."""
+    try:
+        clave, r = _dueno(s, id_registro)
+        if clave != s.clave and not s.puede('editar_otros'):
+            raise HTTPException(status_code=403, detail='No puedes modificar la actividad de otra persona.')
+        if r.get('OFERTA') != OFERTA_SI:
+            raise HTTPException(status_code=400, detail='Esta visita no tiene oferta pedida.')
+        if e.estado not in ESTADOS_PEDIDA:
+            raise HTTPException(status_code=400, detail='Estado no válido.')
+        cambios = {'ESTADO_OPERACION': '' if e.estado == 'PENDIENTE' else e.estado}
+        if e.nota.strip():
+            cambios['OBSERVACIONES'] = (r['OBSERVACIONES'] + ' ' if r['OBSERVACIONES'] else '') + f'[Oferta: {ESTADOS_PEDIDA[e.estado]}. {e.nota.strip()}]'
+        return {'registro': actividad.actualizar(clave, s.nombre, id_registro, cambios, accion='SEGUIMIENTO OFERTA')}
+    except Exception as ex:
+        _error(ex)
 
 
 class SeguimientoOferta(BaseModel):

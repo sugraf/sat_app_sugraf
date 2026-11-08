@@ -177,6 +177,7 @@
     .alerta.ambar{ background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:#fde68a; }
     .alerta.gris{ background:rgba(182,190,196,.08); border:1px solid rgba(182,190,196,.3); color:#d6dde3; }
     .card.borde-azul{ border-left:3px solid #8fc4ec; }
+    .tag-seg{ display:inline-block; font-size:0.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
     .badge.prog{ background:rgba(143,196,236,.16); color:#bfe0f7; }
     .cal-cab, .cal{ display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; }
     .cal-cab{ margin:14px 0 6px; } .cal-cab span{ text-align:center; font-size:0.62rem; font-weight:800; letter-spacing:.08em; color:var(--muted); }
@@ -308,15 +309,16 @@
     <div id="ag-contenido" style="margin-top:6px;"></div>
   </div>
 
-  <!-- ============ SEGUIMIENTO: PRECIOS DADOS Y OFERTAS ============ -->
+  <!-- ============ SEGUIMIENTO: todo lo pendiente de cerrar con un cliente ============ -->
   <div class="container view" id="view-seguimiento">
     <div class="row between" style="margin:8px 0 12px;">
       <h2>Seguimiento</h2>
       <select id="seg-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="SEG=null; cargarSeguimiento()"></select>
     </div>
-    <div class="seg" style="margin-bottom:10px;">
-      <button id="seg-t-precios" class="on" onclick="tabSeg('precios')">Precios dados</button>
-      <button id="seg-t-ofertas" onclick="tabSeg('ofertas')">Ofertas</button>
+    <div class="seg" style="margin-bottom:4px;">
+      <button id="seg-e-pendientes" class="on" onclick="estadoSeg('pendientes')">Pendientes</button>
+      <button id="seg-e-cerradas" onclick="estadoSeg('cerradas')">Cerradas</button>
+      <button id="seg-e-todas" onclick="estadoSeg('todas')">Todo</button>
     </div>
     <div class="filtros-chips" id="seg-filtros"></div>
     <div id="seg-lista"><div class="empty">Cargando...</div></div>
@@ -697,9 +699,14 @@ function htmlAviso(a) {
     <div class="t-txt">${esc(a.descripcion)}${a.solucion ? '\n→ ' + esc(a.solucion) : ''}</div></div>`;
 }
 function htmlPedido(p) {
-  return `<div class="card"><div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(p.descripcion)}</span><span class="t-small" style="white-space:nowrap;">${eur(p.importe)}</span></div>
+  const ll = p.llegada, rc = p.reclamado;
+  return `<div class="card ${p.retraso ? 'borde-rojo' : ''}"><div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(p.descripcion)}</span><span class="t-small" style="white-space:nowrap;">${eur(p.importe)}</span></div>
     <div class="t-small">Pedido ${esc(p.pedido)} del ${fechaCorta(p.fecha)} · ${Number(p.cantidad).toLocaleString('es-ES')} uds.
-    ${p.entrega ? ' · <b style="color:#fff">entrega ' + fechaCorta(p.entrega) + '</b>' : ''}${p.urgente ? ' <span class="badge bad">Urgente</span>' : ''}</div></div>`;
+    ${p.entrega ? ' · <b style="color:#fff">entrega ' + fechaCorta(p.entrega) + '</b>' : ''}${p.urgente ? ' <span class="badge bad">Urgente</span>' : ''}
+    ${p.retraso ? ` <span class="badge bad">Retrasado ${p.retraso} día${p.retraso === 1 ? '' : 's'}</span>` : ''}</div>
+    ${ll ? `<div class="t-small" style="margin-top:3px;">Proveedor${ll.proveedor ? ' ' + esc(ll.proveedor) : ''}: ${ll.prevista ? (ll.retrasada ? `<b style="color:#fca5a5">debía llegar el ${fechaCorta(ll.prevista)}</b>` : 'llega el ' + fechaCorta(ll.prevista)) : 'pedido, sin fecha'}</div>` : ''}
+    ${rc ? `<div class="t-small" style="margin-top:3px; color:#86efac;">Reclamado por la oficina el ${fechaCorta(rc.fecha)}${rc.veces > 1 ? ` (${rc.veces} veces)` : ''}</div>`
+         : p.retraso ? '<div class="t-small" style="margin-top:3px; color:#fcd34d;">Aún no se ha reclamado</div>' : ''}</div>`;
 }
 function htmlMaquina(m) {
   const nombre = [m.marca, m.modelo || m.maquina].filter(Boolean).join(' ') || m.equipo;
@@ -742,11 +749,11 @@ function htmlPreparar() {
       <div class="row between"><span class="t-strong">${esc(o.tipo)} · oferta ${esc(o.numero)}</span><span class="t-small">${fechaCorta(o.fecha)} (hace ${o.dias} días)</span></div>
       ${o.lineas.slice(0, 3).map(l => `<div class="t-small" style="color:#fff;">• ${esc(l.texto)}${l.precio ? ' — ' + eur(l.precio) : ''}</div>`).join('')}
       ${(o.seguimiento || {}).nota ? `<div class="t-small" style="margin-top:4px;">${esc(o.seguimiento.nota)}</div>` : ''}</div>`).join('') +
-    `<button class="btn btn-ghost btn-sm" onclick="tabSegActual='ofertas'; filtroSeg='abiertas'; irA('seguimiento')">Seguimiento de ofertas</button>`, ofs.length);
+    `<button class="btn btn-ghost btn-sm" onclick="tipoSeg='oferta'; estadoSegActual='pendientes'; irA('seguimiento')">Seguimiento de ofertas</button>`, ofs.length);
   const pdp = (FICHA.precios_dados || []).filter(r => r.estado_precio === 'PENDIENTE' || r.estado_precio === 'ACEPTADO');
   if (pdp.length) h += seccion('Precios dados sin respuesta', pdp.slice(0, 5).map(r => `<div class="card"><span class="t-strong">${esc(r.DESCRIPCION || r.PRODUCTOS)}</span>
       <div class="t-small">${eur(r.IMPORTE)} · ${fechaCorta(r.FECHA)} · ${esc(ESTADOS_PRECIO_TXT[r.estado_precio])} — pregúntale si lo quiere</div></div>`).join(''), pdp.length);
-  if (P.pedidos.length) h += seccion('Pedidos pendientes de servir', P.pedidos.slice(0, 5).map(htmlPedido).join('') +
+  if (P.pedidos.length) h += seccion(P.pedidos.some(p => p.retraso) ? 'Pedidos pendientes de servir (hay retrasos)' : 'Pedidos pendientes de servir', P.pedidos.slice(0, 5).map(htmlPedido).join('') +
       (P.pedidos.length > 5 ? `<button class="btn btn-ghost btn-sm" onclick="tabFicha('pedidos', document.querySelectorAll('#ficha-tabs button')[5])">Ver los ${P.pedidos.length}</button>` : ''), P.pedidos.length);
   if (P.dejando_de_comprar.length) h += seccion('Está dejando de comprar', plegable(P.dejando_de_comprar.map(d => `<div class="card">
       <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(d.descripcion)}</span><span class="badge warn" style="white-space:nowrap;">${d.dias_sin_comprar} días</span></div>
@@ -777,6 +784,8 @@ function htmlAlertasFicha() {
       <div class="t-small" style="color:#fca5a5; margin-top:3px;">${esc(i.creado_por)} · ${fechaCorta(i.creado_en)}${i.origen === 'SAT' ? ' · desde el SAT' : ''}</div></div></div>`).join('') +
     (sat.length ? `<div class="alerta ambar" onclick="irTabFicha('sat')"><span>&#128295;</span><div><b>${sat.length} aviso${sat.length > 1 ? 's' : ''} del SAT abierto${sat.length > 1 ? 's' : ''}</b>
       ${esc(sat.slice(0, 2).map(a => (a.maquina || a.modelo || 'Máquina') + ': ' + (a.descripcion || '').slice(0, 70)).join(' · '))}</div></div>` : '') +
+    (() => { const r = FICHA.preparar.pedidos.filter(p => p.retraso); return r.length ? `<div class="alerta roja" onclick="irTabFicha('pedidos')"><span>&#128230;</span><div><b>${r.length} pedido${r.length > 1 ? 's' : ''} retrasado${r.length > 1 ? 's' : ''}</b>
+      ${esc(r.slice(0, 2).map(p => `${p.descripcion.slice(0, 40)} (${p.retraso} d${p.reclamado ? ', reclamado' : ''})`).join(' · '))}</div></div>` : ''; })() +
     (k.no_visitar ? `<div class="alerta gris" onclick="cambiarNoVisitar()"><span>&#8856;</span><div><b>No visitar</b>${esc(k.motivo_no_visitar || '')}
       <div class="t-small" style="margin-top:3px;">${esc(k.frecuencia_origen.replace('fijada por', 'Marcado por'))}</div></div></div>` : '');
 }
@@ -942,7 +951,7 @@ async function buscarPrecios() {
     return `<div class="card">
       <div class="t-strong">${esc(a.descripcion)}</div>
       <div class="t-small">Ref. ${esc(a.referencia)}${a.ref_proveedor ? ' · ' + esc(a.ref_proveedor) : ''} · ${esc([a.familia, a.marca].filter(Boolean).join(' · '))}
-        ${a.hay_stock ? '<span class="badge ok">Stock</span>' : '<span class="badge">Sin stock</span>'}</div>
+        ${a.hay_stock ? '<span class="badge ok">Stock</span>' : '<span class="badge">Sin stock</span>'}</div>${htmlSinonimo(a)}${htmlStock(a)}
       ${a.aplicable ? `<div class="t-small" style="margin-top:10px;">Precio para ${esc(precioCliente.nombre)}:</div>
         <div style="margin-top:4px;">${chipPrecio(a.aplicable, 'grande')}${a.aplicable.hasta ? `<span class="t-small"> &nbsp;precio especial hasta ${fechaCorta(a.aplicable.hasta)}</span>` : ''}</div>` : ''}
       ${a.aplicable ? '' : `<div class="row wrap" style="gap:6px; margin-top:10px;">${a.tarifas.length ? a.tarifas.map(t => chipPrecio(t, 'peq')).join('') : '<span class="t-small">Sin precio de tarifa</span>'}</div>`}
@@ -950,6 +959,20 @@ async function buscarPrecios() {
       ${interno}</div>`;
   }).join('') + (d.total > d.articulos.length ? `<div class="empty">${d.total - d.articulos.length} artículos más: afina la búsqueda.</div>` : '');
 }
+// Stock, lo comprometido con pedidos de clientes y lo que llega de proveedores (pedidos pendientes a proveedor).
+function htmlStock(a, corto = false) {
+  if (a.stock_uds == null) return '';
+  const n = x => Number(x || 0).toLocaleString('es-ES', {maximumFractionDigits: 2});
+  const libre = (a.stock_uds || 0) - (a.comprometido || 0);
+  const lleg = (a.llegadas || []).map(l => `${n(l.cantidad)} ${l.prevista ? (l.retrasada ? `<b style="color:#fca5a5">debían llegar el ${fechaCorta(l.prevista)}</b>` : 'llegan el ' + fechaCorta(l.prevista)) : 'pedidas, sin fecha'}`);
+  const partes = [`Stock <b style="color:#fff">${n(a.stock_uds)}</b>`];
+  if (a.comprometido) partes.push(`${n(a.comprometido)} comprometidas con pedidos (${libre >= 0 ? 'libres ' + n(libre) : '<span style="color:#fca5a5">faltan ' + n(-libre) + '</span>'})`);
+  if (lleg.length) partes.push(corto ? lleg[0] : 'en camino: ' + lleg.join(' · '));
+  else if (libre <= 0) partes.push('<span style="color:#fcd34d">no hay pedido a proveedor</span>');
+  return `<div class="t-small" style="margin-top:6px;">${partes.join(' · ')}</div>`;
+}
+const htmlSinonimo = a => a.sinonimo ? `<div class="t-small" style="margin-top:2px; color:#bfe0f7;">Por el diccionario: «${esc(a.sinonimo)}»</div>` : '';
+
 // Seguimiento de precios: el comercial apunta el precio que le ha dado al cliente.
 async function apuntarPrecio(a) {
   const r = await pedirTexto(`Precio dado a ${precioCliente.nombre}\n${a.desc} (ref. ${a.ref})`,
@@ -957,10 +980,23 @@ async function apuntarPrecio(a) {
   if (!r) return;
   const precio = parseFloat(String(r.numero).replace(/\./g, '').replace(',', '.'));
   if (!(precio > 0)) { await appAlert('Escribe un precio válido.', {type: 'error'}); return; }
-  const ok = await conCarga(() => api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
-    referencia: a.ref, descripcion: a.desc, precio, nota: r.texto})}));
+  const enviar = confirmar => api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
+    referencia: a.ref, descripcion: a.desc, precio, nota: r.texto, confirmar_precio_bajo: confirmar})});
+  let ok;
+  showLoading();
+  try { ok = await enviar(false); }
+  catch (e) {
+    hideLoading();
+    if (!(e.status === 409 && e.message.startsWith('PRECIO_BAJO|'))) { if (e.message !== '401') await appAlert(e.message, {type: 'error'}); return; }
+    // Por debajo del margen mínimo: se avisa (sin enseñar el coste) y se pide confirmación.
+    if (!await appConfirm(e.message.slice(12), {okText: 'Apuntar igualmente'})) return;
+    showLoading();
+    try { ok = await enviar(true); } catch (e2) { hideLoading(); await appAlert(e2.message, {type: 'error'}); return; }
+  }
+  hideLoading();
   if (ok) SEG = null;
   if (ok) await appAlert('Precio apuntado. Lo verás en la ficha del cliente, pestaña «Precios dados».' +
+    (ok.precio_bajo ? '\n\nSe ha avisado a la oficina de que está por debajo del margen mínimo.' : '') +
     (ok.correo === false ? '\n\n(No se ha podido enviar el aviso por correo a Lucía y Carolina.)' : ''), {type: 'success'});
 }
 function pintarLeyenda() {
@@ -1047,9 +1083,9 @@ async function cargarControlHoy(com) {
 }
 
 // ---- oportunidades de venta (las marcan los técnicos en el parte del SAT)
-function htmlOportunidad(o) {
+function htmlOportunidad(o, tag = '') {
   const cerrada = ['GANADA', 'PERDIDA', 'DESCARTADA'].includes(o.estado);
-  return `<div class="card borde-${cerrada ? 'gris' : 'verde'}">
+  return `<div class="card borde-${cerrada ? 'gris' : 'verde'}">${tag}
     <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(o.detalle || 'Posible venta (el técnico no indicó qué)')}</span>
       <span class="badge ${o.estado === 'NUEVA' ? 'ok' : o.estado === 'GANADA' ? 'ok' : cerrada ? '' : 'warn'}">${esc(o.estado)}</span></div>
     <div class="t-small">${o.codigo ? `<a style="color:var(--accent)" onclick="abrirFicha('${esc(o.codigo)}')">${esc(o.cliente_nombre)}</a>` : esc(o.cliente_nombre)}${o.poblacion ? ' · ' + esc(o.poblacion) : ''}</div>
@@ -1062,13 +1098,13 @@ function htmlOportunidad(o) {
     </div></div>`;
 }
 async function gestionarOportunidad(id) {
-  const o = FICHA && FICHA.preparar.oportunidades_sat.find(x => x.id === id);
+  const o = (FICHA && FICHA.preparar.oportunidades_sat.find(x => x.id === id)) || (SEG && (SEG.oportunidades || []).find(x => x.id === id));
   if (!o) return;
   const estados = ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA', 'GANADA', 'PERDIDA', 'DESCARTADA'];
   const r = await pedirTexto(`Oportunidad: ${o.detalle}\nEstado y nota:`, {opciones: estados, valor: o.estado, texto: o.nota});
   if (!r) return;
   const ok = await conCarga(() => api('/oportunidades_sat/' + encodeURIComponent(id), {method:'POST', body: JSON.stringify({estado: r.opcion, nota: r.texto})}));
-  if (ok) mostrarVista();
+  if (ok) { SEG = null; mostrarVista(); }
 }
 
 // ---- clientes a recuperar (aviso en Hoy)
@@ -1127,7 +1163,7 @@ function abrirFormulario() {
   const segTipo = FORM.modo === 'nuevo' ? `<div class="seg" style="margin-top:10px;">${['VISITA','LLAMADA'].map(x =>
     `<button class="${x === t ? 'on' : ''}" onclick="cambiarTipo('${x}')">${{VISITA:'Visita', LLAMADA:'Llamada'}[x]}</button>`).join('')}</div>` : '';
   const ayuda = (r.MOTIVO ? `<div class="aviso info">Objetivo previsto: ${esc(r.MOTIVO)}</div>` : '') + (t === 'VISITA' && !cerrada
-    ? '<div class="aviso info">Puedes ir guardando la visita (por ejemplo, al entrar, con la hora de entrada) y completarla después. Cuando esté todo, pulsa «Visita finalizada». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '');
+    ? '<div class="aviso info">Si aún no ha terminado (por ejemplo, al entrar, con la hora de entrada), pulsa «Visita sin terminar» y complétala después. Cuando esté todo, pulsa «Visita finalizada». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '');
   let html = segTipo + ayuda + `
     <label>Cliente${obligatorio('CLIENTE')}</label>
     <div class="campo-cliente" onclick="cambiarClienteForm()"><span id="f-cliente" class="${FORM.cliente ? '' : 'vacio'}">${FORM.cliente ? esc(FORM.cliente.nombre) : 'Elegir cliente...'}</span><span class="t-small">cambiar</span></div>
@@ -1140,15 +1176,15 @@ function abrirFormulario() {
     <label>Qué se ha hablado${obligatorio('DESCRIPCION')}</label><textarea id="f-DESCRIPCION" data-dictado placeholder="Resumen de la conversación">${esc(r.DESCRIPCION)}</textarea>
     <label>Resultado${obligatorio('RESULTADO')}</label><select id="f-RESULTADO">${opcionesSelect(O.resultados, r.RESULTADO)}</select>
     ${htmlOfertaForm(r)}
-    <label>Recordar visita el día… <span style="text-transform:none; letter-spacing:0; font-weight:600;">(se apunta en tu agenda)</span></label>
+    <label>Recordar el día… <span style="text-transform:none; letter-spacing:0; font-weight:600;">(se apunta en tu agenda)</span></label>
     <div class="grid2"><select id="f-REC_TIPO">${['Visita', 'Llamada'].map(x => `<option ${(recordatorio(r.PROXIMA_ACCION) || {}).tipo === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <input type="date" id="f-REC_FECHA" min="${hoyISO()}" value="${(recordatorio(r.PROXIMA_ACCION) || {}).fecha || ''}"></div>
     <label>Observaciones</label><textarea id="f-OBSERVACIONES" style="min-height:56px;" placeholder="Opcional">${esc(r.OBSERVACIONES)}</textarea>`;
   document.getElementById('f-cuerpo').innerHTML = html;
   document.querySelectorAll('#f-cuerpo textarea[data-dictado]').forEach(x => window.activarDictado && activarDictado(x));
-  // Botones: una visita abierta tiene «Guardar» y «Cerrar visita»; una ya cerrada o una llamada, solo «Guardar».
+  // Botones: una visita abierta tiene «Visita sin terminar» y «Visita finalizada»; una ya cerrada o una llamada, solo «Guardar».
   document.getElementById('f-pie').innerHTML = t === 'VISITA' && !cerrada
-    ? `<button class="btn btn-ghost" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button><button class="btn btn-primary" id="f-cerrar" onclick="guardarFormulario(true)">Visita finalizada</button>`
+    ? `<button class="btn btn-ghost" id="f-guardar" onclick="guardarFormulario(false)">Visita sin terminar</button><button class="btn btn-primary" id="f-cerrar" onclick="guardarFormulario(true)">Visita finalizada</button>`
     : `<button class="btn btn-ghost" onclick="cerrarFormulario()">Cancelar</button><button class="btn btn-primary" id="f-guardar" onclick="guardarFormulario(false)">Guardar</button>`;
   verDuracion();
   pintarArticuloOferta();
@@ -1201,7 +1237,7 @@ function buscarArticuloOferta(q) {
     if (n !== _nOferta) return;
     window._artsOferta = d.articulos || [];
     res.innerHTML = window._artsOferta.length ? window._artsOferta.map((a, i) => `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer;" onclick="elegirArticuloOferta(${i})">
-        <div class="t-strong" style="font-size:0.88rem;">${esc(a.descripcion)}</div><div class="t-small">Ref. ${esc(a.referencia)}${a.familia ? ' · ' + esc(a.familia) : ''}</div></div>`).join('')
+        <div class="t-strong" style="font-size:0.88rem;">${esc(a.descripcion)}</div><div class="t-small">Ref. ${esc(a.referencia)}${a.familia ? ' · ' + esc(a.familia) : ''}</div>${htmlSinonimo(a)}${htmlStock(a, true)}</div>`).join('')
       : '<div class="t-small" style="padding:8px 2px;">No se ha encontrado ningún artículo. Puedes escribirlo en la descripción.</div>';
   }, 300);
 }
@@ -1274,8 +1310,8 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
   if (cerrar || FORM.registro.ESTADO === 'REGISTRADA') {
     const faltan = faltanCampos(d, cerrar).map(c => NOMBRES_CAMPOS[c] || c);
     if (FORM.tipo === 'VISITA' && faltan.length) {
-      await aviso('Para cerrar la visita falta: ' + faltan.join(', ') + '.\n\nPuedes pulsar «Guardar» y completarla más tarde.', 'error');
-      return {ok: false, error: 'Para cerrar la visita falta: ' + faltan.join(', ') + '. Se puede guardar sin cerrar.'};
+      await aviso('Para cerrar la visita falta: ' + faltan.join(', ') + '.\n\nPuedes pulsar «Visita sin terminar» y completarla más tarde.', 'error');
+      return {ok: false, error: 'Para cerrar la visita falta: ' + faltan.join(', ') + '. Se puede guardar como sin terminar.'};
     }
   }
   if (d.OFERTA === 'SI' && !d.PRODUCTOS && !d.NECESIDADES) {
@@ -1784,7 +1820,8 @@ function definirAccionesRobot() {
     },
     apuntar_precio_dado: {
       descripcion: 'Apunta el precio que el comercial le ha dado al cliente elegido en Precios (seguimiento de precios). Solo si el usuario lo pide.',
-      parametros: obj({referencia: {type: 'string'}, precio: {type: 'number', description: 'En euros'}, nota: {type: 'string'}}, ['referencia', 'precio']),
+      parametros: obj({referencia: {type: 'string'}, precio: {type: 'number', description: 'En euros'}, nota: {type: 'string'},
+        confirmar_precio_bajo: {type: 'boolean', description: 'Solo si el usuario ha confirmado apuntarlo aunque esté por debajo del margen mínimo'}}, ['referencia', 'precio']),
       etiqueta: a => `Apuntando precio dado: ${a.referencia} a ${a.precio} €`,
       ejecutar: async a => {
         if (!precioCliente || !precioCliente.codigo) return {ok: false, error: 'Primero elige el cliente en Precios (buscar_precios con codigo_cliente).'};
@@ -1795,8 +1832,11 @@ function definirAccionesRobot() {
         let r;
         try {
           r = await api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
-            referencia: art.referencia, descripcion: art.descripcion, precio: Number(a.precio), nota: a.nota || ''})});
-        } catch (e) { return {ok: false, error: e.message}; }
+            referencia: art.referencia, descripcion: art.descripcion, precio: Number(a.precio), nota: a.nota || '', confirmar_precio_bajo: !!a.confirmar_precio_bajo})});
+        } catch (e) {
+          if (e.status === 409 && e.message.startsWith('PRECIO_BAJO|')) return {ok: false, error: e.message.slice(12) + ' Pregunta al usuario y, si confirma, repite con confirmar_precio_bajo=true.'};
+          return {ok: false, error: e.message};
+        }
         return {ok: true, mensaje: `Apuntado: ${art.descripcion} a ${a.precio} € para ${precioCliente.nombre}.` + (r.correo === false ? ' (El aviso por correo no se ha podido enviar.)' : ' Se ha avisado por correo a Lucía y Carolina.')};
       },
     },
@@ -1932,9 +1972,10 @@ function pintarProgramadasHoy(lista, hoy) {
 
 // ===================================================================== SEGUIMIENTO (precios dados y ofertas)
 const ESTADOS_PRECIO_TXT = {'': 'Pendiente de respuesta', PENDIENTE: 'Pendiente de respuesta', ACEPTADO: 'Aceptado (pendiente de pedido)', COMPRADO: 'Ha comprado', NO_INTERESA: 'No le interesa'};
-let SEG = null, tabSegActual = 'precios', filtroSeg = 'pendientes';
-function tabSeg(t) { tabSegActual = t; filtroSeg = t === 'precios' ? 'pendientes' : 'abiertas';
-  ['precios', 'ofertas'].forEach(x => document.getElementById('seg-t-' + x).classList.toggle('on', x === t)); pintarSeguimiento(); }
+let SEG = null, estadoSegActual = 'pendientes', tipoSeg = 'todo';
+const TIPOS_SEG = [['todo', 'Todo'], ['precio', 'Precios dados'], ['oferta', 'Ofertas'], ['oportunidad', 'Oportunidades de venta']];
+const tagSeg = t => `<div class="tag-seg">${t}</div>`;
+function estadoSeg(e) { estadoSegActual = e; pintarSeguimiento(); }
 async function cargarSeguimiento() {
   const cont = document.getElementById('seg-lista');
   if (!SEG) {
@@ -1945,32 +1986,60 @@ async function cargarSeguimiento() {
   }
   pintarSeguimiento();
 }
+// Una sola lista con todo lo que hay que cerrar con un cliente: precios dados, ofertas (pedidas en visitas y
+// hechas por la oficina) y oportunidades de venta del SAT. Cada tarjeta lleva su etiqueta de tipo.
+function elementosSeguimiento(S) {
+  const el = [];
+  S.precios.forEach(p => el.push({tipo: 'precio', fecha: p.FECHA, abierto: ['PENDIENTE', 'ACEPTADO'].includes(p.estado_precio), html: () => htmlPrecioSeg(p)}));
+  (S.pedidas || []).filter(r => !r.oferta_oficina).forEach(r => el.push({tipo: 'oferta', fecha: r.FECHA, abierto: ['PENDIENTE', 'ENVIADA'].includes(r.estado_pedida), html: () => htmlPedidaSeg(r)}));
+  S.ofertas.filter(o => YO.permisos.ver_todos || o.mio || o.pedida).forEach(o => el.push({tipo: 'oferta', fecha: o.fecha, abierto: o.estado === 'ABIERTA', html: () => htmlOfertaSeg(o)}));
+  (S.oportunidades || []).forEach(o => el.push({tipo: 'oportunidad', fecha: o.fecha, abierto: ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA'].includes(o.estado), html: () => htmlOportunidad(o, tagSeg('Oportunidad de venta · SAT'))}));
+  return el;
+}
 function pintarSeguimiento() {
   if (!SEG) return;
-  const filtros = tabSegActual === 'precios'
-    ? [['pendientes', 'Pendientes'], ['comprados', 'Han comprado'], ['todos', 'Todos']]
-    : [['abiertas', 'Abiertas'], ['mias', 'De mis clientes'], ['cerradas', 'Ganadas / perdidas'], ['todas', 'Todas']];
-  document.getElementById('seg-filtros').innerHTML = filtros.map(([k, t]) => `<button class="chip ${filtroSeg === k ? 'on' : ''}" onclick="filtroSeg='${k}'; pintarSeguimiento()">${t}</button>`).join('');
-  const cont = document.getElementById('seg-lista');
-  if (tabSegActual === 'precios') {
-    let l = SEG.precios;
-    if (filtroSeg === 'pendientes') l = l.filter(p => p.estado_precio === 'PENDIENTE' || p.estado_precio === 'ACEPTADO');
-    if (filtroSeg === 'comprados') l = l.filter(p => p.estado_precio === 'COMPRADO');
-    cont.innerHTML = l.length ? l.slice(0, 150).map(htmlPrecioSeg).join('') : '<div class="empty">No hay precios dados con este filtro.</div>';
-  } else {
-    let l = SEG.ofertas;
-    if (filtroSeg === 'abiertas') l = l.filter(o => o.estado === 'ABIERTA');
-    if (filtroSeg === 'mias') l = l.filter(o => o.mio);
-    if (filtroSeg === 'cerradas') l = l.filter(o => o.estado !== 'ABIERTA');
-    cont.innerHTML = (SEG.avisos_ofertas || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('') +
-      (l.length ? l.slice(0, 150).map(htmlOfertaSeg).join('') : '<div class="empty">No hay ofertas con este filtro.</div>');
-  }
+  ['pendientes', 'cerradas', 'todas'].forEach(x => document.getElementById('seg-e-' + x).classList.toggle('on', x === estadoSegActual));
+  const todos = elementosSeguimiento(SEG);
+  const delEstado = todos.filter(x => estadoSegActual === 'todas' || (estadoSegActual === 'pendientes') === x.abierto);
+  document.getElementById('seg-filtros').innerHTML = TIPOS_SEG.map(([k, n]) => {
+    const c = k === 'todo' ? delEstado.length : delEstado.filter(x => x.tipo === k).length;
+    return `<button class="chip ${tipoSeg === k ? 'on' : ''}" onclick="tipoSeg='${k}'; pintarSeguimiento()">${n} (${c})</button>`;
+  }).join('');
+  const l = delEstado.filter(x => tipoSeg === 'todo' || x.tipo === tipoSeg).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const avisos = tipoSeg === 'todo' || tipoSeg === 'oferta' ? (SEG.avisos_ofertas || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('') : '';
+  document.getElementById('seg-lista').innerHTML = avisos + (l.length ? l.slice(0, 200).map(x => x.html()).join('')
+    : `<div class="empty">${estadoSegActual === 'pendientes' ? 'No hay nada pendiente' : 'No hay nada'} con este filtro.</div>`);
+}
+const ESTADOS_PEDIDA_TXT = {PENDIENTE: 'Pendiente de la oficina', ENVIADA: 'Oferta enviada', GANADA: 'Ganada', PERDIDA: 'Perdida', CANCELADA: 'Ya no hace falta'};
+function htmlPedidaSeg(r) {
+  const est = r.estado_pedida;
+  const color = {PENDIENTE: 'ambar', ENVIADA: 'azul', GANADA: 'verde', PERDIDA: 'gris', CANCELADA: 'gris'}[est];
+  const badge = {PENDIENTE: 'warn', ENVIADA: 'prog', GANADA: 'ok', PERDIDA: '', CANCELADA: ''}[est];
+  const b = (e, txt, primario = false) => `<button class="btn ${primario ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="estadoPedida('${esc(r.ID)}','${e}')">${txt}</button>`;
+  return `<div class="card borde-${color}">${tagSeg('Oferta pedida en ' + (r.TIPO === 'LLAMADA' ? 'llamada' : 'visita'))}
+    <div class="row between" style="align-items:flex-start;"><span class="t-strong">${r.COD_CLIENTE ? `<a style="color:#fff" onclick="abrirFicha('${esc(r.COD_CLIENTE)}')">${esc(r.CLIENTE)}</a>` : esc(r.CLIENTE)}</span><span class="badge ${badge}">${esc(ESTADOS_PEDIDA_TXT[est])}</span></div>
+    <div class="t-txt">${esc([r.PRODUCTOS, r.NECESIDADES].filter(Boolean).join(' — '))}</div>
+    <div class="t-small" style="margin-top:4px;">${fechaCorta(r.FECHA)} (hace ${r.dias} días)${YO.permisos.ver_todos ? ' · ' + esc(r.COMERCIAL) : ''}</div>
+    ${est === 'PENDIENTE' ? '<div class="t-small" style="margin-top:4px;">Avisada a la oficina. Pasará sola a «Oferta enviada» cuando la hagan en Generación de ofertas.</div>' : ''}
+    ${puedeEditar(r) ? `<div class="row wrap" style="gap:6px; margin-top:10px;">
+      ${est === 'PENDIENTE' ? b('ENVIADA', 'Ya está enviada') + b('CANCELADA', 'Ya no hace falta') : ''}
+      ${est === 'ENVIADA' ? b('GANADA', 'Ganada', true) + b('PERDIDA', 'Perdida') : ''}
+      ${['GANADA', 'PERDIDA', 'CANCELADA'].includes(est) ? b('PENDIENTE', 'Reabrir') : ''}
+      <button class="btn btn-ghost btn-sm" onclick="verActividad('${esc(r.ID)}')">Ver ${r.TIPO === 'LLAMADA' ? 'llamada' : 'visita'}</button>
+    </div>` : ''}</div>`;
+}
+async function estadoPedida(id, estado) {
+  const r = await pedirTexto(`${ESTADOS_PEDIDA_TXT[estado]}. Nota (opcional):`,
+    {estructurado: true, texto: '', placeholder: estado === 'PERDIDA' ? 'Motivo: precio, competencia, lo ha aplazado...' : 'Opcional'});
+  if (!r) return;
+  const ok = await conCarga(() => api(`/actividad/${encodeURIComponent(id)}/oferta_pedida`, {method: 'POST', body: JSON.stringify({estado, nota: r.texto})}));
+  if (ok) { SEG = null; cargarSeguimiento(); }
 }
 function htmlPrecioSeg(p) {
   const est = p.estado_precio, color = {PENDIENTE: 'ambar', ACEPTADO: 'azul', COMPRADO: 'verde', NO_INTERESA: 'gris'}[est];
   const badge = {PENDIENTE: 'warn', ACEPTADO: 'prog', COMPRADO: 'ok', NO_INTERESA: ''}[est];
   const c = p.compra_pirineos;
-  return `<div class="card borde-${color}">
+  return `<div class="card borde-${color}">${tagSeg('Precio dado')}
     <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(p.CLIENTE)}</span><span class="badge ${badge}">${esc(ESTADOS_PRECIO_TXT[est])}</span></div>
     <div class="t-txt">${esc(p.DESCRIPCION || '')} <span class="t-small">ref. ${esc(p.PRODUCTOS)}</span></div>
     <div class="t-small" style="margin-top:4px;">Precio dado <b style="color:#fff">${eur(p.IMPORTE)}</b> · ${fechaCorta(p.FECHA)} (hace ${p.dias} días)${YO.permisos.ver_todos ? ' · ' + esc(p.COMERCIAL) : ''}</div>
@@ -1996,12 +2065,15 @@ function htmlOfertaSeg(o) {
   const color = {ABIERTA: o.dias > SEG.validez_dias ? 'rojo' : 'ambar', GANADA: 'verde', PERDIDA: 'gris'}[o.estado];
   const sg = o.seguimiento || {};
   const caducada = o.estado === 'ABIERTA' && o.dias > SEG.validez_dias;
-  return `<div class="card borde-${color}">
+  const pd = o.pedida;
+  return `<div class="card borde-${color}">${tagSeg('Oferta ' + (o.tipo || '').toLowerCase() + ' de la oficina')}
     <div class="row between" style="align-items:flex-start;"><span class="t-strong">${o.codigo ? `<a style="color:#fff" onclick="abrirFicha('${esc(o.codigo)}')">${esc(o.cliente)}</a>` : esc(o.cliente)}</span>
       <span class="badge ${o.estado === 'GANADA' ? 'ok' : o.estado === 'PERDIDA' ? '' : caducada ? 'bad' : 'warn'}">${o.estado === 'ABIERTA' ? (caducada ? 'Abierta · caducada' : 'Abierta') : o.estado === 'GANADA' ? 'Ganada' : 'Perdida'}</span></div>
     <div class="t-small">${esc(o.tipo)}${o.categoria ? ' · ' + esc(o.categoria) : ''} · Oferta ${esc(o.numero)} del ${fechaCorta(o.fecha)} (hace ${o.dias} días)${o.comercial ? ' · ' + esc(o.comercial) : o.codigo ? '' : ' · cliente no identificado en Pirineos'}</div>
     ${o.lineas.slice(0, 4).map(l => `<div class="t-small" style="color:#fff; margin-top:3px;">• ${esc(l.texto)}${l.precio ? ' — ' + eur(l.precio) + (l.unidad ? ' ' + esc(l.unidad.replace('€', '')) : '') : ''}</div>`).join('')}
     ${o.lineas.length > 4 ? `<div class="t-small">y ${o.lineas.length - 4} productos más</div>` : ''}
+    ${o.compra_pirineos ? `<div class="t-small" style="margin-top:6px; color:#86efac;">${o.ganada_sola ? 'Ganada sola: ' : ''}ha comprado ${esc(o.compra_pirineos.descripcion)} el ${fechaCorta(o.compra_pirineos.fecha)} (${esc(o.compra_pirineos.documento)}, según Pirineos)</div>` : ''}
+    ${pd ? `<div class="t-small" style="margin-top:6px;">Pedida por ${esc(pd.comercial)} en la ${pd.tipo === 'LLAMADA' ? 'llamada' : 'visita'} del ${fechaCorta(pd.fecha)}${pd.que ? ': ' + esc(pd.que) : ''}</div>` : ''}
     ${sg.nota || sg.proximo ? `<div class="t-small" style="margin-top:6px;">${sg.nota ? esc(sg.nota) : ''}${sg.proximo ? ` · próximo seguimiento ${fechaCorta(sg.proximo)}` : ''} <span style="opacity:.7">(${esc(sg.por || '')})</span></div>` : ''}
     <div class="row wrap" style="gap:6px; margin-top:10px;">
       ${o.estado === 'ABIERTA' ? `<button class="btn btn-primary btn-sm" onclick="seguirOferta('${esc(o.id)}','GANADA')">Ganada</button>
@@ -2024,12 +2096,12 @@ async function cargarSeguimientoHoy(com) {
   const el = document.getElementById('hoy-seguimiento');
   try {
     SEG = await api('/seguimiento' + (com ? '?comercial=' + encodeURIComponent(com) : ''));
-    const pend = SEG.precios.filter(p => p.estado_precio === 'PENDIENTE' || p.estado_precio === 'ACEPTADO');
-    const ofs = SEG.ofertas.filter(o => o.estado === 'ABIERTA' && (YO.permisos.ver_todos || o.mio));
-    const revisar = ofs.filter(o => (o.seguimiento || {}).proximo && o.seguimiento.proximo <= hoyISO()).length;
-    el.innerHTML = (pend.length || ofs.length) ? `<div class="card click borde-ambar" style="margin-top:14px;" onclick="irA('seguimiento')">
-      <div class="row between"><span class="t-strong">Seguimiento de precios y ofertas</span><span class="t-small">ver &rsaquo;</span></div>
-      <div class="t-small">${pend.length} precio${pend.length === 1 ? '' : 's'} dado${pend.length === 1 ? '' : 's'} sin respuesta · ${ofs.length} oferta${ofs.length === 1 ? '' : 's'} abierta${ofs.length === 1 ? '' : 's'}${YO.permisos.ver_todos ? '' : ' de tus clientes'}${revisar ? ` · <b style="color:#fde68a">${revisar} para revisar hoy</b>` : ''}</div></div>` : '';
+    const pend = elementosSeguimiento(SEG).filter(x => x.abierto);
+    const n = k => pend.filter(x => x.tipo === k).length, pl = (c, s, p) => `${c} ${c === 1 ? s : p}`;
+    const revisar = SEG.ofertas.filter(o => o.estado === 'ABIERTA' && (o.seguimiento || {}).proximo && o.seguimiento.proximo <= hoyISO()).length;
+    el.innerHTML = pend.length ? `<div class="card click borde-ambar" style="margin-top:14px;" onclick="estadoSegActual='pendientes'; tipoSeg='todo'; irA('seguimiento')">
+      <div class="row between"><span class="t-strong">Seguimiento: ${pend.length} pendiente${pend.length === 1 ? '' : 's'}</span><span class="t-small">ver &rsaquo;</span></div>
+      <div class="t-small">${[pl(n('precio'), 'precio dado', 'precios dados'), pl(n('oferta'), 'oferta', 'ofertas'), pl(n('oportunidad'), 'oportunidad de venta', 'oportunidades de venta')].filter(x => !x.startsWith('0 ')).join(' · ')}${revisar ? ` · <b style="color:#fde68a">${revisar} para revisar hoy</b>` : ''}</div></div>` : '';
   } catch (e) { el.innerHTML = ''; }
 }
 
