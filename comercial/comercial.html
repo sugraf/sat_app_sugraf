@@ -176,6 +176,11 @@
     .alerta.roja{ background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.4); color:#fecaca; }
     .alerta.ambar{ background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:#fde68a; }
     .alerta.gris{ background:rgba(182,190,196,.08); border:1px solid rgba(182,190,196,.3); color:#d6dde3; }
+    .card.borde-azul{ border-left:3px solid #8fc4ec; }
+    .badge.prog{ background:rgba(143,196,236,.16); color:#bfe0f7; }
+    .dia-plan{ display:flex; justify-content:space-between; align-items:center; margin:16px 2px 6px; }
+    .dia-plan .t-strong{ text-transform:capitalize; font-size:0.86rem; }
+    .dia-plan.hoy .t-strong{ color:var(--accent); }
     .estado-no_visitar{ border-left:3px solid rgba(182,190,196,.5); opacity:.85; }
     .estado-toca{ border-left:3px solid var(--red); } .estado-demasiado{ border-left:3px solid var(--amber); } .estado-pronto{ border-left:3px solid #8fc4ec; }
     .hist{ font-size:0.75rem; color:var(--muted); border-left:2px solid var(--line); padding:4px 0 4px 10px; margin:6px 0; }
@@ -216,9 +221,13 @@
       <button class="btn btn-primary grande" onclick="nuevaActividad('VISITA')">&#43;&nbsp; Nueva visita</button>
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA')">Llamada</button>
       <button class="btn btn-ghost" onclick="irA('precios')">Consultar precio</button>
+      <button class="btn btn-ghost" onclick="programarVisita()">&#128197;&nbsp; Programar</button>
+      <button class="btn btn-ghost" onclick="irA('seguimiento')">Seguimiento</button>
       <button class="btn btn-ghost" style="grid-column:1/-1" onclick="rutaDesdeAqui()">&#9906;&nbsp; ¿Qué clientes tengo cerca? · Ruta</button>
     </div>
+    <div id="hoy-programadas"></div>
     <div id="hoy-sin-terminar"></div>
+    <div id="hoy-seguimiento"></div>
     <div id="hoy-control"></div>
     <div id="hoy-recuperar"></div>
     <h3>Resumen del día</h3>
@@ -253,7 +262,8 @@
   <div class="container view" id="view-precios">
     <div class="row between" style="margin:8px 0 12px;">
       <h2>Precios</h2>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('leyenda').classList.toggle('show')" aria-label="Leyenda">&#9432;</button>
+      <div class="row" style="gap:6px;"><button class="btn btn-ghost btn-sm" onclick="irA('seguimiento')">Seguimiento</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('leyenda').classList.toggle('show')" aria-label="Leyenda">&#9432;</button></div>
     </div>
     <div class="leyenda card" id="leyenda"></div>
     <label style="margin-top:0;">Cliente <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional: muestra su precio)</span></label>
@@ -281,8 +291,23 @@
       <input type="date" id="ag-fecha" onchange="cargarAgenda()">
       <button class="btn btn-ghost btn-sm" onclick="moverAgenda(1)">&rsaquo;</button>
     </div>
-    <div class="chips" id="ag-tipos" style="margin-top:10px;"></div>
+    <div class="row between" style="margin-top:10px; gap:8px;"><div class="chips" id="ag-tipos"></div>
+      <button class="btn btn-primary btn-sm" onclick="programarVisita(null, document.getElementById('ag-fecha').value)">&#128197; Programar</button></div>
     <div id="ag-contenido" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- ============ SEGUIMIENTO: PRECIOS DADOS Y OFERTAS ============ -->
+  <div class="container view" id="view-seguimiento">
+    <div class="row between" style="margin:8px 0 12px;">
+      <h2>Seguimiento</h2>
+      <select id="seg-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="SEG=null; cargarSeguimiento()"></select>
+    </div>
+    <div class="seg" style="margin-bottom:10px;">
+      <button id="seg-t-precios" class="on" onclick="tabSeg('precios')">Precios dados</button>
+      <button id="seg-t-ofertas" onclick="tabSeg('ofertas')">Ofertas</button>
+    </div>
+    <div class="filtros-chips" id="seg-filtros"></div>
+    <div id="seg-lista"><div class="empty">Cargando...</div></div>
   </div>
 
   <!-- ============ RUTA ============ -->
@@ -418,6 +443,7 @@ async function conCarga(fn) {
 
 function badgeTipo(r) {
   if (r.ESTADO === 'SIN TERMINAR') return '<span class="badge warn">Sin terminar</span>';
+  if (r.ESTADO === 'PROGRAMADA') return `<span class="badge prog">${esc(r.SUBTIPO || 'Programada')} · programada</span>`;
   const t = r.TIPO.toLowerCase();
   return `<span class="badge ${t}">${t === 'precio' ? 'Precio dado' : t}</span>`;
 }
@@ -426,7 +452,7 @@ function colorClase(clase){ return (YO && YO.colores[clase]) ? YO.colores[clase]
 function chipPrecio(p, tam='') { if(!p) return ''; return `<span class="precio ${tam}"><i style="background:${colorClase(p.clase)}"></i>${eur(p.precio)}</span>`; }
 
 // ===================================================================== navegación
-const VISTAS = ['hoy','clientes','ficha','precios','agenda','ruta'];
+const VISTAS = ['hoy','clientes','ficha','precios','agenda','ruta','seguimiento'];
 function irA(v) { location.hash = v; }
 function mostrarVista() {
   if (!TOKEN) return;
@@ -434,7 +460,7 @@ function mostrarVista() {
   const [vista, arg] = h.split('/');
   const v = VISTAS.includes(vista) ? vista : 'hoy';
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === 'view-' + v));
-  document.querySelectorAll('.nav button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v === 'ficha' && b.dataset.v === 'clientes')));
+  document.querySelectorAll('.nav button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v === 'ficha' && b.dataset.v === 'clientes') || (v === 'seguimiento' && b.dataset.v === 'precios')));
   window.scrollTo(0, 0);
   if (v === 'hoy') cargarHoy();
   if (v === 'clientes') pintarClientes();
@@ -442,6 +468,7 @@ function mostrarVista() {
   if (v === 'agenda') cargarAgenda();
   if (v === 'precios') setTimeout(() => document.getElementById('pre-q').focus(), 50);
   if (v === 'ruta') cargarRuta();
+  if (v === 'seguimiento') cargarSeguimiento();
   actualizarPieRuta();
 }
 window.addEventListener('hashchange', mostrarVista);
@@ -613,6 +640,7 @@ async function cargarFicha(codigo) {
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA', clienteFicha())">Llamada</button>
       <button class="btn btn-ghost" onclick="preciosDeFicha()">Precios cliente</button>
       <button class="btn btn-ghost" onclick="nuevaIncidencia()">&#9888;&nbsp; Incidencia</button>
+      <button class="btn btn-ghost" onclick="programarVisita(clienteFicha())">&#128197;&nbsp; Programar visita</button>
       <button class="btn btn-ghost" onclick="cambiarNoVisitar()">${FICHA.control.no_visitar ? 'Volver a visitar' : '&#8856;&nbsp; No visitar'}</button>
     </div>
     ${htmlAlertasFicha()}
@@ -697,6 +725,15 @@ function htmlPreparar() {
       <span class="badge ${r.FECHA_SEGUIMIENTO < hoyISO() ? 'bad' : 'warn'}">${fechaCorta(r.FECHA_SEGUIMIENTO)}</span> <span class="t-strong">${esc(r.PROXIMA_ACCION || 'Seguimiento')}</span></div>`).join(''), P.seguimientos.length);
   if (P.avisos_sat.length) h += seccion('Avisos del SAT abiertos', '<div class="aviso">Tiene avisos de servicio técnico sin cerrar: conviene saberlo antes de entrar.</div>' + plegable(P.avisos_sat.map(htmlAviso), 3), P.avisos_sat.length);
   if (P.oportunidades_sat.length) h += seccion('Oportunidades del SAT', P.oportunidades_sat.map(htmlOportunidad).join(''), P.oportunidades_sat.length);
+  const ofs = (FICHA.ofertas || []).filter(o => o.estado === 'ABIERTA');
+  if (ofs.length) h += seccion('Ofertas abiertas', ofs.map(o => `<div class="card borde-ambar">
+      <div class="row between"><span class="t-strong">${esc(o.tipo)} · oferta ${esc(o.numero)}</span><span class="t-small">${fechaCorta(o.fecha)} (hace ${o.dias} días)</span></div>
+      ${o.lineas.slice(0, 3).map(l => `<div class="t-small" style="color:#fff;">• ${esc(l.texto)}${l.precio ? ' — ' + eur(l.precio) : ''}</div>`).join('')}
+      ${(o.seguimiento || {}).nota ? `<div class="t-small" style="margin-top:4px;">${esc(o.seguimiento.nota)}</div>` : ''}</div>`).join('') +
+    `<button class="btn btn-ghost btn-sm" onclick="tabSegActual='ofertas'; filtroSeg='abiertas'; irA('seguimiento')">Seguimiento de ofertas</button>`, ofs.length);
+  const pdp = (FICHA.precios_dados || []).filter(r => r.estado_precio === 'PENDIENTE' || r.estado_precio === 'ACEPTADO');
+  if (pdp.length) h += seccion('Precios dados sin respuesta', pdp.slice(0, 5).map(r => `<div class="card"><span class="t-strong">${esc(r.DESCRIPCION || r.PRODUCTOS)}</span>
+      <div class="t-small">${eur(r.IMPORTE)} · ${fechaCorta(r.FECHA)} · ${esc(ESTADOS_PRECIO_TXT[r.estado_precio])} — pregúntale si lo quiere</div></div>`).join(''), pdp.length);
   if (P.pedidos.length) h += seccion('Pedidos pendientes de servir', P.pedidos.slice(0, 5).map(htmlPedido).join('') +
       (P.pedidos.length > 5 ? `<button class="btn btn-ghost btn-sm" onclick="tabFicha('pedidos', document.querySelectorAll('#ficha-tabs button')[5])">Ver los ${P.pedidos.length}</button>` : ''), P.pedidos.length);
   if (P.dejando_de_comprar.length) h += seccion('Está dejando de comprar', plegable(P.dejando_de_comprar.map(d => `<div class="card">
@@ -820,7 +857,9 @@ function tabFicha(tab, boton) {
     el.innerHTML = `<button class="btn btn-ghost btn-sm" style="margin-bottom:10px;" onclick="preciosDeFicha()">+ Apuntar un precio dado (en Precios)</button>` +
       (FICHA.precios_dados.length ? FICHA.precios_dados.map(r => `<div class="card click" onclick="verActividad('${esc(r.ID)}')">
         <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(r.DESCRIPCION || 'Ref. ' + r.PRODUCTOS)}</span><span class="t-strong">${eur(r.IMPORTE)}</span></div>
-        <div class="t-small">Ref. ${esc(r.PRODUCTOS)} · ${fechaCorta(r.FECHA)} · ${esc(r.COMERCIAL)}${r.OBSERVACIONES ? ' · ' + esc(r.OBSERVACIONES) : ''}</div></div>`).join('')
+        <div class="t-small">Ref. ${esc(r.PRODUCTOS)} · ${fechaCorta(r.FECHA)} · ${esc(r.COMERCIAL)}${r.OBSERVACIONES ? ' · ' + esc(r.OBSERVACIONES) : ''}</div>
+        <div style="margin-top:6px;"><span class="badge ${{COMPRADO: 'ok', ACEPTADO: 'prog', NO_INTERESA: '', PENDIENTE: 'warn'}[r.estado_precio] || 'warn'}">${esc(ESTADOS_PRECIO_TXT[r.estado_precio] || 'Pendiente de respuesta')}</span>
+        ${r.compra_pirineos ? `<span class="t-small" style="color:#86efac;"> comprado el ${fechaCorta(r.compra_pirineos.fecha)} a ${eur(r.compra_pirineos.precio)}</span>` : ''}</div></div>`).join('')
       : '<div class="empty">Todavía no se ha apuntado ningún precio dado a este cliente.</div>');
   } else if (tab === 'actividad') {
     el.innerHTML = FICHA.actividad.length ? FICHA.actividad.map(itemActividad).join('')
@@ -908,6 +947,7 @@ async function apuntarPrecio(a) {
   if (!(precio > 0)) { await appAlert('Escribe un precio válido.', {type: 'error'}); return; }
   const ok = await conCarga(() => api('/precios_dados', {method: 'POST', body: JSON.stringify({cod_cliente: precioCliente.codigo, cliente: precioCliente.nombre,
     referencia: a.ref, descripcion: a.desc, precio, nota: r.texto})}));
+  if (ok) SEG = null;
   if (ok) await appAlert('Precio apuntado. Lo verás en la ficha del cliente, pestaña «Precios dados».' +
     (ok.correo === false ? '\n\n(No se ha podido enviar el aviso por correo a Lucía y Carolina.)' : ''), {type: 'success'});
 }
@@ -953,6 +993,8 @@ async function cargarHoy() {
       api(`/actividad/pendientes${com ? '?comercial=' + encodeURIComponent(com) : ''}`),
     ]);
   } catch (e) { document.getElementById('hoy-lista').innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
+  pintarProgramadasHoy(pend.programadas || [], hoy);
+  cargarSeguimientoHoy(com);
   const st = pend.sin_terminar;
   document.getElementById('hoy-sin-terminar').innerHTML = st.length ? seccion('Visitas sin terminar', '<div class="t-small" style="margin:-4px 2px 8px;">Complétalas y pulsa «Cerrar visita».</div>' +
     st.map(r => `<div class="card click borde-ambar" onclick="abrirVisita('${esc(r.ID)}')">
@@ -1070,11 +1112,12 @@ function abrirFormulario() {
   document.getElementById('f-titulo').textContent = t === 'VISITA'
     ? (FORM.modo === 'nuevo' ? 'Nueva visita' : cerrada ? 'Editar visita' : 'Completar visita')
     : (FORM.modo === 'nuevo' ? 'Nueva llamada' : 'Editar llamada');
+  if (r.ESTADO === 'PROGRAMADA') document.getElementById('f-titulo').textContent = (r.SUBTIPO || 'Visita') + ' programada: rellénala';
   const segTipo = FORM.modo === 'nuevo' ? `<div class="seg" style="margin-top:10px;">${['VISITA','LLAMADA'].map(x =>
     `<button class="${x === t ? 'on' : ''}" onclick="cambiarTipo('${x}')">${{VISITA:'Visita', LLAMADA:'Llamada'}[x]}</button>`).join('')}</div>` : '';
   const chipsTemas = `<div class="chips" id="f-temas">${O.temas.map(x => `<button type="button" class="chip ${temas.includes(x) ? 'on' : ''}" onclick="this.classList.toggle('on')">${esc(x)}</button>`).join('')}</div>`;
-  const ayuda = t === 'VISITA' && !cerrada
-    ? '<div class="aviso info">Puedes ir guardando la visita (por ejemplo, al entrar, con la hora de entrada) y completarla después. Cuando esté todo, pulsa «Cerrar visita». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '';
+  const ayuda = (r.MOTIVO ? `<div class="aviso info">Objetivo previsto: ${esc(r.MOTIVO)}</div>` : '') + (t === 'VISITA' && !cerrada
+    ? '<div class="aviso info">Puedes ir guardando la visita (por ejemplo, al entrar, con la hora de entrada) y completarla después. Cuando esté todo, pulsa «Cerrar visita». Los campos con <span style="color:#fca5a5">*</span> son necesarios para cerrarla.</div>' : '');
   let html = segTipo + ayuda + `
     <label>Cliente${obligatorio('CLIENTE')}</label>
     <div class="campo-cliente" onclick="cambiarClienteForm()"><span id="f-cliente" class="${FORM.cliente ? '' : 'vacio'}">${FORM.cliente ? esc(FORM.cliente.nombre) : 'Elegir cliente...'}</span><span class="t-small">cambiar</span></div>
@@ -1176,12 +1219,12 @@ async function verActividad(id) {
   document.getElementById('d-titulo').textContent = {VISITA:'Visita', LLAMADA:'Llamada', PRECIO:'Precio dado'}[r.TIPO] || 'Actividad';
   const filas = r.TIPO === 'PRECIO'
     ? [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE], ['Fecha', fechaLarga(r.FECHA)], ['Referencia', r.PRODUCTOS], ['Artículo', r.DESCRIPCION],
-       ['Precio dado', eur(r.IMPORTE)], ['Nota', r.OBSERVACIONES]]
+       ['Precio dado', eur(r.IMPORTE)], ['Nota', r.OBSERVACIONES], ['Seguimiento', ESTADOS_PRECIO_TXT[r.ESTADO_OPERACION] || 'Pendiente de respuesta']]
     : [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE + (r.COD_CLIENTE ? ` (${r.COD_CLIENTE})` : ' · no está en Pirineos')],
     ['Fecha', fechaLarga(r.FECHA)], ['Horario', r.HORA_INICIO ? `${r.HORA_INICIO}${r.HORA_FIN ? ' – ' + r.HORA_FIN : ' – (falta la salida)'}` : ''],
-    ['Duración', dur(r.DURACION_MIN)], ['Tipo', r.SUBTIPO], ['Contacto', r.CONTACTO], ['Temas', r.TEMAS], ['Qué se ha hablado', r.DESCRIPCION],
+    ['Duración', dur(r.DURACION_MIN)], ['Tipo', r.SUBTIPO], ['Objetivo', r.MOTIVO], ['Contacto', r.CONTACTO], ['Temas', r.TEMAS], ['Qué se ha hablado', r.DESCRIPCION],
     ['Resultado', r.RESULTADO], ['Próxima acción', r.PROXIMA_ACCION], ['Seguimiento', r.FECHA_SEGUIMIENTO ? fechaCorta(r.FECHA_SEGUIMIENTO) + (r.SEGUIMIENTO_HECHO === 'SI' ? ' (hecho)' : '') : ''],
-    ['Observaciones', r.OBSERVACIONES], ['Estado', r.ESTADO === 'REGISTRADA' ? (r.TIPO === 'VISITA' ? 'Cerrada' : 'Registrada') : r.ESTADO === 'SIN TERMINAR' ? 'Sin terminar' : r.ESTADO]];
+    ['Observaciones', r.OBSERVACIONES], ['Estado', r.ESTADO === 'REGISTRADA' ? (r.TIPO === 'VISITA' ? 'Cerrada' : 'Registrada') : r.ESTADO === 'SIN TERMINAR' ? 'Sin terminar' : r.ESTADO === 'PROGRAMADA' ? 'Programada (aún no hecha)' : r.ESTADO]];
   const ubic = [];
   const hist = d.historial.map(h => `<div class="hist">${esc(h.FECHA_CAMBIO)} · ${esc(h.USUARIO)} · ${esc(h.ACCION)}${h.CAMPO ? `: ${esc(h.CAMPO)} «${esc(h.VALOR_ANTERIOR)}» → «${esc(h.VALOR_NUEVO)}»` : ''}</div>`).join('');
   document.getElementById('d-cuerpo').innerHTML = `<div class="card" style="margin-top:10px;">${filas.filter(f => f[1]).map(f => `<div class="dato"><span>${f[0]}</span><span>${esc(f[1])}</span></div>`).join('')}
@@ -1191,7 +1234,9 @@ async function verActividad(id) {
     <h3>Historial de cambios</h3>${hist || '<div class="t-small">Sin cambios.</div>'}`;
   const pie = document.getElementById('d-pie');
   window._detalle = r;
-  pie.innerHTML = d.puede_editar && r.ESTADO !== 'ANULADA'
+  pie.innerHTML = d.puede_editar && r.ESTADO === 'PROGRAMADA'
+    ? `<button class="btn btn-ghost" onclick="cerrarHoja('sh-detalle'); cancelarProgramada('${esc(r.ID)}')">Cancelar</button><button class="btn btn-ghost" onclick="cerrarHoja('sh-detalle'); moverProgramada('${esc(r.ID)}')">Cambiar día</button><button class="btn btn-primary" onclick="cerrarHoja('sh-detalle'); confirmarProgramada('${esc(r.ID)}')">Hecha</button>`
+    : d.puede_editar && r.ESTADO !== 'ANULADA'
     ? `<button class="btn btn-danger" onclick="anularActividad()">Anular</button>${r.TIPO === 'PRECIO' ? '' : `<button class="btn btn-primary" onclick="editarActividad(window._detalle)">${r.ESTADO === 'SIN TERMINAR' ? 'Completar' : 'Editar'}</button>`}`
     : `<button class="btn btn-ghost" onclick="cerrarHoja('sh-detalle')">Cerrar</button>`;
   abrirHoja('sh-detalle');
@@ -1211,16 +1256,18 @@ function pedirTexto(mensaje, opts = {}) {
     const ov = document.createElement('div');
     ov.id = 'app-modal-overlay'; ov.className = 'show';
     const desplegable = (opts.opciones ? `<select id="pt-sel" style="margin-top:12px; ${opts.sinTexto ? 'margin-bottom:16px;' : ''}">${opts.opciones.map(o => `<option ${o === opts.valor ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : '') +
-      (opts.numero ? `<input id="pt-num" inputmode="decimal" style="margin-top:12px; font-size:1.2rem; font-weight:700;" placeholder="Precio (€)" value="${esc(opts.valorNumero || '')}">` : '');
+      (opts.numero ? `<input id="pt-num" inputmode="decimal" style="margin-top:12px; font-size:1.2rem; font-weight:700;" placeholder="Precio (€)" value="${esc(opts.valorNumero || '')}">` : '') +
+      (opts.fecha ? `<div class="grid2" style="margin-top:12px;"><input type="date" id="pt-fecha" value="${esc(opts.valorFecha || '')}"><input type="time" id="pt-hora" value="${esc(opts.valorHora || '')}" ${opts.sinHora ? 'style="display:none"' : ''}></div>` : '');
     ov.innerHTML = `<div class="app-modal-card"><div class="app-modal-msg" style="white-space:pre-wrap">${esc(mensaje)}</div>${desplegable}
       <textarea id="pt-txt" style="margin:12px 0; min-height:70px; ${opts.sinTexto ? 'display:none;' : ''}" placeholder="${esc(opts.placeholder || (opts.opciones ? 'Nota (opcional)' : ''))}">${esc(opts.texto || '')}</textarea>
       <div class="app-modal-actions"><button type="button" class="app-modal-btn-secondary" id="pt-no">Cancelar</button><button type="button" class="app-modal-btn-primary" id="pt-si">Aceptar</button></div></div>`;
     document.body.appendChild(ov);
     const fin = v => { ov.remove(); resolve(v); };
-    const estructurado = opts.opciones || opts.numero || opts.estructurado;
+    const estructurado = opts.opciones || opts.numero || opts.estructurado || opts.fecha;
     ov.querySelector('#pt-no').onclick = () => fin(estructurado ? null : '');
     ov.querySelector('#pt-si').onclick = () => fin(estructurado
       ? {opcion: opts.opciones ? ov.querySelector('#pt-sel').value : '', numero: opts.numero ? ov.querySelector('#pt-num').value.trim() : '',
+         fecha: opts.fecha ? ov.querySelector('#pt-fecha').value : '', hora: opts.fecha ? ov.querySelector('#pt-hora').value : '',
          texto: ov.querySelector('#pt-txt').value.trim()}
       : ov.querySelector('#pt-txt').value.trim());
     setTimeout(() => (ov.querySelector('#pt-num') || ov.querySelector('#pt-txt')).focus(), 50);
@@ -1441,13 +1488,13 @@ const FORM_ABIERTO = 'Hay una visita o llamada abierta en pantalla. Guárdala (g
 
 function definirAccionesRobot() {
   const O = YO.opciones, obj = (props, req = []) => ({type: 'object', properties: props, required: req, additionalProperties: false});
-  const VISTAS_NAV = ['hoy', 'clientes', 'precios', 'agenda', 'ruta'];
+  const VISTAS_NAV = ['hoy', 'clientes', 'precios', 'agenda', 'ruta', 'seguimiento'];
   const PESTANAS = TAB_FICHA;
   window.sugrafBotAcciones = {
     ir_a: {
-      descripcion: 'Cambia de pantalla: hoy (visitas sin terminar, actividad y seguimientos), clientes (control de visitas), precios, agenda o ruta.',
+      descripcion: 'Cambia de pantalla: hoy (programadas, visitas sin terminar, actividad y seguimientos), clientes (control de visitas), precios, agenda (semana para planificar), ruta o seguimiento (precios dados y ofertas abiertas).',
       parametros: obj({vista: {type: 'string', enum: VISTAS_NAV}}, ['vista']),
-      etiqueta: a => `Abriendo ${{hoy: 'Hoy', clientes: 'Clientes', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta'}[a.vista] || a.vista}`,
+      etiqueta: a => `Abriendo ${{hoy: 'Hoy', clientes: 'Clientes', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta', seguimiento: 'Seguimiento'}[a.vista] || a.vista}`,
       ejecutar: async a => {
         if (!VISTAS_NAV.includes(a.vista)) return {ok: false, error: 'Pantalla desconocida.'};
         if (estadoFormularioRobot()) return {ok: false, error: FORM_ABIERTO};
@@ -1640,6 +1687,23 @@ function definirAccionesRobot() {
         return {ok: true, mensaje: `Apuntado: ${art.descripcion} a ${a.precio} € para ${precioCliente.nombre}.` + (r.correo === false ? ' (El aviso por correo no se ha podido enviar.)' : ' Se ha avisado por correo a Lucía y Carolina.')};
       },
     },
+    programar_visita: {
+      descripcion: 'Programa una visita, reunión o llamada para un día (planificar la semana). No cuenta como hecha hasta que se confirma. Solo si el usuario lo pide.',
+      parametros: obj({codigo_cliente: {type: 'string'}, nombre_cliente: {type: 'string', description: 'Si no está en Pirineos'},
+        fecha: {type: 'string', description: 'AAAA-MM-DD'}, hora: {type: 'string', description: 'HH:MM (opcional)'},
+        tipo: {type: 'string', enum: ['VISITA', 'REUNION', 'LLAMADA']}, objetivo: {type: 'string'}}, ['fecha']),
+      etiqueta: a => `Programando ${String(a.tipo || 'visita').toLowerCase()} el ${fechaCorta(a.fecha)}`,
+      ejecutar: async a => {
+        const c = await clienteRobot(a.codigo_cliente, a.nombre_cliente) || (FICHA && vistaActualRobot() === 'ficha' ? clienteFicha() : null);
+        if (!c) return {ok: false, error: 'Indica el cliente (codigo_cliente).'};
+        try {
+          await api('/programar', {method: 'POST', body: JSON.stringify({cod_cliente: c.codigo, cliente: c.nombre, poblacion: c.poblacion || '',
+            fecha: a.fecha, hora: a.hora || '', tipo: a.tipo || 'VISITA', objetivo: a.objetivo || ''})});
+        } catch (e) { return {ok: false, error: e.message}; }
+        if (['hoy', 'agenda'].includes(vistaActualRobot())) mostrarVista();
+        return {ok: true, mensaje: `Programado con ${c.nombre} el ${a.fecha}${a.hora ? ' a las ' + a.hora : ''}.`};
+      },
+    },
     apuntar_incidencia: {
       descripcion: 'Apunta una incidencia en el cliente abierto en la ficha (problema de pago, SAT no resuelto o no pagado, queja...). Solo si el usuario lo pide.',
       parametros: obj({tipo: {type: 'string', enum: Object.keys(TIPOS_INC)}, detalle: {type: 'string'}}, ['tipo', 'detalle']),
@@ -1696,6 +1760,166 @@ function definirAccionesRobot() {
 }
 function vistaActualRobot() { return (location.hash || '#hoy').slice(1).split('/')[0] || 'hoy'; }
 
+// ===================================================================== VISITAS PROGRAMADAS
+// Se programan para preparar la semana; el día que toca se confirman («Hecha» abre la visita para
+// poner las horas reales y lo hablado), se cambian de día o se cancelan.
+async function programarVisita(cliente, fecha) {
+  const c = cliente || await new Promise(res => elegirCliente(res));
+  if (!c) return;
+  const manana = isoDe(new Date(Date.now() + 864e5));
+  const r = await pedirTexto(`Programar con ${c.nombre}\nTipo, día, hora (opcional) y objetivo:`,
+    {opciones: ['Visita', 'Reunión', 'Llamada'], fecha: true, valorFecha: fecha && fecha >= hoyISO() ? fecha : manana, texto: '', placeholder: 'Objetivo (opcional): presentar producto, cerrar oferta...'});
+  if (!r) return;
+  if (!r.fecha) { await appAlert('Elige el día.', {type: 'error'}); return; }
+  const tipo = {Visita: 'VISITA', 'Reunión': 'REUNION', Llamada: 'LLAMADA'}[r.opcion] || 'VISITA';
+  const ok = await conCarga(() => api('/programar', {method: 'POST', body: JSON.stringify({cod_cliente: c.codigo, cliente: c.nombre, poblacion: c.poblacion || '',
+    fecha: r.fecha, hora: r.hora, tipo, objetivo: r.texto})}));
+  if (ok) { await appAlert(`Programada para el ${fechaLarga(r.fecha)}${r.hora ? ' a las ' + r.hora : ''}. La verás en Agenda y ese día en Hoy.`, {type: 'success'}); mostrarVista(); }
+}
+async function confirmarProgramada(id) {
+  const d = await conCarga(() => api('/actividad/' + encodeURIComponent(id)));
+  if (!d) return;
+  const r = {...d.registro};
+  if (r.FECHA > hoyISO()) r.FECHA = hoyISO();          // se hace hoy aunque estuviera para otro día
+  if (r.FECHA < hoyISO() && !(await appConfirm(`Estaba programada para el ${fechaLarga(r.FECHA)}. ¿La hiciste ese día? (Si fue hoy, pulsa «Fue hoy»)`, {okText: 'Ese día', cancelText: 'Fue hoy'}))) r.FECHA = hoyISO();
+  completarVisita(r);
+}
+async function moverProgramada(id) {
+  const d = await conCarga(() => api('/actividad/' + encodeURIComponent(id)));
+  if (!d) return;
+  const r = await pedirTexto(`Cambiar el día de ${d.registro.SUBTIPO || 'la visita'} con ${d.registro.CLIENTE}`,
+    {fecha: true, valorFecha: d.registro.FECHA >= hoyISO() ? d.registro.FECHA : hoyISO(), valorHora: d.registro.HORA_INICIO, texto: d.registro.MOTIVO, placeholder: 'Objetivo (opcional)'});
+  if (!r || !r.fecha) return;
+  const ok = await conCarga(() => api('/programadas/' + encodeURIComponent(id), {method: 'PUT', body: JSON.stringify({fecha: r.fecha, hora: r.hora, objetivo: r.texto})}));
+  if (ok) mostrarVista();
+}
+async function cancelarProgramada(id) {
+  const motivo = await pedirTexto('¿Por qué se cancela? (opcional)', {estructurado: true, texto: '', placeholder: 'Ej.: el cliente no puede, se hará por teléfono...'});
+  if (!motivo) return;
+  const ok = await conCarga(() => api(`/programadas/${encodeURIComponent(id)}/cancelar`, {method: 'POST', body: JSON.stringify({motivo: motivo.texto})}));
+  if (ok) mostrarVista();
+}
+function pintarProgramadasHoy(lista, hoy) {
+  const deHoy = lista.filter(r => r.FECHA === hoy), atrasadas = lista.filter(r => r.FECHA < hoy);
+  const prox = lista.filter(r => r.FECHA > hoy && r.FECHA <= isoDe(new Date(Date.now() + 6 * 864e5)));
+  const tarjeta = r => `<div class="card borde-azul">
+      <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(r.CLIENTE)}</span><span class="badge prog">${esc(r.SUBTIPO || 'Visita')}${r.HORA_INICIO ? ' · ' + esc(r.HORA_INICIO) : ''}</span></div>
+      <div class="t-small">${r.FECHA !== hoy ? fechaLarga(r.FECHA) : 'Hoy'}${YO.permisos.ver_todos ? ' · ' + esc(r.COMERCIAL) : ''}${r.MOTIVO ? ' · ' + esc(r.MOTIVO) : ''}</div>
+      ${puedeEditar(r) ? `<div class="row wrap" style="gap:6px; margin-top:10px;">
+        <button class="btn btn-primary btn-sm" onclick="confirmarProgramada('${esc(r.ID)}')">&#10003; Hecha</button>
+        <button class="btn btn-ghost btn-sm" onclick="moverProgramada('${esc(r.ID)}')">Cambiar día</button>
+        <button class="btn btn-ghost btn-sm" onclick="cancelarProgramada('${esc(r.ID)}')">Cancelar</button>
+        ${r.COD_CLIENTE ? `<button class="btn btn-ghost btn-sm" onclick="abrirFicha('${esc(r.COD_CLIENTE)}')">Preparar</button>` : ''}</div>` : ''}</div>`;
+  document.getElementById('hoy-programadas').innerHTML =
+    (atrasadas.length ? seccion('Programadas sin confirmar', '<div class="t-small" style="margin:-4px 2px 8px;">¿Se hicieron? Confírmalas o cámbialas de día.</div>' + atrasadas.map(tarjeta).join(''), atrasadas.length) : '') +
+    seccion('Programado para hoy', deHoy.length ? deHoy.map(tarjeta).join('') : '<div class="empty" style="padding:10px;">Nada programado para hoy. <a style="color:var(--accent)" onclick="programarVisita()">Programar</a></div>', deHoy.length) +
+    (prox.length ? `<div class="card click" onclick="modoAgenda('semana'); irA('agenda')"><div class="row between"><span class="t-strong">Próximos días</span><span class="t-small">ver semana &rsaquo;</span></div>
+      <div class="t-small">${prox.slice(0, 4).map(r => `${fechaCorta(r.FECHA)} ${esc(r.CLIENTE)}`).join(' · ')}${prox.length > 4 ? ` y ${prox.length - 4} más` : ''}</div></div>` : '');
+}
+
+// ===================================================================== SEGUIMIENTO (precios dados y ofertas)
+const ESTADOS_PRECIO_TXT = {'': 'Pendiente de respuesta', PENDIENTE: 'Pendiente de respuesta', ACEPTADO: 'Aceptado (pendiente de pedido)', COMPRADO: 'Ha comprado', NO_INTERESA: 'No le interesa'};
+let SEG = null, tabSegActual = 'precios', filtroSeg = 'pendientes';
+function tabSeg(t) { tabSegActual = t; filtroSeg = t === 'precios' ? 'pendientes' : 'abiertas';
+  ['precios', 'ofertas'].forEach(x => document.getElementById('seg-t-' + x).classList.toggle('on', x === t)); pintarSeguimiento(); }
+async function cargarSeguimiento() {
+  const cont = document.getElementById('seg-lista');
+  if (!SEG) {
+    cont.innerHTML = '<div class="empty">Cargando...</div>';
+    const com = filtroComercial('seg-comercial');
+    try { SEG = await api('/seguimiento' + (com ? '?comercial=' + encodeURIComponent(com) : '')); }
+    catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
+  }
+  pintarSeguimiento();
+}
+function pintarSeguimiento() {
+  if (!SEG) return;
+  const filtros = tabSegActual === 'precios'
+    ? [['pendientes', 'Pendientes'], ['comprados', 'Han comprado'], ['todos', 'Todos']]
+    : [['abiertas', 'Abiertas'], ['mias', 'De mis clientes'], ['cerradas', 'Ganadas / perdidas'], ['todas', 'Todas']];
+  document.getElementById('seg-filtros').innerHTML = filtros.map(([k, t]) => `<button class="chip ${filtroSeg === k ? 'on' : ''}" onclick="filtroSeg='${k}'; pintarSeguimiento()">${t}</button>`).join('');
+  const cont = document.getElementById('seg-lista');
+  if (tabSegActual === 'precios') {
+    let l = SEG.precios;
+    if (filtroSeg === 'pendientes') l = l.filter(p => p.estado_precio === 'PENDIENTE' || p.estado_precio === 'ACEPTADO');
+    if (filtroSeg === 'comprados') l = l.filter(p => p.estado_precio === 'COMPRADO');
+    cont.innerHTML = l.length ? l.slice(0, 150).map(htmlPrecioSeg).join('') : '<div class="empty">No hay precios dados con este filtro.</div>';
+  } else {
+    let l = SEG.ofertas;
+    if (filtroSeg === 'abiertas') l = l.filter(o => o.estado === 'ABIERTA');
+    if (filtroSeg === 'mias') l = l.filter(o => o.mio);
+    if (filtroSeg === 'cerradas') l = l.filter(o => o.estado !== 'ABIERTA');
+    cont.innerHTML = (SEG.avisos_ofertas || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('') +
+      (l.length ? l.slice(0, 150).map(htmlOfertaSeg).join('') : '<div class="empty">No hay ofertas con este filtro.</div>');
+  }
+}
+function htmlPrecioSeg(p) {
+  const est = p.estado_precio, color = {PENDIENTE: 'ambar', ACEPTADO: 'azul', COMPRADO: 'verde', NO_INTERESA: 'gris'}[est];
+  const badge = {PENDIENTE: 'warn', ACEPTADO: 'prog', COMPRADO: 'ok', NO_INTERESA: ''}[est];
+  const c = p.compra_pirineos;
+  return `<div class="card borde-${color}">
+    <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(p.CLIENTE)}</span><span class="badge ${badge}">${esc(ESTADOS_PRECIO_TXT[est])}</span></div>
+    <div class="t-txt">${esc(p.DESCRIPCION || '')} <span class="t-small">ref. ${esc(p.PRODUCTOS)}</span></div>
+    <div class="t-small" style="margin-top:4px;">Precio dado <b style="color:#fff">${eur(p.IMPORTE)}</b> · ${fechaCorta(p.FECHA)} (hace ${p.dias} días)${YO.permisos.ver_todos ? ' · ' + esc(p.COMERCIAL) : ''}</div>
+    ${c ? `<div class="t-small" style="margin-top:4px; color:#86efac;">Comprado el ${fechaCorta(c.fecha)} a ${eur(c.precio)} (${Number(c.cantidad).toLocaleString('es-ES')} uds., según Pirineos)</div>` : ''}
+    ${p.OBSERVACIONES ? `<div class="t-small" style="margin-top:4px;">${esc(p.OBSERVACIONES)}</div>` : ''}
+    ${!c && est !== 'COMPRADO' && est !== 'NO_INTERESA' && p.FECHA_SEGUIMIENTO ? `<div class="t-small" style="margin-top:4px;">Volver a preguntar: ${fechaCorta(p.FECHA_SEGUIMIENTO)}</div>` : ''}
+    ${!c && puedeEditar(p) ? `<div class="row wrap" style="gap:6px; margin-top:10px;">
+      ${est !== 'COMPRADO' ? `<button class="btn btn-primary btn-sm" onclick="estadoPrecio('${esc(p.ID)}','COMPRADO')">Ha comprado</button>` : ''}
+      ${est === 'PENDIENTE' ? `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','ACEPTADO')">Aceptado</button>` : ''}
+      ${est !== 'NO_INTERESA' ? `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','NO_INTERESA')">No le interesa</button>` : ''}
+      ${est === 'PENDIENTE' || est === 'ACEPTADO' ? `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','${est}', true)">Preguntar otro día</button>` : `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','PENDIENTE')">Reabrir</button>`}
+    </div>` : ''}</div>`;
+}
+async function estadoPrecio(id, estado, otroDia = false) {
+  const r = await pedirTexto(otroDia ? '¿Cuándo vuelves a preguntar?' : `${ESTADOS_PRECIO_TXT[estado]}. Nota (opcional):`,
+    otroDia ? {fecha: true, sinHora: true, valorFecha: isoDe(new Date(Date.now() + 7 * 864e5)), texto: '', placeholder: 'Nota (opcional)'}
+            : {estructurado: true, texto: '', placeholder: estado === 'NO_INTERESA' ? 'Motivo: precio, ya tiene proveedor...' : 'Opcional'});
+  if (!r) return;
+  const ok = await conCarga(() => api(`/precios_dados/${encodeURIComponent(id)}/estado`, {method: 'POST', body: JSON.stringify({estado, nota: r.texto, fecha_seguimiento: r.fecha || ''})}));
+  if (ok) { SEG = null; cargarSeguimiento(); }
+}
+function htmlOfertaSeg(o) {
+  const color = {ABIERTA: o.dias > SEG.validez_dias ? 'rojo' : 'ambar', GANADA: 'verde', PERDIDA: 'gris'}[o.estado];
+  const sg = o.seguimiento || {};
+  const caducada = o.estado === 'ABIERTA' && o.dias > SEG.validez_dias;
+  return `<div class="card borde-${color}">
+    <div class="row between" style="align-items:flex-start;"><span class="t-strong">${o.codigo ? `<a style="color:#fff" onclick="abrirFicha('${esc(o.codigo)}')">${esc(o.cliente)}</a>` : esc(o.cliente)}</span>
+      <span class="badge ${o.estado === 'GANADA' ? 'ok' : o.estado === 'PERDIDA' ? '' : caducada ? 'bad' : 'warn'}">${o.estado === 'ABIERTA' ? (caducada ? 'Abierta · caducada' : 'Abierta') : o.estado === 'GANADA' ? 'Ganada' : 'Perdida'}</span></div>
+    <div class="t-small">${esc(o.tipo)}${o.categoria ? ' · ' + esc(o.categoria) : ''} · Oferta ${esc(o.numero)} del ${fechaCorta(o.fecha)} (hace ${o.dias} días)${o.comercial ? ' · ' + esc(o.comercial) : o.codigo ? '' : ' · cliente no identificado en Pirineos'}</div>
+    ${o.lineas.slice(0, 4).map(l => `<div class="t-small" style="color:#fff; margin-top:3px;">• ${esc(l.texto)}${l.precio ? ' — ' + eur(l.precio) + (l.unidad ? ' ' + esc(l.unidad.replace('€', '')) : '') : ''}</div>`).join('')}
+    ${o.lineas.length > 4 ? `<div class="t-small">y ${o.lineas.length - 4} productos más</div>` : ''}
+    ${sg.nota || sg.proximo ? `<div class="t-small" style="margin-top:6px;">${sg.nota ? esc(sg.nota) : ''}${sg.proximo ? ` · próximo seguimiento ${fechaCorta(sg.proximo)}` : ''} <span style="opacity:.7">(${esc(sg.por || '')})</span></div>` : ''}
+    <div class="row wrap" style="gap:6px; margin-top:10px;">
+      ${o.estado === 'ABIERTA' ? `<button class="btn btn-primary btn-sm" onclick="seguirOferta('${esc(o.id)}','GANADA')">Ganada</button>
+        <button class="btn btn-ghost btn-sm" onclick="seguirOferta('${esc(o.id)}','PERDIDA')">Perdida</button>
+        <button class="btn btn-ghost btn-sm" onclick="seguirOferta('${esc(o.id)}','ABIERTA', true)">Nota / próximo seguimiento</button>`
+        : `<button class="btn btn-ghost btn-sm" onclick="seguirOferta('${esc(o.id)}','ABIERTA')">Reabrir</button>`}
+      ${o.codigo ? `<button class="btn btn-ghost btn-sm" onclick="programarVisita({codigo:'${esc(o.codigo)}', nombre:${esc(JSON.stringify(o.cliente))}, poblacion:''})">Programar visita</button>` : ''}
+    </div></div>`;
+}
+async function seguirOferta(id, estado, conFecha = false) {
+  const o = SEG.ofertas.find(x => x.id === id), sg = (o && o.seguimiento) || {};
+  const r = await pedirTexto(conFecha ? 'Nota y fecha del próximo seguimiento:' : `Marcar como ${estado === 'GANADA' ? 'GANADA' : estado === 'PERDIDA' ? 'PERDIDA' : 'abierta'}. Nota (opcional):`,
+    conFecha ? {fecha: true, sinHora: true, valorFecha: sg.proximo || isoDe(new Date(Date.now() + 7 * 864e5)), texto: sg.nota || '', placeholder: 'Qué ha dicho, qué falta...'}
+             : {estructurado: true, texto: '', placeholder: estado === 'PERDIDA' ? 'Motivo: precio, competencia, lo ha aplazado...' : 'Opcional'});
+  if (!r) return;
+  const ok = await conCarga(() => api(`/ofertas/${encodeURIComponent(id)}/seguimiento`, {method: 'POST', body: JSON.stringify({estado, nota: r.texto, proximo: r.fecha || ''})}));
+  if (ok) { SEG = null; cargarSeguimiento(); }
+}
+async function cargarSeguimientoHoy(com) {
+  const el = document.getElementById('hoy-seguimiento');
+  try {
+    SEG = await api('/seguimiento' + (com ? '?comercial=' + encodeURIComponent(com) : ''));
+    const pend = SEG.precios.filter(p => p.estado_precio === 'PENDIENTE' || p.estado_precio === 'ACEPTADO');
+    const ofs = SEG.ofertas.filter(o => o.estado === 'ABIERTA' && (YO.permisos.ver_todos || o.mio));
+    const revisar = ofs.filter(o => (o.seguimiento || {}).proximo && o.seguimiento.proximo <= hoyISO()).length;
+    el.innerHTML = (pend.length || ofs.length) ? `<div class="card click borde-ambar" style="margin-top:14px;" onclick="irA('seguimiento')">
+      <div class="row between"><span class="t-strong">Seguimiento de precios y ofertas</span><span class="t-small">ver &rsaquo;</span></div>
+      <div class="t-small">${pend.length} precio${pend.length === 1 ? '' : 's'} dado${pend.length === 1 ? '' : 's'} sin respuesta · ${ofs.length} oferta${ofs.length === 1 ? '' : 's'} abierta${ofs.length === 1 ? '' : 's'}${YO.permisos.ver_todos ? '' : ' de tus clientes'}${revisar ? ` · <b style="color:#fde68a">${revisar} para revisar hoy</b>` : ''}</div></div>` : '';
+  } catch (e) { el.innerHTML = ''; }
+}
+
 // ===================================================================== AGENDA
 let modoAg = 'semana', tiposAg = new Set(['VISITA','LLAMADA']);
 function modoAgenda(m) { modoAg = m; ['dia','semana','mes'].forEach(x => document.getElementById('ag-' + x).classList.toggle('on', x === m)); cargarAgenda(); }
@@ -1743,12 +1967,20 @@ async function cargarAgenda() {
         <div class="t-small">Horario = primera entrada y última salida del día. Media = tiempo medio por visita.</div>`;
     }
   } catch (e) {}
-  if (!regs.length) { cont.innerHTML = html + '<div class="empty">Sin actividad registrada.</div>'; return; }
+  if (!regs.length && modoAg !== 'semana') { cont.innerHTML = html + '<div class="empty">Sin actividad registrada.</div>'; return; }
   html += '<h3>Detalle</h3>';
   if (modoAg === 'dia') {
     html += '<h3>Cronología</h3>' + regs.map(r => `<div class="timeline-item"><div class="timeline-hora">${esc(r.HORA_INICIO || '—')}<small>${esc(r.HORA_FIN || '')}</small></div>${itemActividad(r)}</div>`).join('');
   } else {
     const porDia = {}; regs.forEach(r => (porDia[r.FECHA] = porDia[r.FECHA] || []).push(r));
+    if (modoAg === 'semana') {
+      // Planificación de la semana: cada día con lo hecho y lo programado, y «+» para programar ese día.
+      const dias = []; for (let f = new Date(desde + 'T12:00'); isoDe(f) <= hasta; f.setDate(f.getDate() + 1)) dias.push(isoDe(f));
+      cont.innerHTML = html.replace('<h3>Detalle</h3>', '') + dias.map(f => `<div class="dia-plan ${f === hoyISO() ? 'hoy' : ''}"><span class="t-strong">${esc(fechaLarga(f))}</span>
+        ${f >= hoyISO() ? `<button class="btn btn-ghost btn-sm" onclick="programarVisita(null, '${f}')">+ Programar</button>` : ''}</div>` +
+        ((porDia[f] || []).map(itemActividad).join('') || '<div class="t-small" style="padding:0 2px 6px;">Nada.</div>')).join('');
+      return;
+    }
     html += Object.keys(porDia).sort().map(f => {
       const lista = porDia[f]; const mins = lista.filter(r => r.TIPO === 'VISITA').reduce((s, r) => s + (+r.DURACION_MIN || 0), 0);
       return `<div class="dia-cab"><span style="text-transform:capitalize;">${esc(fechaLarga(f))}</span><span class="t-small">${lista.length} act.${mins ? ' · ' + dur(mins) + ' en visitas' : ''}</span></div>` + lista.map(itemActividad).join('');

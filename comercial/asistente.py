@@ -43,6 +43,7 @@ Cómo trabajar:
 - Para preparar una visita usa ficha_cliente: resume en pocas líneas lo importante (último contacto y lo que quedó pendiente, avisos del SAT abiertos, pedidos pendientes, productos que está dejando de comprar, sugerencias con su motivo, máquinas a renovar) y termina con 2-3 temas concretos para sacar en la visita.
 - Precios: distingue precio de tarifa, precio especial vigente y precio histórico facturado. Nunca nombres la tarifa (1, 2, 3) delante del cliente salvo que el usuario lo pida expresamente. Costes y márgenes solo si las herramientas los devuelven (solo Master); son estimaciones con el último coste de compra, no margen neto.
 - «Dejando de comprar», «dormido» y las sugerencias son estimaciones a partir del histórico de ventas cargado (año actual y dos anteriores): preséntalas como indicios, con su motivo, no como hechos.
+- Visitas programadas (estado PROGRAMADA en actividad) son planes, no visitas hechas. Precios dados: hay que seguirlos hasta saber si compra.
 - Si la ficha trae incidencias abiertas (problemas de pago, SAT no resuelto o no pagado, quejas), avisos del SAT abiertos o el cliente está marcado «No visitar», dilo SIEMPRE al principio al hablar de ese cliente o preparar la visita.
 - Un mismo cliente puede tener varios códigos en Pirineos (departamentos, código antiguo y nuevo...): la app ya los trata como uno solo (suma compras, visitas y precios dados). Si una herramienta devuelve otros_codigos, menciónalo cuando ayude.
 - Frecuencia de visita: la fija Master o se propone según lo que compra el cliente; «toca visitar» y «visitado de más» salen de control_visitas.
@@ -75,6 +76,11 @@ def _herramientas(s):
          'parameters': {'type': 'object', 'properties': {
              'desde': {'type': 'string'}, 'hasta': {'type': 'string'}, 'cliente': {'type': 'string', 'description': 'Código de cliente'},
              'comercial': {'type': 'string', 'description': 'Solo Master'}, 'tipo': {'type': 'string', 'enum': ['VISITA', 'LLAMADA', 'PRECIO']}}}},
+        {'type': 'function', 'name': 'seguimiento_ofertas', 'strict': False,
+         'description': 'Precios dados (con su estado: pendiente, aceptado, ha comprado -lo detecta en Pirineos-, no le interesa) y '
+                        'ofertas de maquinaria y consumibles preparadas en la oficina, con su seguimiento (abierta, ganada, perdida).',
+         'parameters': {'type': 'object', 'properties': {'solo_pendientes': {'type': 'boolean'},
+                                                         'comercial': {'type': 'string', 'description': 'Solo Master'}}}},
         {'type': 'function', 'name': 'control_visitas', 'strict': False,
          'description': 'Clientes de la cartera con su frecuencia de visita, última visita y estado: toca visitar, pronto, visitado de más o al día.',
          'parameters': {'type': 'object', 'properties': {'comercial': {'type': 'string', 'description': 'Solo Master'},
@@ -208,6 +214,13 @@ def _ejecutar(s, nombre, args):
         lista = api.candidatos_ruta(s, origen, float(args.get('radio_km') or 25))
         return {'total': len(lista), 'clientes': [{k: x[k] for k in ('codigo', 'nombre', 'poblacion', 'km', 'motivos', 'compras_12m')}
                                                  for x in lista[:25]]}
+    if nombre == 'seguimiento_ofertas':
+        d = api.seguimiento_comercial(s, args.get('comercial', '') if s.puede('ver_todos') else '')
+        precios = [{k: p[k] for k in ('FECHA', 'COMERCIAL', 'CLIENTE', 'PRODUCTOS', 'DESCRIPCION', 'IMPORTE', 'estado_precio', 'compra_pirineos', 'dias')}
+                   for p in d['precios'] if not args.get('solo_pendientes') or p['estado_precio'] in ('PENDIENTE', 'ACEPTADO')][:40]
+        ofs = [{k: o[k] for k in ('id', 'tipo', 'numero', 'fecha', 'dias', 'cliente', 'codigo', 'lineas', 'estado', 'seguimiento', 'comercial')}
+               for o in d['ofertas'] if not args.get('solo_pendientes') or o['estado'] == 'ABIERTA'][:40]
+        return {'precios_dados': precios, 'ofertas': ofs, 'avisos': d['avisos_ofertas']}
     if nombre == 'control_visitas':
         lista = api.control_visitas(s, args.get('comercial', '') if s.puede('ver_todos') else '')
         if args.get('estado'):

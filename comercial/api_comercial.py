@@ -21,7 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-from comercial import actividad, analisis, control, geo, incidencias, pirineos, sat  # noqa: E402
+from comercial import actividad, analisis, control, geo, incidencias, notificaciones, ofertas, pirineos, sat  # noqa: E402
 from comercial.usuarios import (USUARIOS, Sesion, clave_por_nombre, comerciales, comprobar_clave,  # noqa: E402
                                 crear_token, normalizar, sesion_actual)
 
@@ -109,11 +109,14 @@ def pendientes(comercial: str = '', s: Sesion = Depends(sesion_actual)):
     try:
         registros = actividad.listar(_claves_visibles(s, comercial))
         sin_terminar = [r for r in registros if r['ESTADO'] == actividad.SIN_TERMINAR]
+        comprados = {p['ID'] for p in _con_seguimiento_precio([r for r in registros if r['TIPO'] == 'PRECIO']) if p['estado_precio'] != 'PENDIENTE'}
         seguimientos = sorted(
             (r for r in registros if r['ESTADO'] == actividad.REGISTRADA and r['FECHA_SEGUIMIENTO']
-             and r['SEGUIMIENTO_HECHO'] != 'SI'),
+             and r['SEGUIMIENTO_HECHO'] != 'SI' and r['ID'] not in comprados),
             key=lambda r: r['FECHA_SEGUIMIENTO'])
-        return {'sin_terminar': sin_terminar, 'seguimientos': seguimientos}
+        programadas = sorted((r for r in registros if r['ESTADO'] == actividad.PROGRAMADA),
+                             key=lambda r: (r['FECHA'], r['HORA_INICIO'] or '99:99'))
+        return {'sin_terminar': sin_terminar, 'seguimientos': seguimientos, 'programadas': programadas}
     except Exception as e:
         _error(e)
 
@@ -260,7 +263,10 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
         d, errores = actividad.validar({
             'TIPO': 'PRECIO', 'COD_CLIENTE': p.cod_cliente, 'CLIENTE': p.cliente, 'FECHA': momento.strftime('%Y-%m-%d'),
             'HORA_INICIO': momento.strftime('%H:%M'), 'PRODUCTOS': p.referencia, 'DESCRIPCION': p.descripcion,
-            'IMPORTE': f'{p.precio:.4f}'.rstrip('0').rstrip('.'), 'OBSERVACIONES': p.nota})
+            'IMPORTE': f'{p.precio:.4f}'.rstrip('0').rstrip('.'), 'OBSERVACIONES': p.nota,
+            # Recordatorio para saber si al final compra (sale en «Seguimientos pendientes» de Hoy).
+            'FECHA_SEGUIMIENTO': (momento + timedelta(days=DIAS_SEGUIMIENTO_PRECIO)).strftime('%Y-%m-%d'),
+            'PROXIMA_ACCION': f'¿Ha comprado {p.descripcion or p.referencia}? (precio dado {p.precio:.2f} €)'.replace('.', ',', 1)})
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
         anteriores = precios_dados(s, p.cod_cliente) if p.cod_cliente else []
@@ -280,9 +286,63 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
                                                                p.nota, momento.strftime('%d/%m/%Y %H:%M'), ap, antes)
         except Exception as e:
             correo_ok, correo_error = False, str(e)
+        # Aviso en la app de escritorio (campana y «!» en el módulo de ofertas) para preparar la oferta.
+        try:
+            art = pirineos.articulos().get(p.referencia) or {}
+            maquina = 'MAQUIN' in (art.get('grupo', '') + ' ' + art.get('familia', '')).upper()
+            notificaciones.crear('PRECIO_DADO', 'ofertas_maquinaria' if maquina else 'ofertas_consumibles',
+                                 f'Precio dado a {p.cliente}',
+                                 f"{s.nombre} ha dado precio a {p.cliente}: {p.descripcion or ''} (ref. {p.referencia}) a "
+                                 + f"{p.precio:.2f} €".replace('.', ',') + (f'. Nota: {p.nota}' if p.nota else '') + '. ¿Preparar oferta?',
+                                 {'cliente': p.cliente, 'codigo': p.cod_cliente, 'referencia': p.referencia, 'descripcion': p.descripcion,
+                                  'precio': p.precio, 'comercial': s.nombre, 'registro': registro['ID']}, momento)
+        except Exception:
+            pass
         return {'registro': registro, 'correo': correo_ok, 'correo_error': correo_error}
     except Exception as e:
         _error(e)
+
+
+DIAS_SEGUIMIENTO_PRECIO = 7
+ESTADOS_PRECIO = {'PENDIENTE': 'Pendiente de respuesta', 'ACEPTADO': 'Aceptado (pendiente de pedido)', 'COMPRADO': 'Ha comprado',
+                  'NO_INTERESA': 'No le interesa'}
+
+
+def _con_seguimiento_precio(regs):
+    """Añade a cada precio dado su estado: el que se haya marcado a mano o «Ha comprado» si en las ventas de
+    Pirineos aparece esa referencia facturada a ese cliente (cualquiera de sus códigos) desde ese día."""
+    try:
+        ventas, _ = pirineos.todas_las_ventas()
+    except Exception:
+        ventas = {}
+    salida = []
+    for r in regs:
+        r = dict(r)
+        compra = None
+        if r['COD_CLIENTE'] and r['PRODUCTOS']:
+            lineas = [l for l in ventas.get(r['COD_CLIENTE'], []) if l['referencia'] == r['PRODUCTOS'] and l['fecha'] >= r['FECHA']
+                      and l['cantidad'] > 0]
+            if lineas:
+                l = min(lineas, key=lambda x: x['fecha'])
+                compra = {'fecha': l['fecha'], 'precio': l['precio'], 'cantidad': l['cantidad'], 'documento': l['documento'],
+                          'veces': len(lineas)}
+        manual = r['ESTADO_OPERACION'] if r['ESTADO_OPERACION'] in ESTADOS_PRECIO else ''
+        r['compra_pirineos'] = compra
+        r['estado_precio'] = 'COMPRADO' if compra else (manual or 'PENDIENTE')
+        r['dias'] = (actividad.ahora().date() - date.fromisoformat(r['FECHA'])).days if r['FECHA'] else None
+        salida.append(r)
+    return salida
+
+
+def _ofertas_cliente(codigos):
+    try:
+        lista, _ = ofertas.leer_ofertas()
+        seg = ofertas.seguimiento()
+    except Exception:
+        return []
+    res = [dict(o, seguimiento=seg.get(o['id'], {}), estado=seg.get(o['id'], {}).get('estado', 'ABIERTA'))
+           for o in lista if o['codigo'] and o['codigo'] in set(codigos)]
+    return sorted(res, key=lambda o: o['fecha'], reverse=True)
 
 
 def precios_dados(s, cliente='', comercial=''):
@@ -413,7 +473,8 @@ def ficha_cliente(codigo: str, s: Sesion = Depends(sesion_actual)):
             'compras': compras,
             'especiales': especiales,
             'actividad': [r for r in reversed(propios) if r['TIPO'] != 'PRECIO'],
-            'precios_dados': [r for r in reversed(propios) if r['TIPO'] == 'PRECIO'],
+            'precios_dados': _con_seguimiento_precio([r for r in reversed(propios) if r['TIPO'] == 'PRECIO']),
+            'ofertas': _ofertas_cliente(mismos),
             'control': estado_visitas,
             'incidencias': _incidencias_seguras(codigo),
             'tipos_incidencia': incidencias.TIPOS,
@@ -970,6 +1031,169 @@ def sat_resolver_incidencia(id_inc: str, r: ResolucionSAT):
         return {'incidencia': incidencias.resolver(id_inc, quien, r.nota, actividad.ahora())}
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _error(e)
+
+
+# ---------------------------------------------------------------- visitas y reuniones programadas
+TIPOS_PROGRAMADA = {'VISITA': ('VISITA', 'Visita'), 'REUNION': ('VISITA', 'Reunión'), 'LLAMADA': ('LLAMADA', 'Llamada programada')}
+
+
+class Programar(BaseModel):
+    cod_cliente: str = ''
+    cliente: str
+    poblacion: str = ''
+    fecha: str
+    hora: str = ''
+    tipo: str = 'VISITA'
+    objetivo: str = ''
+
+
+def _datos_programada(p):
+    try:
+        datetime.strptime(p.fecha, '%Y-%m-%d')
+    except ValueError:
+        raise HTTPException(status_code=400, detail='Fecha no válida.')
+    if not p.cliente.strip():
+        raise HTTPException(status_code=400, detail='Elige el cliente.')
+    hora = p.hora.strip()[:5]
+    if hora and actividad._minutos(hora) is None:
+        raise HTTPException(status_code=400, detail='Hora no válida.')
+    tipo, subtipo = TIPOS_PROGRAMADA.get(p.tipo.upper(), TIPOS_PROGRAMADA['VISITA'])
+    return {'TIPO': tipo, 'SUBTIPO': subtipo, 'COD_CLIENTE': p.cod_cliente, 'CLIENTE': p.cliente.strip(), 'POBLACION': p.poblacion,
+            'FECHA': p.fecha, 'HORA_INICIO': hora, 'MOTIVO': ' '.join(p.objetivo.split())[:500]}
+
+
+@router.post('/programar')
+def programar(p: Programar, s: Sesion = Depends(sesion_actual)):
+    """Programa una visita, reunión o llamada para un día (para preparar la semana). No cuenta como
+    hecha hasta que se confirma y se rellena (horas reales, qué se habló...)."""
+    try:
+        if not s.puede('registrar'):
+            raise HTTPException(status_code=403, detail='Sin permiso para registrar actividad.')
+        return {'registro': actividad.crear(s.clave, s.nombre, _datos_programada(p), estado=actividad.PROGRAMADA, registro='PROGRAMADA')}
+    except Exception as e:
+        _error(e)
+
+
+class Mover(BaseModel):
+    fecha: str
+    hora: str = ''
+    objetivo: str | None = None
+
+
+@router.put('/programadas/{id_registro}')
+def mover_programada(id_registro: str, m: Mover, s: Sesion = Depends(sesion_actual)):
+    """Cambia el día (y la hora) de una visita programada."""
+    try:
+        clave, r = _dueno(s, id_registro)
+        if clave != s.clave and not s.puede('editar_otros'):
+            raise HTTPException(status_code=403, detail='No puedes cambiar la agenda de otra persona.')
+        if r['ESTADO'] != actividad.PROGRAMADA:
+            raise HTTPException(status_code=409, detail='Esta visita ya no está programada (se ha hecho o anulado).')
+        datetime.strptime(m.fecha, '%Y-%m-%d')
+        cambios = {'FECHA': m.fecha, 'HORA_INICIO': m.hora.strip()[:5] if actividad._minutos(m.hora) is not None else ''}
+        if m.objetivo is not None:
+            cambios['MOTIVO'] = ' '.join(m.objetivo.split())[:500]
+        return {'registro': actividad.actualizar(clave, s.nombre, id_registro, cambios, accion='CAMBIO DE FECHA')}
+    except ValueError:
+        raise HTTPException(status_code=400, detail='Fecha no válida.')
+    except Exception as e:
+        _error(e)
+
+
+@router.post('/programadas/{id_registro}/cancelar')
+def cancelar_programada(id_registro: str, m: Motivo, s: Sesion = Depends(sesion_actual)):
+    try:
+        clave, r = _dueno(s, id_registro)
+        if clave != s.clave and not s.puede('editar_otros'):
+            raise HTTPException(status_code=403, detail='No puedes cambiar la agenda de otra persona.')
+        if r['ESTADO'] != actividad.PROGRAMADA:
+            raise HTTPException(status_code=409, detail='Esta visita ya no está programada.')
+        nota = f"[Cancelada: {m.motivo.strip()}]" if m.motivo.strip() else '[Cancelada]'
+        return {'registro': actividad.actualizar(clave, s.nombre, id_registro, {
+            'ESTADO': actividad.ANULADA, 'OBSERVACIONES': (r['OBSERVACIONES'] + ' ' if r['OBSERVACIONES'] else '') + nota}, accion='CANCELACIÓN')}
+    except Exception as e:
+        _error(e)
+
+
+# ---------------------------------------------------------------- seguimiento de precios dados y ofertas
+class EstadoPrecio(BaseModel):
+    estado: str
+    nota: str = ''
+    fecha_seguimiento: str = ''
+
+
+@router.post('/precios_dados/{id_registro}/estado')
+def estado_precio(id_registro: str, e: EstadoPrecio, s: Sesion = Depends(sesion_actual)):
+    """Seguimiento de un precio dado: aceptado, ha comprado, no le interesa o volver a preguntar otro día."""
+    try:
+        clave, r = _dueno(s, id_registro)
+        if clave != s.clave and not s.puede('editar_otros'):
+            raise HTTPException(status_code=403, detail='No puedes modificar la actividad de otra persona.')
+        if r['TIPO'] != 'PRECIO':
+            raise HTTPException(status_code=400, detail='No es un precio dado.')
+        if e.estado not in ESTADOS_PRECIO:
+            raise HTTPException(status_code=400, detail='Estado no válido.')
+        cambios = {'ESTADO_OPERACION': '' if e.estado == 'PENDIENTE' else e.estado}
+        if e.estado in ('COMPRADO', 'NO_INTERESA'):
+            cambios['SEGUIMIENTO_HECHO'] = 'SI'
+        elif e.fecha_seguimiento:
+            datetime.strptime(e.fecha_seguimiento, '%Y-%m-%d')
+            cambios.update(FECHA_SEGUIMIENTO=e.fecha_seguimiento, SEGUIMIENTO_HECHO='')
+        if e.nota.strip():
+            cambios['OBSERVACIONES'] = (r['OBSERVACIONES'] + ' · ' if r['OBSERVACIONES'] else '') + \
+                f"[{actividad.ahora().strftime('%d/%m')} {ESTADOS_PRECIO[e.estado]}: {e.nota.strip()}]"
+        return {'registro': actividad.actualizar(clave, s.nombre, id_registro, cambios, accion='SEGUIMIENTO PRECIO')}
+    except ValueError:
+        raise HTTPException(status_code=400, detail='Fecha no válida.')
+    except Exception as e2:
+        _error(e2)
+
+
+def seguimiento_comercial(s, comercial=''):
+    """Precios dados con su estado y ofertas de la oficina con su seguimiento."""
+    regs = [r for r in actividad.listar(_claves_visibles(s, comercial)) if r['TIPO'] == 'PRECIO' and r['ESTADO'] == actividad.REGISTRADA]
+    precios = sorted(_con_seguimiento_precio(regs), key=lambda r: r['FECHA'], reverse=True)
+    try:
+        lista, avisos = ofertas.leer_ofertas()
+    except Exception as e:
+        lista, avisos = [], [f'No se han podido leer las ofertas: {e}']
+    seg = ofertas.seguimiento()
+    cl = pirineos.clientes()
+    mio = normalizar(s.pirineos)
+    for o in lista:
+        o['seguimiento'] = seg.get(o['id'], {})
+        o['estado'] = o['seguimiento'].get('estado', 'ABIERTA')
+        c = cl.get(o['codigo']) if o['codigo'] else None
+        o['comercial'] = c['comercial'] if c else ''
+        o['mio'] = bool(c and mio and any(cl[h]['comercial_norm'] == mio for h in pirineos.codigos_hermanos(c['codigo']) if h in cl))
+    lista.sort(key=lambda o: o['fecha'], reverse=True)    # más recientes primero
+    lista.sort(key=lambda o: o['estado'] != 'ABIERTA')     # y las abiertas arriba
+    return {'precios': precios, 'estados_precio': ESTADOS_PRECIO, 'ofertas': lista, 'avisos_ofertas': avisos,
+            'validez_dias': ofertas.VALIDEZ_DIAS}
+
+
+@router.get('/seguimiento')
+def ver_seguimiento(comercial: str = '', s: Sesion = Depends(sesion_actual)):
+    try:
+        return seguimiento_comercial(s, comercial)
+    except Exception as e:
+        _error(e)
+
+
+class SeguimientoOferta(BaseModel):
+    estado: str
+    nota: str = ''
+    proximo: str = ''
+
+
+@router.post('/ofertas/{id_oferta}/seguimiento')
+def seguir_oferta(id_oferta: str, d: SeguimientoOferta, s: Sesion = Depends(sesion_actual)):
+    try:
+        return {'seguimiento': ofertas.fijar_seguimiento(id_oferta, d.estado, d.nota.strip(), d.proximo, s.nombre, actividad.ahora())}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

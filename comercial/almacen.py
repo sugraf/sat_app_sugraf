@@ -216,6 +216,25 @@ def buscar_sat(nombre):
     return r[0] if r else None
 
 
+# ---------------------------------------------------------------- ficheros compartidos (p. ej. ofertas del escritorio)
+def buscar_compartido(nombre):
+    """Metadatos de un fichero que la cuenta de la app ve compartido (por nombre exacto), o None.
+    En pruebas locales: <COMERCIAL_LOCAL_DIR>/Ofertas/<nombre>."""
+    base = _local_dir()
+    if base:
+        ruta = os.path.join(base, 'Ofertas', nombre)
+        if not os.path.exists(ruta):
+            return None
+        return {'id': ruta, 'name': nombre, 'mimeType': MIME_XLSX, 'modifiedTime': str(os.path.getmtime(ruta)), 'local': True}
+    drive = _drive()
+    r = drive.files().list(
+        q=f"name = '{_escapar(nombre)}' and trashed = false and mimeType != '{MIME_CARPETA}'",
+        fields='files(id, name, mimeType, modifiedTime)', orderBy='modifiedTime desc',
+        supportsAllDrives=True, includeItemsFromAllDrives=True,
+    ).execute().get('files', [])
+    return r[0] if r else None
+
+
 # ---------------------------------------------------------------- JSON propios (cachés, estados)
 def leer_json_propio(nombre, defecto=None):
     meta = buscar_propio(nombre)

@@ -48,6 +48,8 @@ EDITABLES = [
 TIPOS = ['VISITA', 'LLAMADA', 'PRECIO']
 # Una visita se puede ir guardando: queda SIN TERMINAR hasta que tiene hora de entrada y de salida.
 SIN_TERMINAR, REGISTRADA, ANULADA = 'SIN TERMINAR', 'REGISTRADA', 'ANULADA'
+# Visita o reunión programada para un día (aún no hecha). Al confirmarla se rellena como una visita normal.
+PROGRAMADA = 'PROGRAMADA'
 
 _locks = {clave: threading.Lock() for clave in USUARIOS}
 _cache = {}  # nombre fichero -> (modifiedTime, DataFrame)
@@ -115,7 +117,7 @@ def listar(claves, desde='', hasta='', incluir_anuladas=False):
     for r in todos:
         if not incluir_anuladas and r['ESTADO'] == ANULADA:
             continue
-        if desde and r['FECHA'] < desde and r['ESTADO'] != SIN_TERMINAR:
+        if desde and r['FECHA'] < desde and r['ESTADO'] not in (SIN_TERMINAR, PROGRAMADA):
             continue
         if hasta and r['FECHA'] > hasta:
             continue

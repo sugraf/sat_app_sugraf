@@ -24,7 +24,7 @@
   const MAX_RONDAS = 8;
   const PAUSA_ACCION = 450;
 
-  const VISTAS = {hoy: 'Hoy', clientes: 'Clientes', ficha: 'Ficha de cliente', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta'};
+  const VISTAS = {hoy: 'Hoy', clientes: 'Clientes', ficha: 'Ficha de cliente', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta', seguimiento: 'Seguimiento'};
   const SUGERENCIAS = {
     hoy: ['¿A qué clientes me toca ir esta semana?', '¿Qué seguimientos tengo pendientes?'],
     clientes: ['¿Qué clientes estoy visitando de más?', '¿Qué clientes dormidos compraban más?'],
@@ -32,9 +32,10 @@
     precios: ['¿A qué precio le cobramos esto a este cliente?', '¿Qué precios le he dado últimamente?'],
     agenda: ['¿Cuántas visitas he hecho esta semana?', '¿Cuánto duran de media mis visitas?'],
     ruta: ['¿Qué clientes me conviene visitar por aquí?'],
+    seguimiento: ['¿Qué ofertas llevan más tiempo sin respuesta?'],
   };
   const SUGERENCIAS_CONTROL = {
-    hoy: ['Apunta una visita a un cliente de 10:00 a 11:00', 'Llévame a los clientes que toca visitar'],
+    hoy: ['Prográmame para el lunes visitas a los clientes que toca ver', 'Apunta una visita a un cliente de 10:00 a 11:00'],
     clientes: ['Abre la ficha del primer cliente al que toca ir'],
     ficha: ['Abre una visita nueva a este cliente', 'Enséñame sus compras'],
     precios: ['Busca el precio de una referencia para este cliente'],
