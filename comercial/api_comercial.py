@@ -155,9 +155,11 @@ class Registro(BaseModel):
 CAMPOS_PARA_CERRAR = [('CLIENTE', 'cliente'), ('FECHA', 'fecha'), ('HORA_INICIO', 'hora de entrada'),
                       ('HORA_FIN', 'hora de salida'), ('DESCRIPCION', 'qué se ha hablado'),
                       ('RESULTADO', 'resultado'), ('OFERTA', 'si se ha conseguido una oferta')]
-# «¿Se ha conseguido una oferta?» (OFERTA = SI / NO). Si es SI: PRODUCTOS = «referencia · artículo» elegido del
-# buscador y/o NECESIDADES = descripción libre (al menos una de las dos). Avisa a la oficina en Generación de ofertas.
+# «¿Se ha conseguido una oferta?» (OFERTA = SI / NO). Si es SI: LINEA_OFERTA = Maquinaria o Consumibles,
+# PRODUCTOS = «referencia · artículo» elegido del buscador o un nombre escrito a mano, y NECESIDADES = descripción
+# libre (opcional). Avisa a la oficina en Generación de ofertas (de maquinaria o de consumibles, según la línea).
 OFERTA_SI, OFERTA_NO = 'SI', 'NO'
+LINEAS_OFERTA = ('Maquinaria', 'Consumibles')
 
 
 def _faltan(d, anterior=''):
@@ -171,8 +173,10 @@ def _comprobar_oferta(d):
         raise HTTPException(status_code=400, detail='Oferta: indica Sí o No.')
     if d['OFERTA'] == OFERTA_SI and not d.get('PRODUCTOS') and not d.get('NECESIDADES'):
         raise HTTPException(status_code=400, detail='Has marcado que se ha conseguido una oferta: indica qué (artículo) o escribe una breve descripción.')
+    linea = (d.get('LINEA_OFERTA') or '').strip().lower()
+    d['LINEA_OFERTA'] = next((l for l in LINEAS_OFERTA if l.lower() == linea), '')
     if d['OFERTA'] != OFERTA_SI and d['TIPO'] in ('VISITA', 'LLAMADA'):
-        d['PRODUCTOS'] = d['NECESIDADES'] = ''
+        d['PRODUCTOS'] = d['NECESIDADES'] = d['LINEA_OFERTA'] = ''
 
 
 PALABRAS_MAQUINA = ('MAQUIN', 'IMPRESORA', 'PLOTTER', 'PLOTER', 'EQUIPO', 'CORTADORA', 'LAMINADORA', 'GUILLOTINA', 'PRENSA',
@@ -181,7 +185,9 @@ PALABRAS_MAQUINA = ('MAQUIN', 'IMPRESORA', 'PLOTTER', 'PLOTER', 'EQUIPO', 'CORTA
 
 def _modulo_oferta(d):
     """Generación de ofertas de maquinaria o de consumibles: por la familia del artículo elegido o, si solo hay
-    descripción, por sus palabras (máquina, impresora, plotter…)."""
+    descripción, por sus palabras (máquina, impresora, plotter…). Si el comercial ha dicho la línea, manda esa."""
+    if d.get('LINEA_OFERTA') in LINEAS_OFERTA:
+        return 'ofertas_maquinaria' if d['LINEA_OFERTA'] == 'Maquinaria' else 'ofertas_consumibles'
     ref = (d.get('PRODUCTOS') or '').split(' · ')[0].strip()
     art = pirineos.articulos().get(ref) if ref else None
     if art:
@@ -199,16 +205,18 @@ def _avisar_oferta(s, d, registro, previo=None):
     if d.get('OFERTA') != OFERTA_SI:
         return
     if previo.get('OFERTA') == OFERTA_SI and previo.get('PRODUCTOS', '') == d.get('PRODUCTOS', '') \
-            and previo.get('NECESIDADES', '') == d.get('NECESIDADES', ''):
+            and previo.get('NECESIDADES', '') == d.get('NECESIDADES', '') and previo.get('LINEA_OFERTA', '') == d.get('LINEA_OFERTA', ''):
         return
     try:
         que = ' — '.join(x for x in (d.get('PRODUCTOS'), d.get('NECESIDADES')) if x)
         tipo = 'la visita' if d['TIPO'] == 'VISITA' else 'la llamada'
+        if d.get('LINEA_OFERTA'):
+            que = f"{d['LINEA_OFERTA']}: {que}"
         notificaciones.crear('OFERTA_CONSEGUIDA', _modulo_oferta(d), f'Oferta conseguida: {d["CLIENTE"]}',
                              f'{s.nombre} ha conseguido una oferta en {tipo} a {d["CLIENTE"]} del {d["FECHA"][8:10]}/{d["FECHA"][5:7]}: '
                              f'{que}. ¿Preparar la oferta?',
                              {'cliente': d['CLIENTE'], 'codigo': d.get('COD_CLIENTE', ''), 'articulo': d.get('PRODUCTOS', ''),
-                              'descripcion': d.get('NECESIDADES', ''), 'comercial': s.nombre, 'registro': registro.get('ID', '')},
+                              'descripcion': d.get('NECESIDADES', ''), 'linea': d.get('LINEA_OFERTA', ''), 'comercial': s.nombre, 'registro': registro.get('ID', '')},
                              actividad.ahora())
     except Exception:
         pass
@@ -1339,7 +1347,8 @@ def _ofertas_pedidas(regs, lista_ofertas):
         manual = PEDIDA_ANTIGUOS.get(r['ESTADO_OPERACION'], r['ESTADO_OPERACION'])
         manual = manual if manual in ESTADOS_PEDIDA else ''
         r['oferta_oficina'] = o['id'] if o else ''
-        r['linea'] = o['tipo'] if o else ''      # se sabe por la oferta que haya hecho la oficina
+        # La que dijo el comercial al registrar la visita o, si no la hay (visitas antiguas), la de la oferta de la oficina.
+        r['linea'] = r.get('LINEA_OFERTA') if r.get('LINEA_OFERTA') in LINEAS_OFERTA else (o['tipo'] if o else '')
         # Lo marcado a mano manda siempre; si no hay nada, «Oferta enviada» cuando la oficina ya la ha hecho y «Nueva» si no.
         r['estado_pedida'] = manual or ('ENVIADA' if o else 'NUEVA')
         r['dias'] = (date.today() - date.fromisoformat(r['FECHA'])).days

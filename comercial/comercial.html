@@ -1182,23 +1182,32 @@ function abrirFormulario() {
   abrirHoja('sh-form');
 }
 
-// ---- «¿Se ha conseguido una oferta?» (Sí / No). Con Sí: qué (artículo del buscador) y/o una breve descripción.
+// ---- «¿Se ha conseguido una oferta?» (Sí / No). Con Sí: línea (maquinaria / consumibles) y qué (artículo del
+// buscador o un nombre escrito a mano), las dos obligatorias; la descripción es opcional.
 function htmlOfertaForm(r) {
   FORM.oferta = r.OFERTA || '';
   FORM.ofertaArt = r.OFERTA === 'SI' ? (r.PRODUCTOS || '') : '';
+  FORM.ofertaLinea = r.OFERTA === 'SI' ? (r.LINEA_OFERTA || '') : '';
   const req = FORM.registro.ESTADO === 'REGISTRADA' && !r.OFERTA ? '' : ' <span style="color:#fca5a5">*</span>';
+  const ast = ' <span style="color:#fca5a5">*</span>';
   return `<label>¿Se ha conseguido una oferta?${req}</label>
     <div class="seg" id="f-oferta-seg">${[['NO', 'No'], ['SI', 'Sí']].map(([v, n]) =>
       `<button type="button" data-v="${v}" class="${FORM.oferta === v ? 'on' : ''}" onclick="marcarOferta('${v}')">${n}</button>`).join('')}</div>
     <div id="f-oferta-det" style="display:${FORM.oferta === 'SI' ? 'block' : 'none'}; margin-top:2px;">
-      <div class="t-small" style="margin:8px 2px 0;">Indica qué artículo o escribe una breve descripción (al menos una de las dos).</div>
-      <label>Qué (referencia o nombre)</label>
+      <label>¿Maquinaria o consumibles?${ast}</label>
+      <div class="seg" id="f-oferta-linea">${[['Maquinaria', 'Maquinaria'], ['Consumibles', 'Consumibles']].map(([v, n]) =>
+        `<button type="button" data-v="${v}" class="${FORM.ofertaLinea === v ? 'on' : ''}" onclick="marcarLineaOferta('${v}')">${n}</button>`).join('')}</div>
+      <label>Qué (referencia o nombre)${ast}</label>
       <div id="f-oferta-elegido"></div>
-      <input id="f-oferta-buscar" type="search" autocomplete="off" placeholder="Buscar artículo por referencia o nombre..." oninput="buscarArticuloOferta(this.value)">
+      <input id="f-oferta-buscar" type="search" autocomplete="off" placeholder="Busca un artículo o escribe el nombre tal cual..." oninput="buscarArticuloOferta(this.value)">
       <div id="f-oferta-res"></div>
-      <label>Descripción</label>
-      <textarea id="f-NECESIDADES" data-dictado style="min-height:56px;" placeholder="Qué se le va a ofertar (máquina, consumible, cantidades...)">${esc(r.OFERTA === 'SI' ? r.NECESIDADES : '')}</textarea>
+      <label>Descripción (opcional)</label>
+      <textarea id="f-NECESIDADES" data-dictado style="min-height:56px;" placeholder="Detalles: modelo, medidas, cantidades...">${esc(r.OFERTA === 'SI' ? r.NECESIDADES : '')}</textarea>
     </div>`;
+}
+function marcarLineaOferta(v) {
+  FORM.ofertaLinea = v;
+  document.querySelectorAll('#f-oferta-linea button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
 }
 function marcarOferta(v) {
   FORM.oferta = FORM.oferta === v ? '' : v;
@@ -1218,19 +1227,34 @@ let _tOferta = null, _nOferta = 0;
 function buscarArticuloOferta(q) {
   clearTimeout(_tOferta);
   const res = document.getElementById('f-oferta-res');
-  if (q.trim().length < 2) { res.innerHTML = ''; return; }
+  if (q.trim().length < 2) { res.innerHTML = q.trim() ? htmlTextoLibreOferta(q) : ''; return; }
+  res.innerHTML = htmlTextoLibreOferta(q);
   _tOferta = setTimeout(async () => {
     const n = ++_nOferta;
-    res.innerHTML = '<div class="t-small" style="padding:8px 2px;">Buscando...</div>';
+    res.innerHTML = htmlTextoLibreOferta(q) + '<div class="t-small" style="padding:8px 2px;">Buscando artículos...</div>';
     let d;
     try { d = await api(`/articulos?limite=15&q=${encodeURIComponent(q)}${FORM.cliente && FORM.cliente.codigo ? '&cliente=' + encodeURIComponent(FORM.cliente.codigo) : ''}`); }
-    catch (e) { if (n === _nOferta) res.innerHTML = `<div class="t-small" style="padding:8px 2px;">${esc(e.message)}</div>`; return; }
+    catch (e) { if (n === _nOferta) res.innerHTML = htmlTextoLibreOferta(q) + `<div class="t-small" style="padding:8px 2px;">${esc(e.message)}</div>`; return; }
     if (n !== _nOferta) return;
     window._artsOferta = d.articulos || [];
-    res.innerHTML = window._artsOferta.length ? window._artsOferta.map((a, i) => `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer;" onclick="elegirArticuloOferta(${i})">
+    res.innerHTML = htmlTextoLibreOferta(q) + (window._artsOferta.length ? window._artsOferta.map((a, i) => `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer;" onclick="elegirArticuloOferta(${i})">
         <div class="t-strong" style="font-size:0.88rem;">${esc(a.descripcion)}</div><div class="t-small">Ref. ${esc(a.referencia)}${a.familia ? ' · ' + esc(a.familia) : ''}</div>${htmlSinonimo(a)}${htmlStock(a, true)}</div>`).join('')
-      : '<div class="t-small" style="padding:8px 2px;">No se ha encontrado ningún artículo. Puedes escribirlo en la descripción.</div>';
+      : '<div class="t-small" style="padding:8px 2px;">No se ha encontrado ningún artículo en Pirineos: usa el nombre tal cual lo has escrito.</div>');
   }, 300);
+}
+// «Usar tal cual»: lo escrito a mano, sin elegir artículo (también se toma solo al guardar si no se elige nada).
+function htmlTextoLibreOferta(q) {
+  return `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer; border-style:dashed;" onclick="usarTextoLibreOferta()">
+    <div class="t-strong" style="font-size:0.88rem;">&#9998; Usar «${esc(q.trim())}» tal cual</div><div class="t-small">Nombre libre, sin artículo de Pirineos</div></div>`;
+}
+function usarTextoLibreOferta() {
+  const bus = document.getElementById('f-oferta-buscar'), t = bus.value.trim().replace(/\s+/g, ' ');
+  if (!t) return;
+  clearTimeout(_tOferta); _nOferta++;
+  FORM.ofertaArt = t;
+  document.getElementById('f-oferta-res').innerHTML = '';
+  bus.value = '';
+  pintarArticuloOferta();
 }
 function elegirArticuloOferta(i) {
   const a = (window._artsOferta || [])[i]; if (!a) return;
@@ -1251,7 +1275,9 @@ function leerFormulario() {
              POBLACION: FORM.cliente ? FORM.cliente.poblacion : ''};
   ['FECHA','HORA_INICIO','HORA_FIN','DESCRIPCION','RESULTADO','OBSERVACIONES'].forEach(k => d[k] = val(k));
   d.OFERTA = FORM.oferta || '';
-  d.PRODUCTOS = d.OFERTA === 'SI' ? (FORM.ofertaArt || '') : '';
+  const escrito = (document.getElementById('f-oferta-buscar')?.value || '').trim().replace(/\s+/g, ' ');
+  d.PRODUCTOS = d.OFERTA === 'SI' ? (FORM.ofertaArt || escrito) : '';
+  d.LINEA_OFERTA = d.OFERTA === 'SI' ? (FORM.ofertaLinea || '') : '';
   d.NECESIDADES = d.OFERTA === 'SI' ? val('NECESIDADES') : '';
   d.SUBTIPO = FORM.registro.SUBTIPO || '';   // ya no se pregunta (se conserva el de las programadas y antiguas)
   // «Recordar visita el día…»: se guarda en PROXIMA_ACCION («Recordar visita el 20/11/2026») y, al guardar, se programa en la agenda.
@@ -1305,9 +1331,10 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
       return {ok: false, error: 'Para cerrar la visita falta: ' + faltan.join(', ') + '. Se puede guardar como sin terminar.'};
     }
   }
-  if (d.OFERTA === 'SI' && !d.PRODUCTOS && !d.NECESIDADES) {
-    await aviso('Has marcado que se ha conseguido una oferta: elige qué artículo o escribe una breve descripción.', 'error');
-    return {ok: false, error: 'Oferta conseguida: falta qué (artículo) o una descripción.'};
+  if (d.OFERTA === 'SI' && (!d.LINEA_OFERTA || !d.PRODUCTOS)) {
+    const falta = [!d.LINEA_OFERTA && 'si es maquinaria o consumibles', !d.PRODUCTOS && 'la referencia o el nombre de lo que se oferta'].filter(Boolean).join(' y ');
+    await aviso('Has marcado que se ha conseguido una oferta: indica ' + falta + '.', 'error');
+    return {ok: false, error: 'Oferta conseguida: falta ' + falta + '.'};
   }
   document.querySelectorAll('#f-pie .btn').forEach(b => b.disabled = true);
   showLoading();
@@ -1323,7 +1350,7 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
     }
     hideLoading();
     const tipo = FORM.tipo, abierta = tipo === 'VISITA' && !cerrar && FORM.registro.ESTADO !== 'REGISTRADA';
-    const ofertaNueva = d.OFERTA === 'SI' && (FORM.registro.OFERTA !== 'SI' || FORM.registro.PRODUCTOS !== d.PRODUCTOS || (FORM.registro.NECESIDADES || '') !== d.NECESIDADES);
+    const ofertaNueva = d.OFERTA === 'SI' && (FORM.registro.OFERTA !== 'SI' || FORM.registro.PRODUCTOS !== d.PRODUCTOS || (FORM.registro.NECESIDADES || '') !== d.NECESIDADES || (FORM.registro.LINEA_OFERTA || '') !== d.LINEA_OFERTA);
     const mensaje = (abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
                              : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.') +
       (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '') ? `\n\n${rec.tipo} apuntada en tu agenda para el ${fechaLarga(rec.fecha)}.` : '') +
@@ -1357,7 +1384,7 @@ async function verActividad(id) {
     : [['Comercial', r.COMERCIAL], ['Cliente', r.CLIENTE + (r.COD_CLIENTE ? ` (${r.COD_CLIENTE})` : ' · no está en Pirineos')],
     ['Fecha', fechaLarga(r.FECHA)], ['Horario', r.HORA_INICIO ? `${r.HORA_INICIO}${r.HORA_FIN ? ' – ' + r.HORA_FIN : ' – (falta la salida)'}` : ''],
     ['Duración', dur(r.DURACION_MIN)], ['Tipo', r.SUBTIPO], ['Objetivo', r.MOTIVO], ['Contacto', r.CONTACTO], ['Temas', r.TEMAS], ['Qué se ha hablado', r.DESCRIPCION],
-    ['Resultado', r.RESULTADO], ['Oferta conseguida', r.OFERTA === 'SI' ? 'Sí' + [r.PRODUCTOS, r.NECESIDADES].filter(Boolean).map(x => ' — ' + x).join('') : r.OFERTA === 'NO' ? 'No' : ''],
+    ['Resultado', r.RESULTADO], ['Oferta conseguida', r.OFERTA === 'SI' ? 'Sí' + [r.LINEA_OFERTA, r.PRODUCTOS, r.NECESIDADES].filter(Boolean).map(x => ' — ' + x).join('') : r.OFERTA === 'NO' ? 'No' : ''],
     ['Próxima acción', r.PROXIMA_ACCION], ['Seguimiento', r.FECHA_SEGUIMIENTO ? fechaCorta(r.FECHA_SEGUIMIENTO) + (r.SEGUIMIENTO_HECHO === 'SI' ? ' (hecho)' : '') : ''],
     ['Observaciones', r.OBSERVACIONES], ['Estado', r.ESTADO === 'REGISTRADA' ? (r.TIPO === 'VISITA' ? 'Cerrada' : 'Registrada') : r.ESTADO === 'SIN TERMINAR' ? 'Sin terminar' : r.ESTADO === 'PROGRAMADA' ? 'Programada (aún no hecha)' : r.ESTADO]];
   const ubic = [];
@@ -1718,7 +1745,8 @@ function definirAccionesRobot() {
         recordar_tipo: {type: 'string', enum: ['Visita', 'Llamada'], description: 'Recordar visita/llamada el día… (se apunta en la agenda)'},
         recordar_fecha: {type: 'string', description: 'AAAA-MM-DD'}, observaciones: {type: 'string'},
         oferta: {type: 'string', enum: ['SI', 'NO'], description: '¿Se ha conseguido una oferta? (obligatorio para cerrar)'},
-        oferta_articulo: {type: 'string', description: 'Si hay oferta: referencia o nombre del artículo; se busca y se elige el primero que coincida'},
+        oferta_linea: {type: 'string', enum: ['Maquinaria', 'Consumibles'], description: 'Si hay oferta: si es de maquinaria o de consumibles (obligatorio)'},
+        oferta_articulo: {type: 'string', description: 'Si hay oferta: referencia o nombre del artículo (obligatorio); se busca y se elige el primero que coincida o, si no hay ninguno, se guarda el nombre tal cual'},
         oferta_descripcion: {type: 'string', description: 'Si hay oferta: breve descripción libre de lo que se oferta'},
       }),
       etiqueta: () => 'Rellenando la visita',
@@ -1740,12 +1768,13 @@ function definirAccionesRobot() {
           if (String(a[k]) && el.value !== String(a[k])) avisos.push(`${k}: valor no válido «${a[k]}»`);
         }
         if (a.oferta && a.oferta !== FORM.oferta) marcarOferta(a.oferta);
+        if (a.oferta_linea && FORM.oferta === 'SI') marcarLineaOferta(a.oferta_linea);
         if (a.oferta_articulo && FORM.oferta === 'SI') {
           try {
             const r = await api(`/articulos?limite=5&q=${encodeURIComponent(a.oferta_articulo)}`);
             const art = (r.articulos || [])[0];
             if (art) { FORM.ofertaArt = `${art.referencia} · ${art.descripcion}`; pintarArticuloOferta(); }
-            else avisos.push(`oferta_articulo: no se encuentra «${a.oferta_articulo}» (ponlo en oferta_descripcion)`);
+            else { FORM.ofertaArt = a.oferta_articulo.trim(); pintarArticuloOferta(); avisos.push(`oferta_articulo: no está en Pirineos; se guarda el nombre «${a.oferta_articulo}» tal cual`); }
           } catch (e) { avisos.push('oferta_articulo: ' + e.message); }
         }
         if (a.oferta_descripcion != null && FORM.oferta === 'SI') await bot().escribir(document.getElementById('f-NECESIDADES'), a.oferta_descripcion);
@@ -2067,7 +2096,7 @@ function chipsEstadoOferta(actual, alPulsar) {
 }
 function htmlPedidaSeg(r) {
   const est = r.estado_pedida, [color, badge] = COLOR_OFERTA[est] || COLOR_OFERTA.NUEVA;
-  return `<div class="card borde-${color}">${tagSeg('Oferta pedida en ' + (r.TIPO === 'LLAMADA' ? 'llamada' : 'visita'))}
+  return `<div class="card borde-${color}">${tagSeg('Oferta pedida en ' + (r.TIPO === 'LLAMADA' ? 'llamada' : 'visita') + (r.linea ? ' · ' + r.linea.toLowerCase() : ''))}
     <div class="row between" style="align-items:flex-start;"><span class="t-strong">${r.COD_CLIENTE ? `<a style="color:#fff" onclick="abrirFicha('${esc(r.COD_CLIENTE)}')">${esc(r.CLIENTE)}</a>` : esc(r.CLIENTE)}</span><span class="badge ${badge}">${esc(ESTADOS_OFERTA_TXT[est] || est)}</span></div>
     <div class="t-txt">${esc([r.PRODUCTOS, r.NECESIDADES].filter(Boolean).join(' — '))}</div>
     <div class="t-small" style="margin-top:4px;">${fechaCorta(r.FECHA)} (hace ${r.dias} días)${YO.permisos.ver_todos ? ' · ' + esc(r.COMERCIAL) : ''}</div>
