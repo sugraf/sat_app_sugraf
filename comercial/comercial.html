@@ -1340,8 +1340,9 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
   showLoading();
   try {
     const cuerpo = JSON.stringify({datos: d, confirmar_solape: confirmarSolape, cerrar});
-    if (FORM.modo === 'nuevo') await api('/actividad', {method:'POST', body: cuerpo});
-    else await api('/actividad/' + encodeURIComponent(FORM.id), {method:'PUT', body: cuerpo});
+    const resp = FORM.modo === 'nuevo' ? await api('/actividad', {method:'POST', body: cuerpo})
+                                       : await api('/actividad/' + encodeURIComponent(FORM.id), {method:'PUT', body: cuerpo});
+    const avisoOf = (resp && resp.aviso_oferta) || null;
     // Recordatorio nuevo (o cambiado): se programa la visita o llamada en la agenda de ese día.
     const rec = recordatorio(d.PROXIMA_ACCION);
     if (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '')) {
@@ -1354,7 +1355,9 @@ async function guardarFormulario(cerrar, confirmarSolape = false, silencioso = f
     const mensaje = (abierta ? 'Guardada. La visita sigue sin terminar: la tienes en «Hoy» para completarla y cerrarla.'
                              : tipo === 'VISITA' ? 'Visita cerrada.' : 'Guardado.') +
       (rec && d.PROXIMA_ACCION !== (FORM.registro.PROXIMA_ACCION || '') ? `\n\n${rec.tipo} apuntada en tu agenda para el ${fechaLarga(rec.fecha)}.` : '') +
-      (ofertaNueva ? '\n\nOferta avisada a la oficina para que la prepare.' : '');
+      (!ofertaNueva ? '' : avisoOf && !avisoOf.ok
+        ? `\n\n⚠ La visita se ha guardado, pero NO se ha podido avisar a la oficina de la oferta (${avisoOf.error || 'error'}). Díselo a la oficina.`
+        : `\n\nOferta avisada a la oficina en «${(avisoOf && avisoOf.nombre) || (d.LINEA_OFERTA === 'Maquinaria' ? 'Ofertas de maquinaria' : 'Ofertas de consumibles')}» para que la prepare.`);
     cerrarFormulario();
     await aviso(mensaje, 'success');
     mostrarVista();

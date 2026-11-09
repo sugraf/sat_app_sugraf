@@ -198,28 +198,45 @@ def _modulo_oferta(d):
     return 'ofertas_maquinaria' if any(normalizar(p).upper() in texto for p in PALABRAS_MAQUINA) else 'ofertas_consumibles'
 
 
+MODULOS_OFERTA = {'ofertas_maquinaria': 'Ofertas de maquinaria', 'ofertas_consumibles': 'Ofertas de consumibles'}
+
+
 def _avisar_oferta(s, d, registro, previo=None):
     """Aviso en la app de escritorio (campana del módulo de ofertas) cuando una visita o llamada pasa a tener
-    oferta conseguida, o cambia lo que se ha ofertado. Si falla, la visita queda guardada igual."""
+    oferta conseguida, o cambia lo que se ha ofertado. Va al módulo de la línea marcada (Maquinaria -> Ofertas
+    de maquinaria, Consumibles -> Ofertas de consumibles) y, si cambia, sustituye al aviso anterior de esa visita
+    (que se quita del otro módulo). Si la visita deja de tener oferta, se retira el aviso pendiente.
+    Si falla, la visita queda guardada igual. Devuelve {modulo, nombre, ok, error} o None si no había que avisar."""
     previo = previo or {}
+    id_registro = registro.get('ID', '')
     if d.get('OFERTA') != OFERTA_SI:
-        return
+        if previo.get('OFERTA') == OFERTA_SI and id_registro:
+            try:
+                notificaciones.retirar('OFERTA_CONSEGUIDA', id_registro, actividad.ahora())
+            except Exception:
+                pass
+        return None
     if previo.get('OFERTA') == OFERTA_SI and previo.get('PRODUCTOS', '') == d.get('PRODUCTOS', '') \
             and previo.get('NECESIDADES', '') == d.get('NECESIDADES', '') and previo.get('LINEA_OFERTA', '') == d.get('LINEA_OFERTA', ''):
-        return
+        return None
+    modulo = ''
     try:
+        modulo = _modulo_oferta(d)
         que = ' — '.join(x for x in (d.get('PRODUCTOS'), d.get('NECESIDADES')) if x)
         tipo = 'la visita' if d['TIPO'] == 'VISITA' else 'la llamada'
         if d.get('LINEA_OFERTA'):
             que = f"{d['LINEA_OFERTA']}: {que}"
-        notificaciones.crear('OFERTA_CONSEGUIDA', _modulo_oferta(d), f'Oferta conseguida: {d["CLIENTE"]}',
+        linea = d.get('LINEA_OFERTA') or ('Maquinaria' if modulo == 'ofertas_maquinaria' else 'Consumibles')
+        notificaciones.crear('OFERTA_CONSEGUIDA', modulo, f'Oferta de {linea.lower()} conseguida: {d["CLIENTE"]}',
                              f'{s.nombre} ha conseguido una oferta en {tipo} a {d["CLIENTE"]} del {d["FECHA"][8:10]}/{d["FECHA"][5:7]}: '
                              f'{que}. ¿Preparar la oferta?',
                              {'cliente': d['CLIENTE'], 'codigo': d.get('COD_CLIENTE', ''), 'articulo': d.get('PRODUCTOS', ''),
-                              'descripcion': d.get('NECESIDADES', ''), 'linea': d.get('LINEA_OFERTA', ''), 'comercial': s.nombre, 'registro': registro.get('ID', '')},
-                             actividad.ahora())
-    except Exception:
-        pass
+                              'descripcion': d.get('NECESIDADES', ''), 'linea': linea, 'comercial': s.nombre,
+                              'tipo_actividad': d.get('TIPO', ''), 'fecha': d.get('FECHA', ''), 'registro': id_registro},
+                             actividad.ahora(), sustituir=bool(previo.get('OFERTA') == OFERTA_SI))
+        return {'modulo': modulo, 'nombre': MODULOS_OFERTA.get(modulo, modulo), 'ok': True, 'error': ''}
+    except Exception as e:
+        return {'modulo': modulo, 'nombre': MODULOS_OFERTA.get(modulo, modulo), 'ok': False, 'error': str(e)}
 
 
 def _estado(d, cerrar, anterior=''):
@@ -253,7 +270,7 @@ def _comprobar_y_guardar(s, clave, d, id_registro=None, confirmar_solape=False, 
         registro = actividad.actualizar(clave, s.nombre, id_registro, {**d, 'ESTADO': estado})
     else:
         registro = actividad.crear(clave, s.nombre, d, estado=estado)
-    _avisar_oferta(s, d, registro, previo)
+    registro['_aviso_oferta'] = _avisar_oferta(s, d, registro, previo)
     return registro
 
 
@@ -265,7 +282,8 @@ def crear_actividad(reg: Registro, s: Sesion = Depends(sesion_actual)):
         d, errores = actividad.validar(reg.datos)
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
-        return {'registro': _comprobar_y_guardar(s, s.clave, d, confirmar_solape=reg.confirmar_solape, cerrar=reg.cerrar)}
+        registro = _comprobar_y_guardar(s, s.clave, d, confirmar_solape=reg.confirmar_solape, cerrar=reg.cerrar)
+        return {'registro': registro, 'aviso_oferta': registro.pop('_aviso_oferta', None)}
     except Exception as e:
         _error(e)
 
@@ -282,7 +300,8 @@ def editar_actividad(id_registro: str, reg: Registro, s: Sesion = Depends(sesion
         d, errores = actividad.validar(reg.datos)
         if errores:
             raise HTTPException(status_code=400, detail=' '.join(errores))
-        return {'registro': _comprobar_y_guardar(s, clave, d, id_registro, reg.confirmar_solape, reg.cerrar, r['ESTADO'], previo=r)}
+        registro = _comprobar_y_guardar(s, clave, d, id_registro, reg.confirmar_solape, reg.cerrar, r['ESTADO'], previo=r)
+        return {'registro': registro, 'aviso_oferta': registro.pop('_aviso_oferta', None)}
     except Exception as e:
         _error(e)
 
