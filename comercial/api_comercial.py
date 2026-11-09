@@ -1302,8 +1302,9 @@ def estado_precio(id_registro: str, e: EstadoPrecio, s: Sesion = Depends(sesion_
 # Ofertas pedidas en una visita o llamada («¿Se ha conseguido una oferta?» = Sí). Estado en ESTADO_OPERACION:
 #   (vacío) pendiente de la oficina -> ENVIADA (la oficina ya la ha hecho: se detecta sola en los Excel de ofertas,
 #   o se marca a mano) -> GANADA / PERDIDA; o CANCELADA si ya no hace falta.
-ESTADOS_PEDIDA = {'PENDIENTE': 'Pendiente de la oficina', 'ENVIADA': 'Oferta enviada', 'GANADA': 'Ganada',
-                  'PERDIDA': 'Perdida', 'CANCELADA': 'Ya no hace falta'}
+ESTADOS_PEDIDA = {'NUEVA': 'Nueva', 'ENVIADA': 'Oferta enviada', 'GANADA': 'Ganada', 'PERDIDA': 'Perdida',
+                  'DESCARTADA': 'Descartada'}
+PEDIDA_ANTIGUOS = {'PENDIENTE': 'NUEVA', 'CANCELADA': 'DESCARTADA'}
 
 
 def _ofertas_pedidas(regs, lista_ofertas):
@@ -1322,10 +1323,11 @@ def _ofertas_pedidas(regs, lista_ofertas):
             usadas.add(o['id'])
             o.setdefault('pedida', {'id': r['ID'], 'fecha': r['FECHA'], 'comercial': r['COMERCIAL'], 'tipo': r['TIPO'],
                                     'que': ' — '.join(x for x in (r['PRODUCTOS'], r['NECESIDADES']) if x)})
-        manual = r['ESTADO_OPERACION'] if r['ESTADO_OPERACION'] in ESTADOS_PEDIDA else ''
+        manual = PEDIDA_ANTIGUOS.get(r['ESTADO_OPERACION'], r['ESTADO_OPERACION'])
+        manual = manual if manual in ESTADOS_PEDIDA else ''
         r['oferta_oficina'] = o['id'] if o else ''
-        # Hecha por la oficina: desde ahí se sigue en la oferta (ganada / perdida); si no, lo marcado a mano.
-        r['estado_pedida'] = manual if manual in ('CANCELADA', 'GANADA', 'PERDIDA') else 'ENVIADA' if (o or manual == 'ENVIADA') else 'PENDIENTE'
+        # Lo marcado a mano manda siempre; si no hay nada, «Oferta enviada» cuando la oficina ya la ha hecho y «Nueva» si no.
+        r['estado_pedida'] = manual or ('ENVIADA' if o else 'NUEVA')
         r['dias'] = (date.today() - date.fromisoformat(r['FECHA'])).days
         salida.append(r)
     return sorted(salida, key=lambda r: r['FECHA'], reverse=True)
@@ -1350,7 +1352,7 @@ def seguimiento_comercial(s, comercial=''):
         o['comercial'] = c['comercial'] if c else ''
         o['mio'] = bool(c and mio and any(cl[h]['comercial_norm'] == mio for h in pirineos.codigos_hermanos(c['codigo']) if h in cl))
     lista.sort(key=lambda o: o['fecha'], reverse=True)    # más recientes primero
-    lista.sort(key=lambda o: o['estado'] != 'ABIERTA')     # y las abiertas arriba
+    lista.sort(key=lambda o: o['estado'] not in ofertas.ABIERTOS)     # y las abiertas arriba
     pedidas = _ofertas_pedidas(pedidas_regs, lista)
     try:
         oportunidades = oportunidades_visibles(s, comercial)
@@ -1376,18 +1378,19 @@ class EstadoPedida(BaseModel):
 
 @router.post('/actividad/{id_registro}/oferta_pedida')
 def estado_oferta_pedida(id_registro: str, e: EstadoPedida, s: Sesion = Depends(sesion_actual)):
-    """Seguimiento de una oferta pedida en una visita: ENVIADA, GANADA, PERDIDA, CANCELADA o PENDIENTE (reabrir)."""
+    """Estado de una oferta pedida en una visita (NUEVA, ENVIADA, GANADA, PERDIDA o DESCARTADA), siempre a mano."""
     try:
         clave, r = _dueno(s, id_registro)
         if clave != s.clave and not s.puede('editar_otros'):
             raise HTTPException(status_code=403, detail='No puedes modificar la actividad de otra persona.')
         if r.get('OFERTA') != OFERTA_SI:
             raise HTTPException(status_code=400, detail='Esta visita no tiene oferta pedida.')
-        if e.estado not in ESTADOS_PEDIDA:
+        estado = PEDIDA_ANTIGUOS.get(e.estado, e.estado)
+        if estado not in ESTADOS_PEDIDA:
             raise HTTPException(status_code=400, detail='Estado no válido.')
-        cambios = {'ESTADO_OPERACION': '' if e.estado == 'PENDIENTE' else e.estado}
+        cambios = {'ESTADO_OPERACION': estado}
         if e.nota.strip():
-            cambios['OBSERVACIONES'] = (r['OBSERVACIONES'] + ' ' if r['OBSERVACIONES'] else '') + f'[Oferta: {ESTADOS_PEDIDA[e.estado]}. {e.nota.strip()}]'
+            cambios['OBSERVACIONES'] = (r['OBSERVACIONES'] + ' ' if r['OBSERVACIONES'] else '') + f'[Oferta: {ESTADOS_PEDIDA[estado]}. {e.nota.strip()}]'
         return {'registro': actividad.actualizar(clave, s.nombre, id_registro, cambios, accion='SEGUIMIENTO OFERTA')}
     except Exception as ex:
         _error(ex)

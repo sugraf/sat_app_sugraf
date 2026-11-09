@@ -21,7 +21,10 @@ FICHERO_SEGUIMIENTO = 'Seguimiento_ofertas.json'
 FICHERO_MAQUINARIA = 'Datos_maquinas.xlsx'
 FICHEROS_CONSUMIBLES = {'Ofertas_offset.xlsx': 'Offset', 'Ofertas_flex.xlsx': 'Flexibles', 'Ofertas_rigidos.xlsx': 'Rígidos',
                         'Ofertas_vin_corte.xlsx': 'Vinilo de corte'}
-ESTADOS = ['ABIERTA', 'GANADA', 'PERDIDA']
+# Estados de una oferta en Seguimiento (los mismos para las pedidas en visita). Se pueden cambiar siempre a mano.
+ESTADOS = ['NUEVA', 'ENVIADA', 'GANADA', 'PERDIDA', 'DESCARTADA']
+ABIERTOS = ('NUEVA', 'ENVIADA')
+ANTIGUOS = {'ABIERTA': 'ENVIADA'}     # estados guardados antes del cambio
 VALIDEZ_DIAS = 30
 
 _lock = threading.Lock()
@@ -177,7 +180,7 @@ def compra_de_oferta(o, ventas):
 
 def con_estado(lista):
     """Añade a cada oferta su seguimiento y su estado: el marcado a mano o, si no hay, GANADA cuando el cliente
-    ya ha comprado lo ofertado (compra_pirineos) y ABIERTA si no."""
+    ya ha comprado lo ofertado (compra_pirineos) y ENVIADA si no (si la oficina la ha hecho, se ha enviado)."""
     seg = seguimiento()
     try:
         ventas, _ = pirineos.todas_las_ventas()
@@ -187,7 +190,8 @@ def con_estado(lista):
         o['seguimiento'] = seg.get(o['id'], {})
         o['compra_pirineos'] = compra_de_oferta(o, ventas)
         manual = o['seguimiento'].get('estado')
-        o['estado'] = manual or ('GANADA' if o['compra_pirineos'] else 'ABIERTA')
+        manual = ANTIGUOS.get(manual, manual) if manual in ESTADOS or manual in ANTIGUOS else ''
+        o['estado'] = manual or ('GANADA' if o['compra_pirineos'] else 'ENVIADA')
         o['ganada_sola'] = not manual and bool(o['compra_pirineos'])
     return lista
 
