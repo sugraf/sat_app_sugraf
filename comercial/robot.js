@@ -24,7 +24,7 @@
   const MAX_RONDAS = 8;
   const PAUSA_ACCION = 450;
 
-  const VISTAS = {hoy: 'Hoy', clientes: 'Clientes', ficha: 'Ficha de cliente', precios: 'Precios', agenda: 'Agenda', ruta: 'Ruta', seguimiento: 'Seguimiento'};
+  const VISTAS = {hoy: 'Hoy', clientes: 'Clientes', ficha: 'Ficha de cliente', precios: 'Precios', pedidos: 'Pedidos', agenda: 'Agenda', ruta: 'Ruta', seguimiento: 'Seguimiento'};
   const SUGERENCIAS = {
     hoy: ['¿A qué clientes me toca ir esta semana?', '¿Qué seguimientos tengo pendientes?'],
     clientes: ['¿Qué clientes estoy visitando de más?', '¿Qué clientes dormidos compraban más?'],

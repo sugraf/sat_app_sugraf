@@ -21,7 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-from comercial import actividad, analisis, control, geo, incidencias, notificaciones, ofertas, pirineos, sat  # noqa: E402
+from comercial import actividad, analisis, control, geo, incidencias, notificaciones, ofertas, pedidos, pirineos, sat  # noqa: E402
 from comercial.usuarios import (USUARIOS, Sesion, clave_por_nombre, comerciales, comprobar_clave,  # noqa: E402
                                 crear_token, normalizar, sesion_actual)
 
@@ -332,6 +332,95 @@ def seguimiento_hecho(id_registro: str, s: Sesion = Depends(sesion_actual)):
         if clave != s.clave and not s.puede('editar_otros'):
             raise HTTPException(status_code=403, detail='No puedes modificar la actividad de otra persona.')
         return {'registro': actividad.actualizar(clave, s.nombre, id_registro, {'SEGUIMIENTO_HECHO': 'SI'}, accion='SEGUIMIENTO HECHO')}
+    except Exception as e:
+        _error(e)
+
+
+# ---------------------------------------------------------------- pedidos (pestaña «Pedidos»)
+class LineaPedido(BaseModel):
+    referencia: str = ''
+    descripcion: str = ''
+    cantidad: float = 1
+    nota: str = ''
+
+
+class Pedido(BaseModel):
+    cod_cliente: str = ''
+    cliente: str
+    tipo: str
+    lineas: list[LineaPedido]
+    maquina: str = ''         # piezas: para qué máquina (modelo / nº de serie)
+    ref_cliente: str = ''     # nº de pedido o referencia del cliente
+    entrega: str = ''         # fecha deseada YYYY-MM-DD
+    urgente: bool = False
+    contacto: str = ''
+    direccion: str = ''       # si se entrega en otra dirección
+    observaciones: str = ''
+
+
+def _limpio(t, largo=500):
+    return ' '.join(str(t or '').split())[:largo]
+
+
+@router.post('/pedidos')
+def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
+    """Envía el pedido por correo a la oficina (carolina@sugraf.es) y, si se puede, lo guarda en el histórico.
+    Si el correo no sale, no se da por enviado (error) para que el comercial lo vuelva a intentar."""
+    try:
+        if not s.puede('registrar'):
+            raise HTTPException(status_code=403, detail='Sin permiso para enviar pedidos.')
+        cliente = _limpio(p.cliente, 200)
+        if not cliente:
+            raise HTTPException(status_code=400, detail='Elige el cliente.')
+        tipo = next((t for t in pedidos.TIPOS if normalizar(t) == normalizar(p.tipo)), '')
+        if not tipo:
+            raise HTTPException(status_code=400, detail='Indica si el pedido es de piezas o de máquinas.')
+        lineas = []
+        for l in p.lineas:
+            ref, desc = _limpio(l.referencia, 40), _limpio(l.descripcion, 300)
+            if not ref and not desc:
+                continue
+            if not l.cantidad or l.cantidad <= 0:
+                raise HTTPException(status_code=400, detail=f'Cantidad no válida en «{desc or ref}».')
+            lineas.append({'referencia': ref, 'descripcion': desc, 'cantidad': round(float(l.cantidad), 3), 'nota': _limpio(l.nota, 300)})
+        if not lineas:
+            raise HTTPException(status_code=400, detail='Añade al menos una pieza o máquina al pedido.')
+        if len(lineas) > 60:
+            raise HTTPException(status_code=400, detail='Demasiadas líneas en un pedido (máximo 60).')
+        entrega = p.entrega.strip()
+        if entrega:
+            try:
+                datetime.strptime(entrega, '%Y-%m-%d')
+            except ValueError:
+                raise HTTPException(status_code=400, detail='Fecha de entrega no válida.')
+        momento = actividad.ahora()
+        pedido = {'id': pedidos.nuevo_id(momento), 'comercial': s.nombre, 'cod_cliente': _limpio(p.cod_cliente, 20), 'cliente': cliente,
+                  'tipo': tipo, 'lineas': lineas, 'maquina': _limpio(p.maquina, 200), 'ref_cliente': _limpio(p.ref_cliente, 80),
+                  'entrega': entrega, 'urgente': bool(p.urgente), 'contacto': _limpio(p.contacto, 200),
+                  'direccion': _limpio(p.direccion, 300), 'observaciones': str(p.observaciones or '').strip()[:3000],
+                  'creado': momento.strftime('%Y-%m-%d %H:%M'), 'creado_txt': momento.strftime('%d/%m/%Y %H:%M')}
+        from comercial import correo
+        ok, error = correo.pedido(pedido)
+        if not ok:
+            raise HTTPException(status_code=502, detail=f'No se ha podido enviar el correo del pedido ({error}). '
+                                                        'El pedido NO se ha enviado: inténtalo de nuevo en un momento.')
+        pedido['destinos'] = correo.DESTINOS_PEDIDOS
+        try:
+            guardado = pedidos.guardar(pedido)
+        except Exception:
+            guardado = False
+        return {'pedido': pedido, 'guardado': guardado, 'destinos': correo.DESTINOS_PEDIDOS}
+    except Exception as e:
+        _error(e)
+
+
+@router.get('/pedidos')
+def listar_pedidos(comercial: str = '', s: Sesion = Depends(sesion_actual)):
+    try:
+        nombres = {USUARIOS[k]['nombre'] for k in _claves_visibles(s, comercial)}
+        lista, hay = pedidos.listar(None if (s.puede('ver_todos') and not comercial) else nombres)
+        from comercial import correo
+        return {'pedidos': lista[:200], 'historico': hay, 'tipos': list(pedidos.TIPOS), 'destinos': correo.DESTINOS_PEDIDOS}
     except Exception as e:
         _error(e)
 

@@ -287,6 +287,20 @@
     <div id="pre-lista" style="margin-top:12px;"><div class="empty">Escribe para buscar un artículo.</div></div>
   </div>
 
+  <!-- ============ PEDIDOS: piezas o máquinas, por correo a la oficina ============ -->
+  <div class="container view" id="view-pedidos">
+    <div class="row between" style="margin:8px 0 12px;">
+      <h2>Pedidos</h2>
+      <select id="ped-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="cargarPedidos()"></select>
+    </div>
+    <div class="seg" style="margin-bottom:12px;">
+      <button id="ped-tab-nuevo" class="on" onclick="pestanaPedidos('nuevo')">Nuevo pedido</button>
+      <button id="ped-tab-enviados" onclick="pestanaPedidos('enviados')">Enviados</button>
+    </div>
+    <div id="ped-form"></div>
+    <div id="ped-lista" style="display:none"></div>
+  </div>
+
   <!-- ============ AGENDA ============ -->
   <div class="container view" id="view-agenda">
     <div class="row between" style="margin:8px 0 12px;">
@@ -345,8 +359,8 @@
   <nav class="nav">
     <button data-v="hoy" onclick="irA('hoy')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Hoy</button>
     <button data-v="clientes" onclick="irA('clientes')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18 13.8c1.8.7 3 2.4 3 5.2"/></svg>Clientes</button>
-    <button class="mas" onclick="menuNuevo()"><span class="circ"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></span></button>
     <button data-v="precios" onclick="irA('precios')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3.5 12.5 12 4h7.5v7.5L11 20z"/><circle cx="15.5" cy="8" r="1.4"/></svg>Precios</button>
+    <button data-v="pedidos" onclick="irA('pedidos')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>Pedidos</button>
     <button data-v="seguimiento" onclick="irA('seguimiento')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 3.5h7.5L19 8v12.5H7z"/><path d="M14.5 3.5V8H19"/><path d="M10 12.5h6M10 16h4"/><path d="M4 7v13.5"/></svg>Ofertas</button>
     <button data-v="agenda" onclick="irA('agenda')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>Agenda</button>
   </nav>
@@ -461,7 +475,7 @@ function colorClase(clase){ return (YO && YO.colores[clase]) ? YO.colores[clase]
 function chipPrecio(p, tam='') { if(!p) return ''; return `<span class="precio ${tam}"><i style="background:${colorClase(p.clase)}"></i>${eur(p.precio)}</span>`; }
 
 // ===================================================================== navegación
-const VISTAS = ['hoy','clientes','ficha','precios','agenda','ruta','seguimiento'];
+const VISTAS = ['hoy','clientes','ficha','precios','pedidos','agenda','ruta','seguimiento'];
 function irA(v) { location.hash = v; }
 function mostrarVista() {
   if (!TOKEN) return;
@@ -478,6 +492,7 @@ function mostrarVista() {
   if (v === 'precios') setTimeout(() => document.getElementById('pre-q').focus(), 50);
   if (v === 'ruta') cargarRuta();
   if (v === 'seguimiento') cargarSeguimiento();
+  if (v === 'pedidos') abrirPedidos();
   actualizarPieRuta();
 }
 window.addEventListener('hashchange', mostrarVista);
@@ -624,6 +639,196 @@ function pickOtro() {
   if (pickCallback) pickCallback({codigo: '', nombre: q, poblacion: ''});
 }
 
+// ===================================================================== pedidos
+// El comercial elige cliente, si son piezas o máquinas, añade las líneas (artículo de Pirineos o nombre libre,
+// cantidad y nota) y lo envía: llega un correo a la oficina (carolina@sugraf.es). El borrador se queda en PED
+// mientras no se envíe (se puede ir a otra pestaña y volver).
+const DESTINO_PEDIDOS = 'carolina@sugraf.es';
+let PED = null, PED_PESTANA = 'nuevo', _tPed = null, _nPed = 0;
+function pedidoVacio(cliente) {
+  return {cliente: cliente || null, tipo: '', lineas: [], maquina: '', ref_cliente: '', entrega: '', urgente: false, contacto: '', direccion: '', observaciones: ''};
+}
+function abrirPedidos() {
+  if (!PED) PED = pedidoVacio();
+  pestanaPedidos(PED_PESTANA);
+}
+function nuevoPedido(cliente) {
+  if (!PED || (!PED.lineas.length && !PED.cliente)) PED = pedidoVacio(cliente);
+  else if (cliente && (!PED.cliente || PED.cliente.codigo !== cliente.codigo)) {
+    // Hay un borrador de otro cliente: se cambia el cliente pero se conservan las líneas.
+    PED.cliente = cliente;
+  }
+  PED_PESTANA = 'nuevo';
+  if ((location.hash || '').slice(1) === 'pedidos') abrirPedidos(); else irA('pedidos');
+}
+function pestanaPedidos(p) {
+  PED_PESTANA = p;
+  document.getElementById('ped-tab-nuevo').classList.toggle('on', p === 'nuevo');
+  document.getElementById('ped-tab-enviados').classList.toggle('on', p === 'enviados');
+  document.getElementById('ped-form').style.display = p === 'nuevo' ? '' : 'none';
+  document.getElementById('ped-lista').style.display = p === 'enviados' ? '' : 'none';
+  document.getElementById('ped-comercial').style.visibility = p === 'enviados' ? '' : 'hidden';
+  if (p === 'nuevo') pintarPedido(); else cargarPedidos();
+}
+// Guarda en PED lo escrito en los campos antes de repintar.
+function leerCamposPedido() {
+  if (!PED || !document.getElementById('ped-obs')) return;
+  const v = id => (document.getElementById(id)?.value || '');
+  PED.maquina = v('ped-maquina'); PED.ref_cliente = v('ped-ref'); PED.entrega = v('ped-entrega');
+  PED.contacto = v('ped-contacto'); PED.direccion = v('ped-direccion'); PED.observaciones = v('ped-obs');
+  PED.urgente = !!document.getElementById('ped-urgente')?.checked;
+  document.querySelectorAll('[data-ped-cant]').forEach(el => { const l = PED.lineas[+el.dataset.pedCant]; if (l) l.cantidad = el.value; });
+  document.querySelectorAll('[data-ped-nota]').forEach(el => { const l = PED.lineas[+el.dataset.pedNota]; if (l) l.nota = el.value; });
+}
+function pintarPedido() {
+  const P = PED, ast = ' <span style="color:#fca5a5">*</span>';
+  const esMaq = P.tipo === 'Máquinas';
+  const lineas = P.lineas.map((l, i) => `<div class="card" style="padding:10px 12px; margin:8px 0;">
+      <div class="row between" style="gap:10px; align-items:flex-start;">
+        <div style="flex:1; min-width:0;"><div class="t-strong" style="font-size:0.9rem;">${esc(l.descripcion || l.referencia)}</div>
+          <div class="t-small">${l.referencia ? 'Ref. ' + esc(l.referencia) : 'Sin referencia de Pirineos (nombre libre)'}</div></div>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="quitarLineaPedido(${i})">Quitar</button>
+      </div>
+      <div style="display:grid; grid-template-columns:96px 1fr; gap:8px; margin-top:8px;">
+        <input type="number" inputmode="decimal" min="0" step="any" data-ped-cant="${i}" value="${esc(l.cantidad)}" aria-label="Cantidad" placeholder="Cant.">
+        <input type="text" data-ped-nota="${i}" value="${esc(l.nota)}" placeholder="${esMaq ? 'Configuración, opciones, color...' : 'Nota (nº de serie, posición, medida...)'}">
+      </div></div>`).join('');
+  document.getElementById('ped-form').innerHTML = `
+    <label style="margin-top:0;">Cliente${ast}</label>
+    <div class="campo-cliente" onclick="elegirClientePedido()"><span id="ped-cliente" class="${P.cliente ? '' : 'vacio'}">${P.cliente ? esc(P.cliente.nombre) + (P.cliente.codigo ? ` <span class="t-small">· ${esc(P.cliente.codigo)}</span>` : '') : 'Elegir cliente'}</span><span class="t-small">Cambiar</span></div>
+    <label>¿Qué se pide?${ast}</label>
+    <div class="seg" id="ped-tipo">${[['Piezas', 'Piezas'], ['Máquinas', 'Máquinas']].map(([v, n]) =>
+      `<button type="button" class="${P.tipo === v ? 'on' : ''}" onclick="tipoPedido('${v}')">${n}</button>`).join('')}</div>
+    ${P.tipo === 'Piezas' ? `<label>Para qué máquina <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional)</span></label>
+      <input id="ped-maquina" value="${esc(P.maquina)}" placeholder="Modelo y nº de serie de la máquina">` : ''}
+    <label>${esMaq ? 'Máquinas' : 'Piezas'}${ast} <span style="text-transform:none; letter-spacing:0; font-weight:600;">(${P.lineas.length} línea${P.lineas.length === 1 ? '' : 's'})</span></label>
+    <div id="ped-lineas">${lineas || `<div class="t-small" style="margin:4px 2px 8px;">Busca ${esMaq ? 'la máquina' : 'la pieza'} por referencia o nombre y tócala para añadirla. Si no está en Pirineos, añádela con el nombre tal cual.</div>`}</div>
+    <div class="buscador">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="ped-buscar" autocomplete="off" placeholder="+ Añadir: referencia o nombre..." oninput="buscarArticuloPedido(this.value)">
+    </div>
+    <div id="ped-res"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div><label>Entrega deseada</label><input type="date" id="ped-entrega" value="${esc(P.entrega)}" min="${hoyISO()}"></div>
+      <div><label>Ref. pedido cliente</label><input id="ped-ref" value="${esc(P.ref_cliente)}" placeholder="Opcional"></div>
+    </div>
+    <label class="toggle"><input type="checkbox" id="ped-urgente" ${P.urgente ? 'checked' : ''}> Urgente</label>
+    <label>Persona de contacto <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional)</span></label>
+    <input id="ped-contacto" value="${esc(P.contacto)}" placeholder="Nombre y teléfono">
+    <label>Entregar en otra dirección <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional)</span></label>
+    <input id="ped-direccion" value="${esc(P.direccion)}" placeholder="Si no es la dirección habitual del cliente">
+    <label>Observaciones</label>
+    <textarea id="ped-obs" data-dictado placeholder="Cualquier otra cosa que deba saber la oficina...">${esc(P.observaciones)}</textarea>
+    <div style="display:grid; grid-template-columns:1fr 2fr; gap:10px; margin:16px 0 8px;">
+      <button class="btn btn-ghost" type="button" onclick="borrarPedido()">Vaciar</button>
+      <button class="btn btn-primary" type="button" id="ped-enviar" onclick="enviarPedido()">Enviar pedido</button>
+    </div>
+    <div class="t-small" style="text-align:center;">Llega por correo a ${DESTINO_PEDIDOS}</div>
+    <div style="height:80px"></div>`;
+}
+function elegirClientePedido() {
+  leerCamposPedido();
+  elegirCliente(c => { PED.cliente = c; pintarPedido(); });
+}
+function tipoPedido(t) { leerCamposPedido(); PED.tipo = t; pintarPedido(); }
+function quitarLineaPedido(i) { leerCamposPedido(); PED.lineas.splice(i, 1); pintarPedido(); }
+function anadirLineaPedido(linea) {
+  leerCamposPedido();
+  const ya = linea.referencia && PED.lineas.find(l => l.referencia === linea.referencia);
+  if (ya) ya.cantidad = (parseFloat(String(ya.cantidad).replace(',', '.')) || 0) + 1;
+  else PED.lineas.push({cantidad: 1, nota: '', ...linea});
+  pintarPedido();
+  const b = document.getElementById('ped-buscar'); if (b) b.focus();
+}
+function htmlTextoLibrePedido(q) {
+  return `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer; border-style:dashed;" onclick="usarTextoLibrePedido()">
+    <div class="t-strong" style="font-size:0.88rem;">&#9998; Añadir «${esc(q.trim())}» tal cual</div><div class="t-small">Nombre libre, sin artículo de Pirineos</div></div>`;
+}
+function usarTextoLibrePedido() {
+  const t = (document.getElementById('ped-buscar')?.value || '').trim().replace(/\s+/g, ' ');
+  if (!t) return;
+  clearTimeout(_tPed); _nPed++;
+  anadirLineaPedido({referencia: '', descripcion: t});
+}
+function elegirArticuloPedido(i) {
+  const a = (window._artsPedido || [])[i]; if (!a) return;
+  clearTimeout(_tPed); _nPed++;
+  anadirLineaPedido({referencia: a.referencia, descripcion: a.descripcion});
+}
+function buscarArticuloPedido(q) {
+  clearTimeout(_tPed);
+  const res = document.getElementById('ped-res');
+  if (q.trim().length < 2) { res.innerHTML = q.trim() ? htmlTextoLibrePedido(q) : ''; return; }
+  res.innerHTML = htmlTextoLibrePedido(q);
+  _tPed = setTimeout(async () => {
+    const n = ++_nPed;
+    res.innerHTML = htmlTextoLibrePedido(q) + '<div class="t-small" style="padding:8px 2px;">Buscando artículos...</div>';
+    let d;
+    try { d = await api(`/articulos?limite=15&q=${encodeURIComponent(q)}${PED.cliente && PED.cliente.codigo ? '&cliente=' + encodeURIComponent(PED.cliente.codigo) : ''}`); }
+    catch (e) { if (n === _nPed) res.innerHTML = htmlTextoLibrePedido(q) + `<div class="t-small" style="padding:8px 2px;">${esc(e.message)}</div>`; return; }
+    if (n !== _nPed) return;
+    window._artsPedido = d.articulos || [];
+    res.innerHTML = htmlTextoLibrePedido(q) + (window._artsPedido.length ? window._artsPedido.map((a, i) => `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer;" onclick="elegirArticuloPedido(${i})">
+        <div class="t-strong" style="font-size:0.88rem;">${esc(a.descripcion)}</div><div class="t-small">Ref. ${esc(a.referencia)}${a.familia ? ' · ' + esc(a.familia) : ''}</div>${htmlStock(a, true)}</div>`).join('')
+      : '<div class="t-small" style="padding:8px 2px;">No se ha encontrado en Pirineos: añádelo con el nombre tal cual.</div>');
+  }, 300);
+}
+async function borrarPedido() {
+  leerCamposPedido();
+  if ((PED.lineas.length || PED.observaciones) && !(await appConfirm('¿Vaciar el pedido? Se borra todo lo que has puesto.', {okText: 'Vaciar'}))) return;
+  PED = pedidoVacio(); pintarPedido();
+}
+async function enviarPedido() {
+  leerCamposPedido();
+  const P = PED;
+  const lineas = P.lineas.map(l => ({referencia: l.referencia, descripcion: l.descripcion, nota: (l.nota || '').trim(),
+                                     cantidad: parseFloat(String(l.cantidad).replace(',', '.'))}));
+  const falta = [!P.cliente && 'el cliente', !P.tipo && 'si son piezas o máquinas', !lineas.length && 'al menos una línea'].filter(Boolean);
+  if (falta.length) { await appAlert('Para enviar el pedido falta: ' + falta.join(', ') + '.', {type: 'error'}); return; }
+  const mala = lineas.find(l => !(l.cantidad > 0));
+  if (mala) { await appAlert(`Pon una cantidad válida en «${mala.descripcion || mala.referencia}».`, {type: 'error'}); return; }
+  const resumen = lineas.map(l => `· ${String(l.cantidad).replace('.', ',')} × ${l.descripcion || l.referencia}`).join('\n');
+  if (!(await appConfirm(`¿Enviar el pedido de ${P.tipo.toLowerCase()} de ${P.cliente.nombre} a ${DESTINO_PEDIDOS}?${P.urgente ? ' (URGENTE)' : ''}\n\n${resumen}`, {okText: 'Enviar'}))) return;
+  const b = document.getElementById('ped-enviar'); if (b) b.disabled = true;
+  const r = await conCarga(() => api('/pedidos', {method: 'POST', body: JSON.stringify({
+    cod_cliente: P.cliente.codigo || '', cliente: P.cliente.nombre, tipo: P.tipo, lineas,
+    maquina: P.tipo === 'Piezas' ? P.maquina.trim() : '', ref_cliente: P.ref_cliente.trim(), entrega: P.entrega, urgente: P.urgente,
+    contacto: P.contacto.trim(), direccion: P.direccion.trim(), observaciones: P.observaciones.trim()})}));
+  if (b) b.disabled = false;
+  if (!r) return;   // el error ya se ha enseñado; el borrador sigue ahí para reintentar
+  PED = pedidoVacio();
+  await appAlert(`Pedido enviado a ${(r.destinos || [DESTINO_PEDIDOS]).join(', ')}.` +
+                 (r.guardado ? '' : '\n\n(No ha quedado en «Enviados» porque falta el fichero Pedidos_comerciales.json en Drive; el correo sí ha salido.)'), {type: 'success'});
+  pintarPedido();
+}
+async function cargarPedidos() {
+  const el = document.getElementById('ped-lista');
+  el.innerHTML = '<div class="empty">Cargando...</div>';
+  const com = filtroComercial('ped-comercial');
+  let d;
+  try { d = await api('/pedidos' + (com ? '?comercial=' + encodeURIComponent(com) : '')); }
+  catch (e) { el.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
+  if (!d.historico) { el.innerHTML = '<div class="aviso info">Los pedidos se envían por correo, pero para verlos aquí hay que crear en Drive el fichero SAT-App/Comerciales/Pedidos_comerciales.json (con {"pedidos": []}).</div>'; return; }
+  if (!d.pedidos.length) { el.innerHTML = '<div class="empty">Todavía no se ha enviado ningún pedido.</div>'; return; }
+  const ver = YO.permisos.ver_todos;
+  el.innerHTML = d.pedidos.map(p => `<div class="card">
+      <div class="row between" style="gap:8px;"><span class="t-strong">${esc(p.cliente)}</span>
+        <span>${p.urgente ? '<span class="badge bad">Urgente</span> ' : ''}<span class="badge ${p.tipo === 'Máquinas' ? 'visita' : 'llamada'}">${esc(p.tipo)}</span></span></div>
+      <div class="t-small" style="margin:2px 0 6px;">${esc(p.creado.slice(8, 10) + '/' + p.creado.slice(5, 7) + '/' + p.creado.slice(0, 4) + ' ' + p.creado.slice(11))}${ver ? ' · ' + esc(p.comercial) : ''}${p.cod_cliente ? ' · Cód. ' + esc(p.cod_cliente) : ''}${p.entrega ? ' · Entrega ' + esc(p.entrega.split('-').reverse().join('/')) : ''}${p.ref_cliente ? ' · Ref. ' + esc(p.ref_cliente) : ''}</div>
+      ${p.maquina ? `<div class="t-small">Para: ${esc(p.maquina)}</div>` : ''}
+      ${p.lineas.map(l => `<div class="t-txt">${esc(String(l.cantidad).replace('.', ','))} × ${esc(l.descripcion || l.referencia)}${l.referencia && l.descripcion ? ` <span class="t-small">ref. ${esc(l.referencia)}</span>` : ''}${l.nota ? ` <span class="t-small">— ${esc(l.nota)}</span>` : ''}</div>`).join('')}
+      ${p.observaciones ? `<div class="t-small" style="margin-top:6px;">${esc(p.observaciones)}</div>` : ''}
+      <div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" onclick="repetirPedido('${esc(p.id)}')">Repetir pedido</button></div>
+    </div>`).join('');
+  window._pedidosEnviados = d.pedidos;
+}
+function repetirPedido(id) {
+  const p = (window._pedidosEnviados || []).find(x => x.id === id); if (!p) return;
+  PED = {...pedidoVacio({codigo: p.cod_cliente, nombre: p.cliente, poblacion: ''}), tipo: p.tipo, maquina: p.maquina || '',
+         contacto: p.contacto || '', direccion: p.direccion || '', lineas: p.lineas.map(l => ({...l}))};
+  pestanaPedidos('nuevo');
+}
+
 // ===================================================================== ficha de cliente
 let FICHA = null;
 async function cargarFicha(codigo) {
@@ -648,6 +853,7 @@ async function cargarFicha(codigo) {
       <button class="btn btn-primary grande" onclick="nuevaActividad('VISITA', clienteFicha())">&#43;&nbsp; Nueva visita</button>
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA', clienteFicha())">Llamada</button>
       <button class="btn btn-ghost" onclick="preciosDeFicha()">Precios cliente</button>
+      <button class="btn btn-ghost" onclick="nuevoPedido(clienteFicha())">&#128230;&nbsp; Hacer pedido</button>
       <button class="btn btn-ghost" onclick="nuevaIncidencia()">&#9888;&nbsp; Incidencia</button>
       <button class="btn btn-ghost" onclick="programarVisita(clienteFicha())">&#128197;&nbsp; Programar visita</button>
       <button class="btn btn-ghost" onclick="cambiarNoVisitar()">${FICHA.control.no_visitar ? 'Volver a visitar' : '&#8856;&nbsp; No visitar'}</button>

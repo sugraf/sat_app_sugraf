@@ -14,6 +14,8 @@ logger = logging.getLogger('correo_comercial')
 REMITENTE = 'sugraf.digitalhub@gmail.com'
 # Quién recibe un aviso cada vez que un comercial apunta un precio dado.
 DESTINOS_PRECIOS = ['lucia@sugraf.es', 'carolina@sugraf.es']
+# Quién recibe los pedidos que mandan los comerciales desde la pestaña «Pedidos».
+DESTINOS_PEDIDOS = ['carolina@sugraf.es']
 
 
 def _eur(n):
@@ -69,3 +71,47 @@ def aviso_precio_dado(comercial, cliente, cod_cliente, referencia, descripcion, 
         lineas += ['', 'Precios dados antes a este cliente para esta referencia:'] + [f'  · {x}' for x in otros_precios]
     lineas += ['', f'Fecha: {momento}', '', 'Lo tienes en la ficha del cliente, pestaña «Precios dados».']
     return enviar(DESTINOS_PRECIOS, asunto, '\n'.join(lineas))
+
+
+def _cantidad(n):
+    try:
+        n = float(n)
+        return str(int(n)) if n.is_integer() else f'{n:g}'.replace('.', ',')
+    except (TypeError, ValueError):
+        return str(n or '')
+
+
+def pedido(p):
+    """Correo a la oficina con un pedido de la app comercial (p: el pedido ya validado)."""
+    urgente = '⚠ URGENTE · ' if p.get('urgente') else ''
+    n = len(p['lineas'])
+    asunto = f"{urgente}Pedido de {p['tipo'].lower()} · {p['cliente']} · {n} línea{'s' if n != 1 else ''} ({p['comercial']})"
+    lineas = [
+        f"{p['comercial']} ha enviado un pedido desde la app comercial.",
+        '',
+        f"Cliente:       {p['cliente']}" + (f" (código {p['cod_cliente']})" if p.get('cod_cliente') else ' (sin código: no está en Pirineos)'),
+        f"Tipo:          {p['tipo']}",
+    ]
+    if p.get('maquina'):
+        lineas.append(f"Para máquina:  {p['maquina']}")
+    if p.get('ref_cliente'):
+        lineas.append(f"Ref. cliente:  {p['ref_cliente']}")
+    if p.get('entrega'):
+        a, m, d = p['entrega'].split('-')
+        lineas.append(f"Entrega:       deseada el {d}/{m}/{a}")
+    if p.get('urgente'):
+        lineas.append('Prioridad:     URGENTE')
+    if p.get('contacto'):
+        lineas.append(f"Contacto:      {p['contacto']}")
+    if p.get('direccion'):
+        lineas.append(f"Entregar en:   {p['direccion']}")
+    lineas += ['', f"{'PIEZAS' if p['tipo'] == 'Piezas' else 'MÁQUINAS'}:"]
+    for i, l in enumerate(p['lineas'], 1):
+        art = ' · '.join(x for x in (l.get('referencia'), l.get('descripcion')) if x)
+        lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × {art}" + ('' if l.get('referencia') else '   (sin referencia de Pirineos)'))
+        if l.get('nota'):
+            lineas.append(f"     Nota: {l['nota']}")
+    if p.get('observaciones'):
+        lineas += ['', 'Observaciones:', p['observaciones']]
+    lineas += ['', f"Enviado: {p['creado_txt']} · Nº {p['id']}"]
+    return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas))
