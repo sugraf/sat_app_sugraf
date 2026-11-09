@@ -309,10 +309,10 @@
       style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">&#9888; ${esc(i.tipo_texto)}</span>`).join('');
   }
   // Recuadro con el detalle, para debajo de la tarjeta o dentro del parte.
-  function htmlAlertaCliente(nombre) {
+  function htmlAlertaCliente(nombre, claro = false) {      // claro: sobre fondo blanco (el parte)
     const l = ALERTAS[nombre] || [];
     if (!l.length) return '';
-    return `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(239,68,68,0.10); border:1px solid rgba(239,68,68,0.35); color:#fca5a5; font-size:0.82rem; line-height:1.4;">
+    return `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background:${claro ? '#fef2f2' : 'rgba(239,68,68,0.10)'}; border:1px solid ${claro ? '#fca5a5' : 'rgba(239,68,68,0.35)'}; color:${claro ? '#b91c1c' : '#fca5a5'}; font-size:0.82rem; line-height:1.4;">
       <b>&#9888; Antes de ir:</b> ${l.map(i => `<b>${esc(i.tipo_texto)}</b> — ${esc(i.detalle)} <span style="opacity:.75">(${esc(i.creado_por)}, ${esc(String(i.creado_en).slice(0, 10))})</span>`).join('<br>')}</div>`;
   }
   window.cargarAlertasClientes = cargarAlertasClientes;

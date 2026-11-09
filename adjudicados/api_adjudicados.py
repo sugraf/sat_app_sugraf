@@ -34,7 +34,9 @@ router = APIRouter()
 FOLDER_ID = "1nK7_foRIcGb9oasij7spOn0kOLQHmVYb"
 
 COLS_SIN = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'ESTADO PIEZAS', 'OBSERVACIONES', 'EMAIL CLIENTE']
-COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'PIEZAS UTILIZADAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES', 'EMAIL CLIENTE']
+COLS_TRA = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'NUEVO', 'URGENTE', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'PIEZAS UTILIZADAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES', 'EMAIL CLIENTE', 'Nº PARTE']
+# «Nº PARTE»: número del parte (orden de trabajo) que se le dio al cerrarlo y enviarlo. Se añade como columna
+# al final de Avisos Tratados / Partes Finalizados la primera vez que se guarda.
 
 def get_drive_service():
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
@@ -93,6 +95,57 @@ def save_excel(drive, file_id, name, df, filas_antes=None, quitadas=0):
         drive.files().update(fileId=file_id, media_body=media).execute()
     else:
         drive.files().create(body={'name': name, 'parents': [FOLDER_ID]}, media_body=media).execute()
+
+def _numero_parte_texto(v):
+    t = str(v if v is not None else '').strip()
+    return '' if t.lower() == 'nan' else (t[:-2] if t.endswith('.0') and t[:-2].isdigit() else t)
+
+
+def _guardar_numero_parte(drive, base_parte, num_parte):
+    """Apunta el nº de parte en la fila del aviso (columna «Nº PARTE»). Si falla no se pierde nada:
+    el parte ya se ha enviado y el número queda también en movimientos.json."""
+    try:
+        fid, df = get_excel(drive, 'Avisos Tratados.xlsx', COLS_TRA)
+        n = len(df)
+        idx = resolver_indice_aviso(df, base_parte.aviso_index, base_parte.cliente, base_parte.maquina,
+                                    base_parte.descripcion, base_parte.fecha_entr)
+        if idx is None:
+            return
+        anterior = _numero_parte_texto(df.at[idx, 'Nº PARTE'])
+        nuevo = str(num_parte)
+        # Si se vuelve a cerrar y enviar el mismo aviso, se conservan los dos números.
+        df.at[idx, 'Nº PARTE'] = nuevo if not anterior or anterior == nuevo else f'{anterior} / {nuevo}'
+        save_excel(drive, fid, 'Avisos Tratados.xlsx', df, n)
+    except Exception as e:
+        print(f"No se pudo guardar el nº de parte {num_parte}: {e}")
+
+
+def _numeros_parte_registrados(drive):
+    """Nº de parte de los últimos cierres (movimientos.json), para los avisos cerrados antes de que se guardara
+    en el Excel: {(cliente, máquina, descripción, fecha entrada) normalizados: número}."""
+    try:
+        res = drive.files().list(q=f"'{FOLDER_ID}' in parents and name = 'movimientos.json' and trashed = false",
+                                 fields="files(id)").execute().get("files", [])
+        if not res:
+            return {}
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, drive.files().get_media(fileId=res[0]['id']))
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        cierres = json.loads(fh.getvalue().decode('utf-8') or '{}').get('cierre', [])
+    except Exception:
+        return {}
+    numeros = {}
+    for c in cierres:
+        d = c.get('datos') or {}
+        b = d.get('base_parte') or {}
+        if d.get('numero_parte_generado') is None:
+            continue
+        clave = tuple(_normalizar_texto(b.get(k, '')) for k in ('cliente', 'maquina', 'descripcion', 'fecha_entr'))
+        numeros[clave] = str(d['numero_parte_generado'])      # el último cierre manda
+    return numeros
+
 
 def get_and_increment_part_number(drive):
     query = f"'{FOLDER_ID}' in parents and name = 'numeracion_partes.txt' and trashed = false"
@@ -729,6 +782,7 @@ def get_mis_avisos(tecnico: str):
             row_dict['PRESUPUESTO'] = row.get('PRESUPUESTO', '').strip()
             row_dict['PIEZAS'] = row.get('PIEZAS', '').strip()
 
+            row_dict['Nº PARTE'] = _numero_parte_texto(row.get('Nº PARTE', ''))
             row_dict['aviso_index'] = index
 
             if tecnico == 'Master':
@@ -737,6 +791,14 @@ def get_mis_avisos(tecnico: str):
             else:
                 if asignado == tecnico:
                     avisos_mios.append(row_dict)
+
+        # Avisos cerrados antes de guardar el nº de parte en el Excel: se busca en los últimos cierres registrados.
+        sin_numero = [a for a in avisos_mios if a.get('ESTADO') == 'Cerrado' and not a.get('Nº PARTE')]
+        if sin_numero:
+            numeros = _numeros_parte_registrados(drive)
+            for a in sin_numero:
+                clave = tuple(_normalizar_texto(a.get(k, '')) for k in ('CLIENTE', 'MÁQUINA', 'DESCRIPCIÓN', 'F. ENTR.'))
+                a['Nº PARTE'] = numeros.get(clave, '')
 
         return {"avisos": avisos_mios}
     except Exception as e:
@@ -933,6 +995,7 @@ def cerrar_parte_y_enviar(payload: CerrarYEnviarParte):
                 )
 
         num_parte = get_and_increment_part_number(drive)
+        _guardar_numero_parte(drive, payload.base_parte, num_parte)
         observaciones_internas = str(payload.base_parte.observaciones or '').strip()
         payload_interno = payload.copy(update={'pdf_observaciones': observaciones_internas})
         payload_cliente = payload.copy(update={'pdf_observaciones': ''})

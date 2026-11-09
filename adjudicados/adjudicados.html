@@ -230,6 +230,10 @@
     .btn-tool.vacio .cnt{ background:rgba(182,190,196,0.12); color:#8aa0bd; }
 
     .tools-parte{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:18px 0 4px; }
+    .motivo-aviso{ margin:12px 0 16px; padding:12px 14px; border-radius:12px; background:#eef5fc;
+      border:1px solid #c9d6e8; border-left:4px solid #2f6fb0; }
+    .motivo-aviso .mot-tit{ font-size:0.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#2f6fb0; margin-bottom:4px; }
+    .motivo-aviso .mot-txt{ white-space:pre-wrap; line-height:1.45; color:var(--navy); font-size:0.95rem; }
     .btn-tool-form{
       display:flex; align-items:center; gap:11px; text-align:left; min-width:0;
       background:#f8fafc; color:var(--navy); border:1px solid #e2e8f0; border-radius:12px;
@@ -476,6 +480,9 @@
             <span class="tool-txt"><strong>Manuales</strong><small id="man-parte-txt">Manuales de esta máquina</small></span>
           </button>
         </div>
+
+        <!-- Motivo del aviso (lo que escribió quien lo dio de alta), siempre visible arriba del parte -->
+        <div class="motivo-aviso" id="motivo-aviso"></div>
 
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;">
           <div style="flex: 1; min-width: 140px;">
@@ -823,7 +830,7 @@
 
         let actionBtn = "";
         if (currentUser === 'Master' && av['ESTADO'] === 'Cerrado') {
-            actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos</button>`;
+            actionBtn = `<button onclick="event.stopPropagation(); archivarPirineos(${av.aviso_index})" class="btn-archive">Introducido en Pirineos${av['Nº PARTE'] ? ' - Parte ' + escHtml(av['Nº PARTE']) : ''}</button>`;
         }
         // El histórico y los manuales sirven mientras se trabaja el aviso; en los cerrados no se muestran.
         if (av['ESTADO'] !== 'Cerrado') {
@@ -1629,6 +1636,10 @@
 
       const isCerrado = av['ESTADO'] === 'Cerrado';
       document.getElementById('tools-parte').style.display = isCerrado ? 'none' : '';
+      const motivo = String(av['DESCRIPCIÓN'] || '').trim();
+      document.getElementById('motivo-aviso').innerHTML = `<div class="mot-tit">Motivo del aviso</div>
+        <div class="mot-txt">${motivo ? escHtml(motivo) : '<span style="opacity:.6">Sin motivo indicado</span>'}</div>` +
+        (isCerrado ? '' : htmlAlertaCliente(av['CLIENTE'], true));
       actualizarContadoresManuales();
       
       if (isCerrado) {
