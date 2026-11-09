@@ -2098,7 +2098,16 @@ function htmlPrecioSeg(p) {
       ${est === 'PENDIENTE' ? `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','ACEPTADO')">Aceptado</button>` : ''}
       ${est !== 'NO_INTERESA' ? `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','NO_INTERESA')">No le interesa</button>` : ''}
       ${est === 'PENDIENTE' || est === 'ACEPTADO' ? `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','${est}', true)">Preguntar otro día</button>` : `<button class="btn btn-ghost btn-sm" onclick="estadoPrecio('${esc(p.ID)}','PENDIENTE')">Reabrir</button>`}
-    </div>` : ''}</div>`;
+    </div>` : ''}
+    ${YO.rol === 'master' ? `<div class="row wrap" style="gap:6px; margin-top:10px;"><button class="btn btn-danger btn-sm" onclick="anularPrecioSeg('${esc(p.ID)}')">Anular</button></div>` : ''}</div>`;
+}
+// Solo la cuenta master: anula un precio dado (p. ej. una prueba). No se borra: queda como ANULADO en el historial.
+async function anularPrecioSeg(id) {
+  if (YO.rol !== 'master') return;
+  const motivo = await pedirTexto('Motivo de la anulación (el precio dado no se borra: deja de salir en las listas y queda en el historial):');
+  if (!motivo) return;
+  const d = await conCarga(() => api(`/actividad/${encodeURIComponent(id)}/anular`, {method: 'POST', body: JSON.stringify({motivo})}));
+  if (d) refrescarSeg();
 }
 async function estadoPrecio(id, estado, otroDia = false) {
   const r = await pedirTexto(otroDia ? '¿Cuándo vuelves a preguntar?' : `${ESTADOS_PRECIO_TXT[estado]}. Nota (opcional):`,
