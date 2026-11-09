@@ -132,7 +132,7 @@
     .navfecha{ display:grid; grid-template-columns:44px 1fr 44px; gap:8px; align-items:center; }
 
     /* barra inferior */
-    .nav{ position:fixed; left:0; right:0; bottom:0; z-index:150; background:rgba(8,17,33,0.96); border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(5, 1fr);
+    .nav{ position:fixed; left:0; right:0; bottom:0; z-index:150; background:rgba(8,17,33,0.96); border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(6, 1fr);
       padding:6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -4px 20px rgba(0,0,0,.25); }
     .nav button{ background:none; border:none; font-family:inherit; display:flex; flex-direction:column; align-items:center; gap:3px; color:#6d84a8; font-size:0.64rem; font-weight:700; padding:6px 0; cursor:pointer; }
     .nav button svg{ width:23px; height:23px; stroke:currentColor; }
@@ -235,7 +235,7 @@
       <button class="btn btn-ghost" onclick="nuevaActividad('LLAMADA')">Llamada</button>
       <button class="btn btn-ghost" onclick="irA('precios')">Consultar precio</button>
       <button class="btn btn-ghost" onclick="programarVisita()">&#128197;&nbsp; Programar</button>
-      <button class="btn btn-ghost" onclick="irA('seguimiento')">Seguimiento</button>
+      <button class="btn btn-ghost" onclick="irSeguimiento('pendientes')">Seguimiento</button>
       <button class="btn btn-ghost" style="grid-column:1/-1" onclick="rutaDesdeAqui()">&#9906;&nbsp; ¿Qué clientes tengo cerca? · Ruta</button>
     </div>
     <div id="hoy-programadas"></div>
@@ -275,8 +275,7 @@
   <div class="container view" id="view-precios">
     <div class="row between" style="margin:8px 0 12px;">
       <h2>Precios</h2>
-      <div class="row" style="gap:6px;"><button class="btn btn-ghost btn-sm" onclick="irA('seguimiento')">Seguimiento</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('leyenda').classList.toggle('show')" aria-label="Leyenda">&#9432;</button></div>
+      <div class="row" style="gap:6px;"><button class="btn btn-ghost btn-sm" onclick="document.getElementById('leyenda').classList.toggle('show')" aria-label="Leyenda">&#9432;</button></div>
     </div>
     <div class="leyenda card" id="leyenda"></div>
     <label style="margin-top:0;">Cliente <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional: muestra su precio)</span></label>
@@ -312,15 +311,10 @@
   <!-- ============ SEGUIMIENTO: todo lo pendiente de cerrar con un cliente ============ -->
   <div class="container view" id="view-seguimiento">
     <div class="row between" style="margin:8px 0 12px;">
-      <h2>Seguimiento</h2>
+      <h2>Ofertas y precios dados</h2>
       <select id="seg-comercial" class="solo-todos" style="width:auto; max-width:48%;" onchange="SEG=null; cargarSeguimiento()"></select>
     </div>
-    <div class="seg" style="margin-bottom:4px;">
-      <button id="seg-e-pendientes" class="on" onclick="estadoSeg('pendientes')">Pendientes</button>
-      <button id="seg-e-cerradas" onclick="estadoSeg('cerradas')">Cerradas</button>
-      <button id="seg-e-todas" onclick="estadoSeg('todas')">Todo</button>
-    </div>
-    <div class="filtros-chips" id="seg-filtros"></div>
+    <div id="seg-controles"></div>
     <div id="seg-lista"><div class="empty">Cargando...</div></div>
   </div>
 
@@ -353,6 +347,7 @@
     <button data-v="clientes" onclick="irA('clientes')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18 13.8c1.8.7 3 2.4 3 5.2"/></svg>Clientes</button>
     <button class="mas" onclick="menuNuevo()"><span class="circ"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></span></button>
     <button data-v="precios" onclick="irA('precios')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3.5 12.5 12 4h7.5v7.5L11 20z"/><circle cx="15.5" cy="8" r="1.4"/></svg>Precios</button>
+    <button data-v="seguimiento" onclick="irA('seguimiento')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 3.5h7.5L19 8v12.5H7z"/><path d="M14.5 3.5V8H19"/><path d="M10 12.5h6M10 16h4"/><path d="M4 7v13.5"/></svg>Ofertas</button>
     <button data-v="agenda" onclick="irA('agenda')"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>Agenda</button>
   </nav>
 
@@ -474,7 +469,7 @@ function mostrarVista() {
   const [vista, arg] = h.split('/');
   const v = VISTAS.includes(vista) ? vista : 'hoy';
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === 'view-' + v));
-  document.querySelectorAll('.nav button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v === 'ficha' && b.dataset.v === 'clientes') || (v === 'seguimiento' && b.dataset.v === 'precios')));
+  document.querySelectorAll('.nav button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v === 'ficha' && b.dataset.v === 'clientes')));
   window.scrollTo(0, 0);
   if (v === 'hoy') cargarHoy();
   if (v === 'clientes') pintarClientes();
@@ -670,7 +665,7 @@ async function cargarFicha(codigo) {
       <button onclick="tabFicha('datos', this)">Datos</button>
       <button onclick="tabFicha('actividad', this)">Actividad (${FICHA.actividad.length})</button>
       <button onclick="tabFicha('compras', this)">Compras</button>
-      <button onclick="tabFicha('precios_dados', this)">Precios dados (${FICHA.precios_dados.length})</button>
+      <button onclick="tabFicha('precios_dados', this)">Precios y ofertas (${FICHA.precios_dados.length + FICHA.ofertas.length})</button>
       <button onclick="tabFicha('maquinas', this)">Máquinas (${FICHA.maquinas.filter(m => !m.baja).length})</button>
       <button onclick="tabFicha('pedidos', this)">Pedidos (${FICHA.preparar.pedidos.length})</button>
       <button onclick="tabFicha('sat', this)">SAT (${FICHA.preparar.avisos_sat.length})</button>
@@ -749,7 +744,7 @@ function htmlPreparar() {
       <div class="row between"><span class="t-strong">${esc(o.tipo)} · oferta ${esc(o.numero)}</span><span class="t-small">${fechaCorta(o.fecha)} (hace ${o.dias} días)</span></div>
       ${o.lineas.slice(0, 3).map(l => `<div class="t-small" style="color:#fff;">• ${esc(l.texto)}${l.precio ? ' — ' + eur(l.precio) : ''}</div>`).join('')}
       ${(o.seguimiento || {}).nota ? `<div class="t-small" style="margin-top:4px;">${esc(o.seguimiento.nota)}</div>` : ''}</div>`).join('') +
-    `<button class="btn btn-ghost btn-sm" onclick="tipoSeg='oferta'; estadoSegActual='pendientes'; irA('seguimiento')">Seguimiento de ofertas</button>`, ofs.length);
+    `<button class="btn btn-ghost btn-sm" onclick="irSeguimiento('pendientes', 'oferta')">Seguimiento de ofertas</button>`, ofs.length);
   const pdp = (FICHA.precios_dados || []).filter(r => r.estado_precio === 'PENDIENTE' || r.estado_precio === 'ACEPTADO');
   if (pdp.length) h += seccion('Precios dados sin respuesta', pdp.slice(0, 5).map(r => `<div class="card"><span class="t-strong">${esc(r.DESCRIPCION || r.PRODUCTOS)}</span>
       <div class="t-small">${eur(r.IMPORTE)} · ${fechaCorta(r.FECHA)} · ${esc(ESTADOS_PRECIO_TXT[r.estado_precio])} — pregúntale si lo quiere</div></div>`).join(''), pdp.length);
@@ -876,12 +871,8 @@ function tabFicha(tab, boton) {
       f[0].startsWith('Tel') || f[0] === 'Móvil' ? `<a href="tel:${esc(String(f[1]).replace(/\s/g,''))}">${esc(f[1])}</a>` : f[0] === 'Email' ? `<a href="mailto:${esc(f[1])}">${esc(f[1])}</a>` : esc(f[1])}</span></div>`).join('') + '</div>';
   } else if (tab === 'precios_dados') {
     el.innerHTML = `<button class="btn btn-ghost btn-sm" style="margin-bottom:10px;" onclick="preciosDeFicha()">+ Apuntar un precio dado (en Precios)</button>` +
-      (FICHA.precios_dados.length ? FICHA.precios_dados.map(r => `<div class="card click" onclick="verActividad('${esc(r.ID)}')">
-        <div class="row between" style="align-items:flex-start;"><span class="t-strong">${esc(r.DESCRIPCION || 'Ref. ' + r.PRODUCTOS)}</span><span class="t-strong">${eur(r.IMPORTE)}</span></div>
-        <div class="t-small">Ref. ${esc(r.PRODUCTOS)} · ${fechaCorta(r.FECHA)} · ${esc(r.COMERCIAL)}${r.OBSERVACIONES ? ' · ' + esc(r.OBSERVACIONES) : ''}</div>
-        <div style="margin-top:6px;"><span class="badge ${{COMPRADO: 'ok', ACEPTADO: 'prog', NO_INTERESA: '', PENDIENTE: 'warn'}[r.estado_precio] || 'warn'}">${esc(ESTADOS_PRECIO_TXT[r.estado_precio] || 'Pendiente de respuesta')}</span>
-        ${r.compra_pirineos ? `<span class="t-small" style="color:#86efac;"> comprado el ${fechaCorta(r.compra_pirineos.fecha)} a ${eur(r.compra_pirineos.precio)}</span>` : ''}</div></div>`).join('')
-      : '<div class="empty">Todavía no se ha apuntado ningún precio dado a este cliente.</div>');
+      htmlFiltrosSeg('fseg') + '<div id="fseg-lista"><div class="empty">Cargando...</div></div>';
+    cargarSegFicha();
   } else if (tab === 'actividad') {
     el.innerHTML = FICHA.actividad.length ? FICHA.actividad.map(itemActividad).join('')
       : `<div class="empty">Sin actividad registrada en la app${YO.permisos.ver_todos ? '' : ' por ti'} con este cliente.</div>`;
@@ -994,7 +985,7 @@ async function apuntarPrecio(a) {
     try { ok = await enviar(true); } catch (e2) { hideLoading(); await appAlert(e2.message, {type: 'error'}); return; }
   }
   hideLoading();
-  if (ok) SEG = null;
+  if (ok) { SEG = null; SEG_FICHA = null; }
   if (ok) await appAlert('Precio apuntado. Lo verás en la ficha del cliente, pestaña «Precios dados».' +
     (ok.precio_bajo ? '\n\nSe ha avisado a la oficina de que está por debajo del margen mínimo.' : '') +
     (ok.correo === false ? '\n\n(No se ha podido enviar el aviso por correo a Lucía y Carolina.)' : ''), {type: 'success'});
@@ -1104,7 +1095,7 @@ async function gestionarOportunidad(id) {
   const r = await pedirTexto(`Oportunidad: ${o.detalle}\nEstado y nota:`, {opciones: estados, valor: o.estado, texto: o.nota});
   if (!r) return;
   const ok = await conCarga(() => api('/oportunidades_sat/' + encodeURIComponent(id), {method:'POST', body: JSON.stringify({estado: r.opcion, nota: r.texto})}));
-  if (ok) { SEG = null; mostrarVista(); }
+  if (ok) { SEG = null; SEG_FICHA = null; mostrarVista(); }
 }
 
 // ---- clientes a recuperar (aviso en Hoy)
@@ -1972,44 +1963,98 @@ function pintarProgramadasHoy(lista, hoy) {
 
 // ===================================================================== SEGUIMIENTO (precios dados y ofertas)
 const ESTADOS_PRECIO_TXT = {'': 'Pendiente de respuesta', PENDIENTE: 'Pendiente de respuesta', ACEPTADO: 'Aceptado (pendiente de pedido)', COMPRADO: 'Ha comprado', NO_INTERESA: 'No le interesa'};
-let SEG = null, estadoSegActual = 'pendientes', tipoSeg = 'todo';
+let SEG = null, SEG_FICHA = null, SEG_FICHA_COD = '';
 const TIPOS_SEG = [['todo', 'Todo'], ['precio', 'Precios dados'], ['oferta', 'Ofertas'], ['oportunidad', 'Oportunidades de venta']];
+const LINEAS_SEG = [['todas', 'Todas'], ['Maquinaria', 'Maquinaria'], ['Consumibles', 'Consumibles']];
+// Filtros de cada lista: la pantalla «Ofertas» de la barra ('seg') y la pestaña de la ficha del cliente ('fseg').
+const FILTROS_SEG = {seg: {estado: 'todas', tipo: 'todo', linea: 'todas', q: ''}, fseg: {estado: 'todas', tipo: 'todo', linea: 'todas', q: ''}};
 const tagSeg = t => `<div class="tag-seg">${t}</div>`;
-function estadoSeg(e) { estadoSegActual = e; pintarSeguimiento(); }
+function irSeguimiento(estado = 'todas', tipo = 'todo') {
+  Object.assign(FILTROS_SEG.seg, {estado, tipo, linea: 'todas', q: ''});
+  const i = document.getElementById('seg-q'); if (i) i.value = '';
+  if (location.hash === '#seguimiento') pintarSeg('seg'); else irA('seguimiento');
+}
+// Buscador, estado (pendientes / cerradas / todo) y línea (maquinaria / consumibles). Los tipos van debajo, con cuántos hay.
+function htmlFiltrosSeg(ctx) {
+  const f = FILTROS_SEG[ctx], on = (k, v) => k === v ? 'class="on"' : '';
+  return `<div class="buscador">${'<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'}
+      <input type="search" id="${ctx}-q" placeholder="Cliente, producto, referencia, nº de oferta..." value="${esc(f.q)}" oninput="FILTROS_SEG.${ctx}.q = this.value; pintarSeg('${ctx}')"></div>
+    <div class="seg" style="margin-top:10px;">${[['pendientes', 'Pendientes'], ['cerradas', 'Cerradas'], ['todas', 'Todo']].map(([k, n]) =>
+      `<button id="${ctx}-e-${k}" ${on(k, f.estado)} onclick="FILTROS_SEG.${ctx}.estado = '${k}'; pintarSeg('${ctx}')">${n}</button>`).join('')}</div>
+    <div class="seg" style="margin-top:6px;" id="${ctx}-lineas"></div>
+    <div class="filtros-chips" id="${ctx}-filtros"></div>`;
+}
 async function cargarSeguimiento() {
-  const cont = document.getElementById('seg-lista');
+  const cont = document.getElementById('seg-lista'), ctl = document.getElementById('seg-controles');
+  if (!ctl.innerHTML) ctl.innerHTML = htmlFiltrosSeg('seg');
   if (!SEG) {
     cont.innerHTML = '<div class="empty">Cargando...</div>';
     const com = filtroComercial('seg-comercial');
     try { SEG = await api('/seguimiento' + (com ? '?comercial=' + encodeURIComponent(com) : '')); }
     catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
   }
-  pintarSeguimiento();
+  pintarSeg('seg');
 }
+// Lo mismo, solo de este cliente (todos sus códigos), en la ficha.
+async function cargarSegFicha() {
+  const cod = FICHA.cliente.codigo, cont = document.getElementById('fseg-lista');
+  if (!SEG_FICHA || SEG_FICHA_COD !== cod) {
+    cont.innerHTML = '<div class="empty">Cargando...</div>';
+    try { SEG_FICHA = await api('/seguimiento?cliente=' + encodeURIComponent(cod)); SEG_FICHA_COD = cod; }
+    catch (e) { cont.innerHTML = `<div class="aviso">${esc(e.message)}</div>`; return; }
+  }
+  pintarSeg('fseg');
+}
+// Después de cambiar un estado: recarga la lista que esté a la vista.
+function refrescarSeg() {
+  SEG = null;
+  if (document.getElementById('fseg-lista') && location.hash.startsWith('#ficha')) { SEG_FICHA = null; cargarSegFicha(); }
+  else { SEG_FICHA = null; cargarSeguimiento(); }
+}
+const buscarOfertaSeg = id => (SEG_FICHA && SEG_FICHA.ofertas.find(x => x.id === id)) || (SEG && SEG.ofertas.find(x => x.id === id));
+const validezSeg = () => (SEG || SEG_FICHA || {}).validez_dias || 30;
+const textoSeg = partes => norm(partes.filter(Boolean).join(' '));
 // Una sola lista con todo lo que hay que cerrar con un cliente: precios dados, ofertas (pedidas en visitas y
-// hechas por la oficina) y oportunidades de venta del SAT. Cada tarjeta lleva su etiqueta de tipo.
-function elementosSeguimiento(S) {
+// hechas por la oficina) y oportunidades de venta del SAT. Cada tarjeta lleva su etiqueta de tipo y su línea
+// (Maquinaria / Consumibles; vacía si no se sabe). En la ficha salen todas las ofertas del cliente.
+function elementosSeguimiento(S, todasLasOfertas = false) {
   const el = [];
-  S.precios.forEach(p => el.push({tipo: 'precio', fecha: p.FECHA, abierto: ['PENDIENTE', 'ACEPTADO'].includes(p.estado_precio), html: () => htmlPrecioSeg(p)}));
-  (S.pedidas || []).filter(r => !r.oferta_oficina).forEach(r => el.push({tipo: 'oferta', fecha: r.FECHA, abierto: ABIERTAS_OFERTA.includes(r.estado_pedida), html: () => htmlPedidaSeg(r)}));
-  S.ofertas.filter(o => YO.permisos.ver_todos || o.mio || o.pedida).forEach(o => el.push({tipo: 'oferta', fecha: o.fecha, abierto: ABIERTAS_OFERTA.includes(o.estado), html: () => htmlOfertaSeg(o)}));
-  (S.oportunidades || []).forEach(o => el.push({tipo: 'oportunidad', fecha: o.fecha, abierto: ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA'].includes(o.estado), html: () => htmlOportunidad(o, tagSeg('Oportunidad de venta · SAT'))}));
+  S.precios.forEach(p => el.push({tipo: 'precio', fecha: p.FECHA, linea: p.linea || '', abierto: ['PENDIENTE', 'ACEPTADO'].includes(p.estado_precio),
+    texto: textoSeg([p.CLIENTE, p.COD_CLIENTE, p.DESCRIPCION, p.PRODUCTOS, p.COMERCIAL, p.OBSERVACIONES]), html: () => htmlPrecioSeg(p)}));
+  (S.pedidas || []).filter(r => !r.oferta_oficina).forEach(r => el.push({tipo: 'oferta', fecha: r.FECHA, linea: r.linea || '', abierto: ABIERTAS_OFERTA.includes(r.estado_pedida),
+    texto: textoSeg([r.CLIENTE, r.COD_CLIENTE, r.PRODUCTOS, r.NECESIDADES, r.COMERCIAL, r.OBSERVACIONES]), html: () => htmlPedidaSeg(r)}));
+  S.ofertas.filter(o => todasLasOfertas || YO.permisos.ver_todos || o.mio || o.pedida).forEach(o => el.push({tipo: 'oferta', fecha: o.fecha, linea: o.tipo || '',
+    abierto: ABIERTAS_OFERTA.includes(o.estado),
+    texto: textoSeg([o.cliente, o.codigo, o.numero, o.tipo, o.categoria, o.comercial, (o.seguimiento || {}).nota, ...o.lineas.map(l => l.texto)]), html: () => htmlOfertaSeg(o)}));
+  (S.oportunidades || []).forEach(o => el.push({tipo: 'oportunidad', fecha: o.fecha, linea: '', abierto: ['NUEVA', 'CONTACTADO', 'OFERTA ENVIADA'].includes(o.estado),
+    texto: textoSeg([o.cliente_nombre, o.codigo, o.poblacion, o.maquina, o.detalle, o.tecnico, o.comercial, o.nota]), html: () => htmlOportunidad(o, tagSeg('Oportunidad de venta · SAT'))}));
   return el;
 }
-function pintarSeguimiento() {
-  if (!SEG) return;
-  ['pendientes', 'cerradas', 'todas'].forEach(x => document.getElementById('seg-e-' + x).classList.toggle('on', x === estadoSegActual));
-  const todos = elementosSeguimiento(SEG);
-  const delEstado = todos.filter(x => estadoSegActual === 'todas' || (estadoSegActual === 'pendientes') === x.abierto);
-  document.getElementById('seg-filtros').innerHTML = TIPOS_SEG.map(([k, n]) => {
-    const c = k === 'todo' ? delEstado.length : delEstado.filter(x => x.tipo === k).length;
-    return `<button class="chip ${tipoSeg === k ? 'on' : ''}" onclick="tipoSeg='${k}'; pintarSeguimiento()">${n} (${c})</button>`;
+function pintarSeg(ctx) {
+  const S = ctx === 'fseg' ? SEG_FICHA : SEG, f = FILTROS_SEG[ctx], cont = document.getElementById(ctx + '-lista');
+  if (!S || !cont) return;
+  ['pendientes', 'cerradas', 'todas'].forEach(x => { const b = document.getElementById(`${ctx}-e-${x}`); if (b) b.classList.toggle('on', x === f.estado); });
+  const palabras = norm(f.q).split(/\s+/).filter(Boolean);
+  const base = elementosSeguimiento(S, ctx === 'fseg')
+    .filter(x => f.estado === 'todas' || (f.estado === 'pendientes') === x.abierto)
+    .filter(x => palabras.every(w => x.texto.includes(w)));
+  const deLinea = base.filter(x => f.linea === 'todas' || x.linea === f.linea);
+  document.getElementById(ctx + '-lineas').innerHTML = LINEAS_SEG.map(([k, n]) =>
+    `<button class="${f.linea === k ? 'on' : ''}" onclick="FILTROS_SEG.${ctx}.linea = '${k}'; pintarSeg('${ctx}')">${n}</button>`).join('');
+  document.getElementById(ctx + '-filtros').innerHTML = TIPOS_SEG.map(([k, n]) => {
+    const c = k === 'todo' ? deLinea.length : deLinea.filter(x => x.tipo === k).length;
+    return `<button class="chip ${f.tipo === k ? 'on' : ''}" onclick="FILTROS_SEG.${ctx}.tipo = '${k}'; pintarSeg('${ctx}')">${n} (${c})</button>`;
   }).join('');
-  const l = delEstado.filter(x => tipoSeg === 'todo' || x.tipo === tipoSeg).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-  const avisos = tipoSeg === 'todo' || tipoSeg === 'oferta' ? (SEG.avisos_ofertas || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('') : '';
-  document.getElementById('seg-lista').innerHTML = avisos + (l.length ? l.slice(0, 200).map(x => x.html()).join('')
-    : `<div class="empty">${estadoSegActual === 'pendientes' ? 'No hay nada pendiente' : 'No hay nada'} con este filtro.</div>`);
+  const l = deLinea.filter(x => f.tipo === 'todo' || x.tipo === f.tipo).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const avisos = f.tipo === 'todo' || f.tipo === 'oferta' ? (S.avisos_ofertas || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('') : '';
+  const sinLinea = f.linea === 'todas' ? 0 : base.filter(x => !x.linea && (f.tipo === 'todo' || x.tipo === f.tipo)).length;
+  const notaLinea = sinLinea ? `<div class="t-small" style="margin:6px 2px 10px;">${sinLinea} sin clasificar (ofertas pedidas en visita que la oficina aún no ha hecho u oportunidades del SAT): solo salen en «Todas».</div>` : '';
+  const MAX = 300;
+  cont.innerHTML = avisos + notaLinea + (l.length ? l.slice(0, MAX).map(x => x.html()).join('') +
+      (l.length > MAX ? `<div class="empty">${l.length - MAX} más: usa el buscador o los filtros.</div>` : '')
+    : `<div class="empty">${f.estado === 'pendientes' ? 'No hay nada pendiente' : 'No hay nada'} con estos filtros.</div>`);
 }
+function pintarSeguimiento() { pintarSeg('seg'); }
 // Estados de una oferta (pedida en visita o hecha por la oficina). Se pueden cambiar siempre a mano, a cualquiera.
 const ESTADOS_OFERTA = [['NUEVA', 'Nueva'], ['ENVIADA', 'Oferta enviada'], ['GANADA', 'Ganada'], ['PERDIDA', 'Perdida'], ['DESCARTADA', 'Descartada']];
 const ESTADOS_OFERTA_TXT = Object.fromEntries(ESTADOS_OFERTA);
@@ -2035,7 +2080,7 @@ async function estadoPedida(id, estado) {
     {estructurado: true, texto: '', placeholder: estado === 'PERDIDA' || estado === 'DESCARTADA' ? 'Motivo: precio, competencia, ya no lo necesita...' : 'Opcional'});
   if (!r) return;
   const ok = await conCarga(() => api(`/actividad/${encodeURIComponent(id)}/oferta_pedida`, {method: 'POST', body: JSON.stringify({estado, nota: r.texto})}));
-  if (ok) { SEG = null; cargarSeguimiento(); }
+  if (ok) refrescarSeg();
 }
 function htmlPrecioSeg(p) {
   const est = p.estado_precio, color = {PENDIENTE: 'ambar', ACEPTADO: 'azul', COMPRADO: 'verde', NO_INTERESA: 'gris'}[est];
@@ -2061,10 +2106,10 @@ async function estadoPrecio(id, estado, otroDia = false) {
             : {estructurado: true, texto: '', placeholder: estado === 'NO_INTERESA' ? 'Motivo: precio, ya tiene proveedor...' : 'Opcional'});
   if (!r) return;
   const ok = await conCarga(() => api(`/precios_dados/${encodeURIComponent(id)}/estado`, {method: 'POST', body: JSON.stringify({estado, nota: r.texto, fecha_seguimiento: r.fecha || ''})}));
-  if (ok) { SEG = null; cargarSeguimiento(); }
+  if (ok) refrescarSeg();
 }
 function htmlOfertaSeg(o) {
-  const caducada = o.estado === 'ENVIADA' && o.dias > SEG.validez_dias;
+  const caducada = o.estado === 'ENVIADA' && o.dias > validezSeg();
   const [color0, badge0] = COLOR_OFERTA[o.estado] || COLOR_OFERTA.ENVIADA;
   const color = caducada ? 'rojo' : color0;
   const sg = o.seguimiento || {};
@@ -2093,14 +2138,14 @@ function seguirIdx(id) {
 }
 async function seguirOferta(idx, estado, conFecha = false) {
   const id = _idsOferta[idx];
-  const o = SEG.ofertas.find(x => x.id === id), sg = (o && o.seguimiento) || {};
+  const o = buscarOfertaSeg(id), sg = (o && o.seguimiento) || {};
   if (!estado) estado = o ? o.estado : 'ENVIADA';      // la nota no cambia el estado
   const r = await pedirTexto(conFecha ? 'Nota y fecha del próximo seguimiento:' : `Cambiar a «${ESTADOS_OFERTA_TXT[estado]}». Nota (opcional):`,
     conFecha ? {fecha: true, sinHora: true, valorFecha: sg.proximo || isoDe(new Date(Date.now() + 7 * 864e5)), texto: sg.nota || '', placeholder: 'Qué ha dicho, qué falta...'}
              : {estructurado: true, texto: '', placeholder: estado === 'PERDIDA' || estado === 'DESCARTADA' ? 'Motivo: precio, competencia, lo ha aplazado...' : 'Opcional'});
   if (!r) return;
   const ok = await conCarga(() => api(`/ofertas/${encodeURIComponent(id)}/seguimiento`, {method: 'POST', body: JSON.stringify({estado, nota: r.texto, proximo: r.fecha || ''})}));
-  if (ok) { SEG = null; cargarSeguimiento(); }
+  if (ok) refrescarSeg();
 }
 async function cargarSeguimientoHoy(com) {
   const el = document.getElementById('hoy-seguimiento');
@@ -2109,7 +2154,7 @@ async function cargarSeguimientoHoy(com) {
     const pend = elementosSeguimiento(SEG).filter(x => x.abierto);
     const n = k => pend.filter(x => x.tipo === k).length, pl = (c, s, p) => `${c} ${c === 1 ? s : p}`;
     const revisar = SEG.ofertas.filter(o => ABIERTAS_OFERTA.includes(o.estado) && (o.seguimiento || {}).proximo && o.seguimiento.proximo <= hoyISO()).length;
-    el.innerHTML = pend.length ? `<div class="card click borde-ambar" style="margin-top:14px;" onclick="estadoSegActual='pendientes'; tipoSeg='todo'; irA('seguimiento')">
+    el.innerHTML = pend.length ? `<div class="card click borde-ambar" style="margin-top:14px;" onclick="irSeguimiento('pendientes')">
       <div class="row between"><span class="t-strong">Seguimiento: ${pend.length} pendiente${pend.length === 1 ? '' : 's'}</span><span class="t-small">ver &rsaquo;</span></div>
       <div class="t-small">${[pl(n('precio'), 'precio dado', 'precios dados'), pl(n('oferta'), 'oferta', 'ofertas'), pl(n('oportunidad'), 'oportunidad de venta', 'oportunidades de venta')].filter(x => !x.startsWith('0 ')).join(' · ')}${revisar ? ` · <b style="color:#fde68a">${revisar} para revisar hoy</b>` : ''}</div></div>` : '';
   } catch (e) { el.innerHTML = ''; }

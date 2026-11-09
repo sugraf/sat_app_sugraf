@@ -384,7 +384,7 @@ def apuntar_precio(p: PrecioDado, s: Sesion = Depends(sesion_actual)):
         # Aviso en la app de escritorio (campana y «!» en el módulo de ofertas) para preparar la oferta.
         try:
             art = pirineos.articulos().get(p.referencia) or {}
-            maquina = 'MAQUIN' in (art.get('grupo', '') + ' ' + art.get('familia', '')).upper()
+            maquina = linea_articulo(art) == 'Maquinaria'
             notificaciones.crear('PRECIO_DADO', 'ofertas_maquinaria' if maquina else 'ofertas_consumibles',
                                  ('⚠ PRECIO BAJO · ' if bajo else '') + f'Precio dado a {p.cliente}',
                                  f"{s.nombre} ha dado precio a {p.cliente}: {p.descripcion or ''} (ref. {p.referencia}) a "
@@ -405,13 +405,25 @@ ESTADOS_PRECIO = {'PENDIENTE': 'Pendiente de respuesta', 'ACEPTADO': 'Aceptado (
                   'NO_INTERESA': 'No le interesa'}
 
 
+def linea_articulo(art):
+    """«Maquinaria» o «Consumibles» según el grupo o la familia del artículo en Pirineos ('' si no se conoce)."""
+    if not art:
+        return ''
+    return 'Maquinaria' if 'MAQUIN' in (art.get('grupo', '') + ' ' + art.get('familia', '')).upper() else 'Consumibles'
+
+
 def _con_seguimiento_precio(regs):
     """Añade a cada precio dado su estado: el que se haya marcado a mano o «Ha comprado» si en las ventas de
-    Pirineos aparece esa referencia facturada a ese cliente (cualquiera de sus códigos) desde ese día."""
+    Pirineos aparece esa referencia facturada a ese cliente (cualquiera de sus códigos) desde ese día.
+    También su línea (Maquinaria / Consumibles), por el artículo de Pirineos."""
     try:
         ventas, _ = pirineos.todas_las_ventas()
     except Exception:
         ventas = {}
+    try:
+        arts = pirineos.articulos()
+    except Exception:
+        arts = {}
     salida = []
     for r in regs:
         r = dict(r)
@@ -425,6 +437,7 @@ def _con_seguimiento_precio(regs):
                           'veces': len(lineas)}
         manual = r['ESTADO_OPERACION'] if r['ESTADO_OPERACION'] in ESTADOS_PRECIO else ''
         r['compra_pirineos'] = compra
+        r['linea'] = linea_articulo(arts.get(r['PRODUCTOS'])) if r['PRODUCTOS'] else ''
         r['estado_precio'] = 'COMPRADO' if compra else (manual or 'PENDIENTE')
         r['dias'] = (actividad.ahora().date() - date.fromisoformat(r['FECHA'])).days if r['FECHA'] else None
         salida.append(r)
@@ -1326,6 +1339,7 @@ def _ofertas_pedidas(regs, lista_ofertas):
         manual = PEDIDA_ANTIGUOS.get(r['ESTADO_OPERACION'], r['ESTADO_OPERACION'])
         manual = manual if manual in ESTADOS_PEDIDA else ''
         r['oferta_oficina'] = o['id'] if o else ''
+        r['linea'] = o['tipo'] if o else ''      # se sabe por la oferta que haya hecho la oficina
         # Lo marcado a mano manda siempre; si no hay nada, «Oferta enviada» cuando la oficina ya la ha hecho y «Nueva» si no.
         r['estado_pedida'] = manual or ('ENVIADA' if o else 'NUEVA')
         r['dias'] = (date.today() - date.fromisoformat(r['FECHA'])).days
@@ -1333,9 +1347,13 @@ def _ofertas_pedidas(regs, lista_ofertas):
     return sorted(salida, key=lambda r: r['FECHA'], reverse=True)
 
 
-def seguimiento_comercial(s, comercial=''):
-    """Precios dados, ofertas pedidas en visitas, ofertas de la oficina y oportunidades de venta, con su estado."""
+def seguimiento_comercial(s, comercial='', cliente=''):
+    """Precios dados, ofertas pedidas en visitas, ofertas de la oficina y oportunidades de venta, con su estado.
+    Con «cliente» (un código de Pirineos), solo lo de ese cliente (todos sus códigos) y todas sus ofertas."""
     todas = actividad.listar(_claves_visibles(s, comercial))
+    mismos = set(pirineos.codigos_hermanos(cliente)) if cliente else None
+    if mismos is not None:
+        todas = [r for r in todas if r['COD_CLIENTE'] in mismos]
     regs = [r for r in todas if r['TIPO'] == 'PRECIO' and r['ESTADO'] == actividad.REGISTRADA]
     precios = sorted(_con_seguimiento_precio(regs), key=lambda r: r['FECHA'], reverse=True)
     pedidas_regs = [r for r in todas if r['TIPO'] in ('VISITA', 'LLAMADA') and r.get('OFERTA') == OFERTA_SI
@@ -1344,6 +1362,8 @@ def seguimiento_comercial(s, comercial=''):
         lista, avisos = ofertas.leer_ofertas()
     except Exception as e:
         lista, avisos = [], [f'No se han podido leer las ofertas: {e}']
+    if mismos is not None:
+        lista = [o for o in lista if o['codigo'] and o['codigo'] in mismos]
     lista = ofertas.con_estado([dict(o) for o in lista])
     cl = pirineos.clientes()
     mio = normalizar(s.pirineos)
@@ -1356,6 +1376,8 @@ def seguimiento_comercial(s, comercial=''):
     pedidas = _ofertas_pedidas(pedidas_regs, lista)
     try:
         oportunidades = oportunidades_visibles(s, comercial)
+        if mismos is not None:
+            oportunidades = [o for o in oportunidades if o['codigo'] in mismos]
     except Exception:
         oportunidades = []
     return {'precios': precios, 'estados_precio': ESTADOS_PRECIO, 'ofertas': lista, 'avisos_ofertas': avisos,
@@ -1364,9 +1386,9 @@ def seguimiento_comercial(s, comercial=''):
 
 
 @router.get('/seguimiento')
-def ver_seguimiento(comercial: str = '', s: Sesion = Depends(sesion_actual)):
+def ver_seguimiento(comercial: str = '', cliente: str = '', s: Sesion = Depends(sesion_actual)):
     try:
-        return seguimiento_comercial(s, comercial)
+        return seguimiento_comercial(s, comercial, cliente)
     except Exception as e:
         _error(e)
 
