@@ -83,9 +83,8 @@ def _cantidad(n):
 
 def pedido(p):
     """Correo a la oficina con un pedido de la app comercial (p: el pedido ya validado)."""
-    urgente = '⚠ URGENTE · ' if p.get('urgente') else ''
     n = len(p['lineas'])
-    asunto = f"{urgente}Pedido de {p['tipo'].lower()} · {p['cliente']} · {n} línea{'s' if n != 1 else ''} ({p['comercial']})"
+    asunto = f"Pedido de {p['tipo'].lower()} · {p['cliente']} · {n} línea{'s' if n != 1 else ''} ({p['comercial']})"
     lineas = [
         f"{p['comercial']} ha enviado un pedido desde la app comercial.",
         '',
@@ -94,17 +93,6 @@ def pedido(p):
     ]
     if p.get('maquina'):
         lineas.append(f"Para máquina:  {p['maquina']}")
-    if p.get('ref_cliente'):
-        lineas.append(f"Ref. cliente:  {p['ref_cliente']}")
-    if p.get('entrega'):
-        a, m, d = p['entrega'].split('-')
-        lineas.append(f"Entrega:       deseada el {d}/{m}/{a}")
-    if p.get('urgente'):
-        lineas.append('Prioridad:     URGENTE')
-    if p.get('contacto'):
-        lineas.append(f"Contacto:      {p['contacto']}")
-    if p.get('direccion'):
-        lineas.append(f"Entregar en:   {p['direccion']}")
     lineas += ['', f"{'PIEZAS' if p['tipo'] == 'Piezas' else 'MÁQUINAS'}:"]
     for i, l in enumerate(p['lineas'], 1):
         art = ' · '.join(x for x in (l.get('referencia'), l.get('descripcion')) if x)
@@ -112,6 +100,8 @@ def pedido(p):
         if l.get('nota'):
             lineas.append(f"     Nota: {l['nota']}")
     if p.get('observaciones'):
-        lineas += ['', 'Observaciones:', p['observaciones']]
+        lineas += ['', 'Comentarios:', p['observaciones']]
+    if p.get('contacto'):
+        lineas += ['', f"Persona de contacto: {p['contacto']}"]
     lineas += ['', f"Enviado: {p['creado_txt']} · Nº {p['id']}"]
     return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas))

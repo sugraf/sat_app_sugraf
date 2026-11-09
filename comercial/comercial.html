@@ -646,7 +646,7 @@ function pickOtro() {
 const DESTINO_PEDIDOS = 'carolina@sugraf.es';
 let PED = null, PED_PESTANA = 'nuevo', _tPed = null, _nPed = 0;
 function pedidoVacio(cliente) {
-  return {cliente: cliente || null, tipo: '', lineas: [], maquina: '', ref_cliente: '', entrega: '', urgente: false, contacto: '', direccion: '', observaciones: ''};
+  return {cliente: cliente || null, tipo: '', lineas: [], maquina: '', contacto: '', observaciones: ''};
 }
 function abrirPedidos() {
   if (!PED) PED = pedidoVacio();
@@ -674,9 +674,7 @@ function pestanaPedidos(p) {
 function leerCamposPedido() {
   if (!PED || !document.getElementById('ped-obs')) return;
   const v = id => (document.getElementById(id)?.value || '');
-  PED.maquina = v('ped-maquina'); PED.ref_cliente = v('ped-ref'); PED.entrega = v('ped-entrega');
-  PED.contacto = v('ped-contacto'); PED.direccion = v('ped-direccion'); PED.observaciones = v('ped-obs');
-  PED.urgente = !!document.getElementById('ped-urgente')?.checked;
+  PED.maquina = v('ped-maquina'); PED.contacto = v('ped-contacto'); PED.observaciones = v('ped-obs');
   document.querySelectorAll('[data-ped-cant]').forEach(el => { const l = PED.lineas[+el.dataset.pedCant]; if (l) l.cantidad = el.value; });
   document.querySelectorAll('[data-ped-nota]').forEach(el => { const l = PED.lineas[+el.dataset.pedNota]; if (l) l.nota = el.value; });
 }
@@ -708,17 +706,10 @@ function pintarPedido() {
       <input type="search" id="ped-buscar" autocomplete="off" placeholder="+ Añadir: referencia o nombre..." oninput="buscarArticuloPedido(this.value)">
     </div>
     <div id="ped-res"></div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-      <div><label>Entrega deseada</label><input type="date" id="ped-entrega" value="${esc(P.entrega)}" min="${hoyISO()}"></div>
-      <div><label>Ref. pedido cliente</label><input id="ped-ref" value="${esc(P.ref_cliente)}" placeholder="Opcional"></div>
-    </div>
-    <label class="toggle"><input type="checkbox" id="ped-urgente" ${P.urgente ? 'checked' : ''}> Urgente</label>
+    <label>Comentarios</label>
+    <textarea id="ped-obs" data-dictado placeholder="Cualquier cosa que deba saber la oficina...">${esc(P.observaciones)}</textarea>
     <label>Persona de contacto <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional)</span></label>
     <input id="ped-contacto" value="${esc(P.contacto)}" placeholder="Nombre y teléfono">
-    <label>Entregar en otra dirección <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional)</span></label>
-    <input id="ped-direccion" value="${esc(P.direccion)}" placeholder="Si no es la dirección habitual del cliente">
-    <label>Observaciones</label>
-    <textarea id="ped-obs" data-dictado placeholder="Cualquier otra cosa que deba saber la oficina...">${esc(P.observaciones)}</textarea>
     <div style="display:grid; grid-template-columns:1fr 2fr; gap:10px; margin:16px 0 8px;">
       <button class="btn btn-ghost" type="button" onclick="borrarPedido()">Vaciar</button>
       <button class="btn btn-primary" type="button" id="ped-enviar" onclick="enviarPedido()">Enviar pedido</button>
@@ -788,12 +779,11 @@ async function enviarPedido() {
   const mala = lineas.find(l => !(l.cantidad > 0));
   if (mala) { await appAlert(`Pon una cantidad válida en «${mala.descripcion || mala.referencia}».`, {type: 'error'}); return; }
   const resumen = lineas.map(l => `· ${String(l.cantidad).replace('.', ',')} × ${l.descripcion || l.referencia}`).join('\n');
-  if (!(await appConfirm(`¿Enviar el pedido de ${P.tipo.toLowerCase()} de ${P.cliente.nombre} a ${DESTINO_PEDIDOS}?${P.urgente ? ' (URGENTE)' : ''}\n\n${resumen}`, {okText: 'Enviar'}))) return;
+  if (!(await appConfirm(`¿Enviar el pedido de ${P.tipo.toLowerCase()} de ${P.cliente.nombre} a ${DESTINO_PEDIDOS}?\n\n${resumen}`, {okText: 'Enviar'}))) return;
   const b = document.getElementById('ped-enviar'); if (b) b.disabled = true;
   const r = await conCarga(() => api('/pedidos', {method: 'POST', body: JSON.stringify({
     cod_cliente: P.cliente.codigo || '', cliente: P.cliente.nombre, tipo: P.tipo, lineas,
-    maquina: P.tipo === 'Piezas' ? P.maquina.trim() : '', ref_cliente: P.ref_cliente.trim(), entrega: P.entrega, urgente: P.urgente,
-    contacto: P.contacto.trim(), direccion: P.direccion.trim(), observaciones: P.observaciones.trim()})}));
+    maquina: P.tipo === 'Piezas' ? P.maquina.trim() : '', contacto: P.contacto.trim(), observaciones: P.observaciones.trim()})}));
   if (b) b.disabled = false;
   if (!r) return;   // el error ya se ha enseñado; el borrador sigue ahí para reintentar
   PED = pedidoVacio();
@@ -813,11 +803,12 @@ async function cargarPedidos() {
   const ver = YO.permisos.ver_todos;
   el.innerHTML = d.pedidos.map(p => `<div class="card">
       <div class="row between" style="gap:8px;"><span class="t-strong">${esc(p.cliente)}</span>
-        <span>${p.urgente ? '<span class="badge bad">Urgente</span> ' : ''}<span class="badge ${p.tipo === 'Máquinas' ? 'visita' : 'llamada'}">${esc(p.tipo)}</span></span></div>
-      <div class="t-small" style="margin:2px 0 6px;">${esc(p.creado.slice(8, 10) + '/' + p.creado.slice(5, 7) + '/' + p.creado.slice(0, 4) + ' ' + p.creado.slice(11))}${ver ? ' · ' + esc(p.comercial) : ''}${p.cod_cliente ? ' · Cód. ' + esc(p.cod_cliente) : ''}${p.entrega ? ' · Entrega ' + esc(p.entrega.split('-').reverse().join('/')) : ''}${p.ref_cliente ? ' · Ref. ' + esc(p.ref_cliente) : ''}</div>
+        <span><span class="badge ${p.tipo === 'Máquinas' ? 'visita' : 'llamada'}">${esc(p.tipo)}</span></span></div>
+      <div class="t-small" style="margin:2px 0 6px;">${esc(p.creado.slice(8, 10) + '/' + p.creado.slice(5, 7) + '/' + p.creado.slice(0, 4) + ' ' + p.creado.slice(11))}${ver ? ' · ' + esc(p.comercial) : ''}${p.cod_cliente ? ' · Cód. ' + esc(p.cod_cliente) : ''}</div>
       ${p.maquina ? `<div class="t-small">Para: ${esc(p.maquina)}</div>` : ''}
       ${p.lineas.map(l => `<div class="t-txt">${esc(String(l.cantidad).replace('.', ','))} × ${esc(l.descripcion || l.referencia)}${l.referencia && l.descripcion ? ` <span class="t-small">ref. ${esc(l.referencia)}</span>` : ''}${l.nota ? ` <span class="t-small">— ${esc(l.nota)}</span>` : ''}</div>`).join('')}
-      ${p.observaciones ? `<div class="t-small" style="margin-top:6px;">${esc(p.observaciones)}</div>` : ''}
+      ${p.observaciones ? `<div class="t-small" style="margin-top:6px;">Comentarios: ${esc(p.observaciones)}</div>` : ''}
+      ${p.contacto ? `<div class="t-small">Contacto: ${esc(p.contacto)}</div>` : ''}
       <div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" onclick="repetirPedido('${esc(p.id)}')">Repetir pedido</button></div>
     </div>`).join('');
   window._pedidosEnviados = d.pedidos;
@@ -825,7 +816,7 @@ async function cargarPedidos() {
 function repetirPedido(id) {
   const p = (window._pedidosEnviados || []).find(x => x.id === id); if (!p) return;
   PED = {...pedidoVacio({codigo: p.cod_cliente, nombre: p.cliente, poblacion: ''}), tipo: p.tipo, maquina: p.maquina || '',
-         contacto: p.contacto || '', direccion: p.direccion || '', lineas: p.lineas.map(l => ({...l}))};
+         contacto: p.contacto || '', lineas: p.lineas.map(l => ({...l}))};
   pestanaPedidos('nuevo');
 }
 

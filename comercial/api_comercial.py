@@ -350,12 +350,8 @@ class Pedido(BaseModel):
     tipo: str
     lineas: list[LineaPedido]
     maquina: str = ''         # piezas: para qué máquina (modelo / nº de serie)
-    ref_cliente: str = ''     # nº de pedido o referencia del cliente
-    entrega: str = ''         # fecha deseada YYYY-MM-DD
-    urgente: bool = False
-    contacto: str = ''
-    direccion: str = ''       # si se entrega en otra dirección
-    observaciones: str = ''
+    observaciones: str = ''   # «Comentarios» en la app
+    contacto: str = ''        # persona de contacto''
 
 
 def _limpio(t, largo=500):
@@ -387,17 +383,10 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
             raise HTTPException(status_code=400, detail='Añade al menos una pieza o máquina al pedido.')
         if len(lineas) > 60:
             raise HTTPException(status_code=400, detail='Demasiadas líneas en un pedido (máximo 60).')
-        entrega = p.entrega.strip()
-        if entrega:
-            try:
-                datetime.strptime(entrega, '%Y-%m-%d')
-            except ValueError:
-                raise HTTPException(status_code=400, detail='Fecha de entrega no válida.')
         momento = actividad.ahora()
         pedido = {'id': pedidos.nuevo_id(momento), 'comercial': s.nombre, 'cod_cliente': _limpio(p.cod_cliente, 20), 'cliente': cliente,
-                  'tipo': tipo, 'lineas': lineas, 'maquina': _limpio(p.maquina, 200), 'ref_cliente': _limpio(p.ref_cliente, 80),
-                  'entrega': entrega, 'urgente': bool(p.urgente), 'contacto': _limpio(p.contacto, 200),
-                  'direccion': _limpio(p.direccion, 300), 'observaciones': str(p.observaciones or '').strip()[:3000],
+                  'tipo': tipo, 'lineas': lineas, 'maquina': _limpio(p.maquina, 200),
+                  'observaciones': str(p.observaciones or '').strip()[:3000], 'contacto': _limpio(p.contacto, 200),
                   'creado': momento.strftime('%Y-%m-%d %H:%M'), 'creado_txt': momento.strftime('%d/%m/%Y %H:%M')}
         from comercial import correo
         ok, error = correo.pedido(pedido)
