@@ -690,7 +690,14 @@ function pintarPedido() {
       <div style="display:grid; grid-template-columns:96px 1fr; gap:8px; margin-top:8px;">
         <input type="number" inputmode="decimal" min="0" step="any" data-ped-cant="${i}" value="${esc(l.cantidad)}" aria-label="Cantidad" placeholder="Cant.">
         <input type="text" data-ped-nota="${i}" value="${esc(l.nota)}" placeholder="${esMaq ? 'Configuración, opciones, color...' : 'Nota (nº de serie, posición, medida...)'}">
-      </div></div>`).join('');
+      </div>
+      ${l.foto ? `<div class="row" style="gap:10px; margin-top:8px; align-items:center;">
+          <img src="${l.foto}" alt="Foto" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="verFotoPedido(${i})">
+          <span class="t-small" style="flex:1;">Foto adjunta</span>
+          <button class="btn btn-ghost btn-sm" type="button" onclick="this.nextElementSibling.click()">Repetir</button><input type="file" accept="image/*" capture="environment" style="display:none" onchange="fotoLineaPedido(${i}, this)">
+          <button class="btn btn-ghost btn-sm" type="button" onclick="quitarFotoPedido(${i})">Quitar</button></div>`
+        : `<button class="btn btn-ghost btn-sm" type="button" style="margin-top:8px;" onclick="this.nextElementSibling.click()">&#128247; Hacer foto (etiqueta, referencia...)</button><input type="file" accept="image/*" capture="environment" style="display:none" onchange="fotoLineaPedido(${i}, this)">`}
+      </div>`).join('');
   document.getElementById('ped-form').innerHTML = `
     <label style="margin-top:0;">Cliente${ast}</label>
     <div class="campo-cliente" onclick="elegirClientePedido()"><span id="ped-cliente" class="${P.cliente ? '' : 'vacio'}">${P.cliente ? esc(P.cliente.nombre) + (P.cliente.codigo ? ` <span class="t-small">· ${esc(P.cliente.codigo)}</span>` : '') : 'Elegir cliente'}</span><span class="t-small">Cambiar</span></div>
@@ -730,6 +737,38 @@ function anadirLineaPedido(linea) {
   else PED.lineas.push({cantidad: 1, nota: '', ...linea});
   pintarPedido();
   const b = document.getElementById('ped-buscar'); if (b) b.focus();
+}
+// Foto de una línea: se hace con la cámara del móvil, se reduce (lado mayor 1600 px, JPEG) para que el envío
+// sea ligero y se adjunta al correo del pedido.
+const FOTO_LADO = 1600, FOTO_CALIDAD = 0.72, MAX_FOTOS_PEDIDO = 10;
+function reducirFoto(fichero) {
+  return new Promise((ok, mal) => {
+    const url = URL.createObjectURL(fichero), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, FOTO_LADO / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL('image/jpeg', FOTO_CALIDAD));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('No se ha podido leer la foto.')); };
+    img.src = url;
+  });
+}
+async function fotoLineaPedido(i, input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  leerCamposPedido();
+  const l = PED.lineas[i]; if (!l) return;
+  if (!l.foto && PED.lineas.filter(x => x.foto).length >= MAX_FOTOS_PEDIDO) { await appAlert(`Como mucho ${MAX_FOTOS_PEDIDO} fotos por pedido.`, {type: 'error'}); return; }
+  try { l.foto = await reducirFoto(f); }
+  catch (e) { await appAlert(e.message, {type: 'error'}); return; }
+  pintarPedido();
+}
+function quitarFotoPedido(i) { leerCamposPedido(); if (PED.lineas[i]) PED.lineas[i].foto = ''; pintarPedido(); }
+function verFotoPedido(i) {
+  const l = PED.lineas[i]; if (!l || !l.foto) return;
+  const w = window.open(); if (w) w.document.write(`<title>Foto</title><body style="margin:0;background:#000"><img src="${l.foto}" style="width:100%;height:auto"></body>`);
 }
 function htmlTextoLibrePedido(q) {
   return `<div class="card" style="padding:9px 12px; margin:6px 0; cursor:pointer; border-style:dashed;" onclick="usarTextoLibrePedido()">
@@ -773,12 +812,14 @@ async function enviarPedido() {
   leerCamposPedido();
   const P = PED;
   const lineas = P.lineas.map(l => ({referencia: l.referencia, descripcion: l.descripcion, nota: (l.nota || '').trim(),
-                                     cantidad: parseFloat(String(l.cantidad).replace(',', '.'))}));
+                                     cantidad: parseFloat(String(l.cantidad).replace(',', '.')), foto: l.foto || ''}));
   const falta = [!P.cliente && 'el cliente', !P.tipo && 'si son piezas o máquinas', !lineas.length && 'al menos una línea'].filter(Boolean);
   if (falta.length) { await appAlert('Para enviar el pedido falta: ' + falta.join(', ') + '.', {type: 'error'}); return; }
+  // El servidor (Vercel) no admite envíos de más de ~4,5 MB: las fotos ya van reducidas, pero se comprueba el total.
+  if (lineas.reduce((t, l) => t + l.foto.length, 0) > 3_800_000) { await appAlert('Las fotos ocupan demasiado para un solo pedido: quita alguna o envía el pedido en dos.', {type: 'error'}); return; }
   const mala = lineas.find(l => !(l.cantidad > 0));
   if (mala) { await appAlert(`Pon una cantidad válida en «${mala.descripcion || mala.referencia}».`, {type: 'error'}); return; }
-  const resumen = lineas.map(l => `· ${String(l.cantidad).replace('.', ',')} × ${l.descripcion || l.referencia}`).join('\n');
+  const resumen = lineas.map(l => `· ${String(l.cantidad).replace('.', ',')} × ${l.descripcion || l.referencia}${l.foto ? ' (con foto)' : ''}`).join('\n');
   if (!(await appConfirm(`¿Enviar el pedido de ${P.tipo.toLowerCase()} de ${P.cliente.nombre} a ${DESTINO_PEDIDOS}?\n\n${resumen}`, {okText: 'Enviar'}))) return;
   const b = document.getElementById('ped-enviar'); if (b) b.disabled = true;
   const r = await conCarga(() => api('/pedidos', {method: 'POST', body: JSON.stringify({
@@ -806,7 +847,7 @@ async function cargarPedidos() {
         <span><span class="badge ${p.tipo === 'Máquinas' ? 'visita' : 'llamada'}">${esc(p.tipo)}</span></span></div>
       <div class="t-small" style="margin:2px 0 6px;">${esc(p.creado.slice(8, 10) + '/' + p.creado.slice(5, 7) + '/' + p.creado.slice(0, 4) + ' ' + p.creado.slice(11))}${ver ? ' · ' + esc(p.comercial) : ''}${p.cod_cliente ? ' · Cód. ' + esc(p.cod_cliente) : ''}</div>
       ${p.maquina ? `<div class="t-small">Para: ${esc(p.maquina)}</div>` : ''}
-      ${p.lineas.map(l => `<div class="t-txt">${esc(String(l.cantidad).replace('.', ','))} × ${esc(l.descripcion || l.referencia)}${l.referencia && l.descripcion ? ` <span class="t-small">ref. ${esc(l.referencia)}</span>` : ''}${l.nota ? ` <span class="t-small">— ${esc(l.nota)}</span>` : ''}</div>`).join('')}
+      ${p.lineas.map(l => `<div class="t-txt">${esc(String(l.cantidad).replace('.', ','))} × ${esc(l.descripcion || l.referencia)}${l.referencia && l.descripcion ? ` <span class="t-small">ref. ${esc(l.referencia)}</span>` : ''}${l.nota ? ` <span class="t-small">— ${esc(l.nota)}</span>` : ''}${l.foto ? ' <span class="t-small">&#128247;</span>' : ''}</div>`).join('')}
       ${p.observaciones ? `<div class="t-small" style="margin-top:6px;">Comentarios: ${esc(p.observaciones)}</div>` : ''}
       ${p.contacto ? `<div class="t-small">Contacto: ${esc(p.contacto)}</div>` : ''}
       <div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" onclick="repetirPedido('${esc(p.id)}')">Repetir pedido</button></div>
@@ -816,7 +857,7 @@ async function cargarPedidos() {
 function repetirPedido(id) {
   const p = (window._pedidosEnviados || []).find(x => x.id === id); if (!p) return;
   PED = {...pedidoVacio({codigo: p.cod_cliente, nombre: p.cliente, poblacion: ''}), tipo: p.tipo, maquina: p.maquina || '',
-         contacto: p.contacto || '', lineas: p.lineas.map(l => ({...l}))};
+         contacto: p.contacto || '', lineas: p.lineas.map(l => ({...l, foto: ''}))};
   pestanaPedidos('nuevo');
 }
 

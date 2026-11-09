@@ -25,10 +25,11 @@ def _eur(n):
         return '—'
 
 
-def enviar(destinos, asunto, cuerpo):
-    """(ok, error). En pruebas locales (COMERCIAL_LOCAL_DIR) no envía nada."""
+def enviar(destinos, asunto, cuerpo, adjuntos=None):
+    """(ok, error). adjuntos: [(nombre, bytes, 'image/jpeg'), ...]. En pruebas locales (COMERCIAL_LOCAL_DIR) no envía nada."""
     if os.environ.get('COMERCIAL_LOCAL_DIR'):
-        logger.info('[pruebas] correo a %s: %s\n%s', destinos, asunto, cuerpo)
+        logger.info('[pruebas] correo a %s: %s\n%s\nAdjuntos: %s', destinos, asunto, cuerpo,
+                    [(n, len(b)) for n, b, _ in (adjuntos or [])])
         return True, None
     try:
         from secretos import obtener
@@ -38,6 +39,9 @@ def enviar(destinos, asunto, cuerpo):
     msg = EmailMessage()
     msg['Subject'], msg['From'], msg['To'] = asunto, f'Sugraf Comercial <{REMITENTE}>', ', '.join(destinos)
     msg.set_content(cuerpo)
+    for nombre, datos, tipo in adjuntos or []:
+        principal, sub_tipo = tipo.split('/', 1)
+        msg.add_attachment(datos, maintype=principal, subtype=sub_tipo, filename=nombre)
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as smtp:
             smtp.login(REMITENTE, clave)
@@ -81,8 +85,9 @@ def _cantidad(n):
         return str(n or '')
 
 
-def pedido(p):
-    """Correo a la oficina con un pedido de la app comercial (p: el pedido ya validado)."""
+def pedido(p, fotos=None):
+    """Correo a la oficina con un pedido de la app comercial (p: el pedido ya validado). fotos: adjuntos
+    [(nombre, bytes, tipo)] hechos con el móvil al añadir las piezas (etiquetas, referencias...)."""
     n = len(p['lineas'])
     asunto = f"Pedido de {p['tipo'].lower()} · {p['cliente']} · {n} línea{'s' if n != 1 else ''} ({p['comercial']})"
     lineas = [
@@ -99,9 +104,11 @@ def pedido(p):
         lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × {art}" + ('' if l.get('referencia') else '   (sin referencia de Pirineos)'))
         if l.get('nota'):
             lineas.append(f"     Nota: {l['nota']}")
+        if l.get('foto'):
+            lineas.append(f"     Foto adjunta: {l['foto']}")
     if p.get('observaciones'):
         lineas += ['', 'Comentarios:', p['observaciones']]
     if p.get('contacto'):
         lineas += ['', f"Persona de contacto: {p['contacto']}"]
     lineas += ['', f"Enviado: {p['creado_txt']} · Nº {p['id']}"]
-    return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas))
+    return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas), fotos)

@@ -342,6 +342,30 @@ class LineaPedido(BaseModel):
     descripcion: str = ''
     cantidad: float = 1
     nota: str = ''
+    foto: str = ''            # foto hecha con el móvil (data:image/jpeg;base64,...), va adjunta al correo
+
+
+MAX_FOTO_BYTES = 2_500_000
+MAX_FOTOS_PEDIDO = 10
+
+
+def _foto_pedido(dato, n, ref, desc):
+    """(nombre, bytes, tipo) de la foto de una línea, o None si no lleva."""
+    import base64
+    import re
+    if not dato:
+        return None
+    m = re.match(r'^data:(image/(jpeg|png|webp));base64,(.+)$', dato, re.S)
+    if not m:
+        raise HTTPException(status_code=400, detail=f'La foto de «{desc or ref}» no es una imagen válida.')
+    try:
+        datos = base64.b64decode(m.group(3), validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f'La foto de «{desc or ref}» está dañada; hazla otra vez.')
+    if len(datos) > MAX_FOTO_BYTES:
+        raise HTTPException(status_code=400, detail=f'La foto de «{desc or ref}» es demasiado grande.')
+    base = ''.join(c if c.isalnum() else '_' for c in (ref or desc))[:30].strip('_') or 'pieza'
+    return f"foto_{n}_{base}.{'jpg' if m.group(2) == 'jpeg' else m.group(2)}", datos, m.group(1)
 
 
 class Pedido(BaseModel):
@@ -371,14 +395,20 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
         tipo = next((t for t in pedidos.TIPOS if normalizar(t) == normalizar(p.tipo)), '')
         if not tipo:
             raise HTTPException(status_code=400, detail='Indica si el pedido es de piezas o de máquinas.')
-        lineas = []
+        lineas, fotos = [], []
+        if sum(1 for l in p.lineas if l.foto) > MAX_FOTOS_PEDIDO:
+            raise HTTPException(status_code=400, detail=f'Como mucho {MAX_FOTOS_PEDIDO} fotos por pedido.')
         for l in p.lineas:
             ref, desc = _limpio(l.referencia, 40), _limpio(l.descripcion, 300)
             if not ref and not desc:
                 continue
             if not l.cantidad or l.cantidad <= 0:
                 raise HTTPException(status_code=400, detail=f'Cantidad no válida en «{desc or ref}».')
-            lineas.append({'referencia': ref, 'descripcion': desc, 'cantidad': round(float(l.cantidad), 3), 'nota': _limpio(l.nota, 300)})
+            foto = _foto_pedido(l.foto, len(lineas) + 1, ref, desc)
+            if foto:
+                fotos.append(foto)
+            lineas.append({'referencia': ref, 'descripcion': desc, 'cantidad': round(float(l.cantidad), 3), 'nota': _limpio(l.nota, 300),
+                           'foto': foto[0] if foto else ''})
         if not lineas:
             raise HTTPException(status_code=400, detail='Añade al menos una pieza o máquina al pedido.')
         if len(lineas) > 60:
@@ -389,7 +419,7 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
                   'observaciones': str(p.observaciones or '').strip()[:3000], 'contacto': _limpio(p.contacto, 200),
                   'creado': momento.strftime('%Y-%m-%d %H:%M'), 'creado_txt': momento.strftime('%d/%m/%Y %H:%M')}
         from comercial import correo
-        ok, error = correo.pedido(pedido)
+        ok, error = correo.pedido(pedido, fotos)
         if not ok:
             raise HTTPException(status_code=502, detail=f'No se ha podido enviar el correo del pedido ({error}). '
                                                         'El pedido NO se ha enviado: inténtalo de nuevo en un momento.')
