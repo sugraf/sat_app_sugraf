@@ -96,15 +96,16 @@ def pedido(p, fotos=None):
         f"Cliente:       {p['cliente']}" + (f" (código {p['cod_cliente']})" if p.get('cod_cliente') else ' (sin código: no está en Pirineos)'),
         f"Tipo:          {p['tipo']}",
     ]
-    if p.get('maquina'):
-        lineas.append(f"Para máquina:  {p['maquina']}")
     lineas += ['', f"{'PIEZAS' if p['tipo'] == 'Piezas' else 'MÁQUINAS'}:"]
     for i, l in enumerate(p['lineas'], 1):
         art = ' · '.join(x for x in (l.get('referencia'), l.get('descripcion')) if x)
-        lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × {art}" + ('' if l.get('referencia') else '   (sin referencia de Pirineos)'))
+        if not art:
+            lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × (sin referencia: ver la foto {l.get('foto', '')})")
+        else:
+            lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × {art}" + ('' if l.get('referencia') else '   (sin referencia de Pirineos)'))
         if l.get('nota'):
             lineas.append(f"     Nota: {l['nota']}")
-        if l.get('foto'):
+        if l.get('foto') and art:
             lineas.append(f"     Foto adjunta: {l['foto']}")
     if p.get('observaciones'):
         lineas += ['', 'Comentarios:', p['observaciones']]

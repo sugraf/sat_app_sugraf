@@ -646,7 +646,7 @@ function pickOtro() {
 const DESTINO_PEDIDOS = 'carolina@sugraf.es';
 let PED = null, PED_PESTANA = 'nuevo', _tPed = null, _nPed = 0;
 function pedidoVacio(cliente) {
-  return {cliente: cliente || null, tipo: '', lineas: [], maquina: '', contacto: '', observaciones: ''};
+  return {cliente: cliente || null, tipo: '', lineas: [], contacto: '', observaciones: ''};
 }
 function abrirPedidos() {
   if (!PED) PED = pedidoVacio();
@@ -674,7 +674,7 @@ function pestanaPedidos(p) {
 function leerCamposPedido() {
   if (!PED || !document.getElementById('ped-obs')) return;
   const v = id => (document.getElementById(id)?.value || '');
-  PED.maquina = v('ped-maquina'); PED.contacto = v('ped-contacto'); PED.observaciones = v('ped-obs');
+  PED.contacto = v('ped-contacto'); PED.observaciones = v('ped-obs');
   document.querySelectorAll('[data-ped-cant]').forEach(el => { const l = PED.lineas[+el.dataset.pedCant]; if (l) l.cantidad = el.value; });
   document.querySelectorAll('[data-ped-nota]').forEach(el => { const l = PED.lineas[+el.dataset.pedNota]; if (l) l.nota = el.value; });
 }
@@ -683,8 +683,8 @@ function pintarPedido() {
   const esMaq = P.tipo === 'Máquinas';
   const lineas = P.lineas.map((l, i) => `<div class="card" style="padding:10px 12px; margin:8px 0;">
       <div class="row between" style="gap:10px; align-items:flex-start;">
-        <div style="flex:1; min-width:0;"><div class="t-strong" style="font-size:0.9rem;">${esc(l.descripcion || l.referencia)}</div>
-          <div class="t-small">${l.referencia ? 'Ref. ' + esc(l.referencia) : 'Sin referencia de Pirineos (nombre libre)'}</div></div>
+        <div style="flex:1; min-width:0;"><div class="t-strong" style="font-size:0.9rem;">${l.descripcion || l.referencia ? esc(l.descripcion || l.referencia) : `&#128247; ${esMaq ? 'Máquina' : 'Pieza'} ${i + 1} (por foto)`}</div>
+          <div class="t-small">${l.referencia ? 'Ref. ' + esc(l.referencia) : l.descripcion ? 'Sin referencia de Pirineos (nombre libre)' : 'Sin referencia: la oficina la verá en la foto'}</div></div>
         <button class="btn btn-ghost btn-sm" type="button" onclick="quitarLineaPedido(${i})">Quitar</button>
       </div>
       <div style="display:grid; grid-template-columns:96px 1fr; gap:8px; margin-top:8px;">
@@ -695,7 +695,7 @@ function pintarPedido() {
           <img src="${l.foto}" alt="Foto" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="verFotoPedido(${i})">
           <span class="t-small" style="flex:1;">Foto adjunta</span>
           <button class="btn btn-ghost btn-sm" type="button" onclick="this.nextElementSibling.click()">Repetir</button><input type="file" accept="image/*" capture="environment" style="display:none" onchange="fotoLineaPedido(${i}, this)">
-          <button class="btn btn-ghost btn-sm" type="button" onclick="quitarFotoPedido(${i})">Quitar</button></div>`
+          ${l.descripcion || l.referencia ? `<button class="btn btn-ghost btn-sm" type="button" onclick="quitarFotoPedido(${i})">Quitar</button>` : ''}</div>`
         : `<button class="btn btn-ghost btn-sm" type="button" style="margin-top:8px;" onclick="this.nextElementSibling.click()">&#128247; Hacer foto (etiqueta, referencia...)</button><input type="file" accept="image/*" capture="environment" style="display:none" onchange="fotoLineaPedido(${i}, this)">`}
       </div>`).join('');
   document.getElementById('ped-form').innerHTML = `
@@ -704,14 +704,13 @@ function pintarPedido() {
     <label>¿Qué se pide?${ast}</label>
     <div class="seg" id="ped-tipo">${[['Piezas', 'Piezas'], ['Máquinas', 'Máquinas']].map(([v, n]) =>
       `<button type="button" class="${P.tipo === v ? 'on' : ''}" onclick="tipoPedido('${v}')">${n}</button>`).join('')}</div>
-    ${P.tipo === 'Piezas' ? `<label>Para qué máquina <span style="text-transform:none; letter-spacing:0; font-weight:600;">(opcional)</span></label>
-      <input id="ped-maquina" value="${esc(P.maquina)}" placeholder="Modelo y nº de serie de la máquina">` : ''}
     <label>${esMaq ? 'Máquinas' : 'Piezas'}${ast} <span style="text-transform:none; letter-spacing:0; font-weight:600;">(${P.lineas.length} línea${P.lineas.length === 1 ? '' : 's'})</span></label>
-    <div id="ped-lineas">${lineas || `<div class="t-small" style="margin:4px 2px 8px;">Busca ${esMaq ? 'la máquina' : 'la pieza'} por referencia o nombre y tócala para añadirla. Si no está en Pirineos, añádela con el nombre tal cual.</div>`}</div>
+    <div id="ped-lineas">${lineas || `<div class="t-small" style="margin:4px 2px 8px;">Busca ${esMaq ? 'la máquina' : 'la pieza'} por referencia o nombre y tócala para añadirla, o simplemente hazle una foto (no hace falta escribir nada).</div>`}</div>
     <div class="buscador">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input type="search" id="ped-buscar" autocomplete="off" placeholder="+ Añadir: referencia o nombre..." oninput="buscarArticuloPedido(this.value)">
     </div>
+    <button class="btn btn-ghost btn-block" type="button" style="margin-top:8px;" onclick="this.nextElementSibling.click()">&#128247;&nbsp; Añadir ${esMaq ? 'máquina' : 'pieza'} con una foto</button><input type="file" accept="image/*" capture="environment" style="display:none" onchange="nuevaLineaFoto(this)">
     <div id="ped-res"></div>
     <label>Comentarios</label>
     <textarea id="ped-obs" data-dictado placeholder="Cualquier cosa que deba saber la oficina...">${esc(P.observaciones)}</textarea>
@@ -763,6 +762,17 @@ async function fotoLineaPedido(i, input) {
   if (!l.foto && PED.lineas.filter(x => x.foto).length >= MAX_FOTOS_PEDIDO) { await appAlert(`Como mucho ${MAX_FOTOS_PEDIDO} fotos por pedido.`, {type: 'error'}); return; }
   try { l.foto = await reducirFoto(f); }
   catch (e) { await appAlert(e.message, {type: 'error'}); return; }
+  pintarPedido();
+}
+// Línea nueva solo con foto (sin referencia ni nombre): luego se pone la cantidad y, si se quiere, una nota.
+async function nuevaLineaFoto(input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  leerCamposPedido();
+  if (PED.lineas.filter(x => x.foto).length >= MAX_FOTOS_PEDIDO) { await appAlert(`Como mucho ${MAX_FOTOS_PEDIDO} fotos por pedido.`, {type: 'error'}); return; }
+  let foto;
+  try { foto = await reducirFoto(f); }
+  catch (e) { await appAlert(e.message, {type: 'error'}); return; }
+  PED.lineas.push({referencia: '', descripcion: '', cantidad: 1, nota: '', foto});
   pintarPedido();
 }
 function quitarFotoPedido(i) { leerCamposPedido(); if (PED.lineas[i]) PED.lineas[i].foto = ''; pintarPedido(); }
@@ -818,13 +828,15 @@ async function enviarPedido() {
   // El servidor (Vercel) no admite envíos de más de ~4,5 MB: las fotos ya van reducidas, pero se comprueba el total.
   if (lineas.reduce((t, l) => t + l.foto.length, 0) > 3_800_000) { await appAlert('Las fotos ocupan demasiado para un solo pedido: quita alguna o envía el pedido en dos.', {type: 'error'}); return; }
   const mala = lineas.find(l => !(l.cantidad > 0));
-  if (mala) { await appAlert(`Pon una cantidad válida en «${mala.descripcion || mala.referencia}».`, {type: 'error'}); return; }
-  const resumen = lineas.map(l => `· ${String(l.cantidad).replace('.', ',')} × ${l.descripcion || l.referencia}${l.foto ? ' (con foto)' : ''}`).join('\n');
+  const nombre = (l, i) => l.descripcion || l.referencia || `${P.tipo === 'Máquinas' ? 'máquina' : 'pieza'} ${i + 1} (por foto)`;
+  const iMala = lineas.findIndex(l => !(l.cantidad > 0));
+  if (iMala >= 0) { await appAlert(`Pon una cantidad válida en «${nombre(lineas[iMala], iMala)}».`, {type: 'error'}); return; }
+  const resumen = lineas.map((l, i) => `· ${String(l.cantidad).replace('.', ',')} × ${nombre(l, i)}${l.foto && (l.descripcion || l.referencia) ? ' (con foto)' : ''}`).join('\n');
   if (!(await appConfirm(`¿Enviar el pedido de ${P.tipo.toLowerCase()} de ${P.cliente.nombre} a ${DESTINO_PEDIDOS}?\n\n${resumen}`, {okText: 'Enviar'}))) return;
   const b = document.getElementById('ped-enviar'); if (b) b.disabled = true;
   const r = await conCarga(() => api('/pedidos', {method: 'POST', body: JSON.stringify({
     cod_cliente: P.cliente.codigo || '', cliente: P.cliente.nombre, tipo: P.tipo, lineas,
-    maquina: P.tipo === 'Piezas' ? P.maquina.trim() : '', contacto: P.contacto.trim(), observaciones: P.observaciones.trim()})}));
+    contacto: P.contacto.trim(), observaciones: P.observaciones.trim()})}));
   if (b) b.disabled = false;
   if (!r) return;   // el error ya se ha enseñado; el borrador sigue ahí para reintentar
   PED = pedidoVacio();
@@ -846,8 +858,7 @@ async function cargarPedidos() {
       <div class="row between" style="gap:8px;"><span class="t-strong">${esc(p.cliente)}</span>
         <span><span class="badge ${p.tipo === 'Máquinas' ? 'visita' : 'llamada'}">${esc(p.tipo)}</span></span></div>
       <div class="t-small" style="margin:2px 0 6px;">${esc(p.creado.slice(8, 10) + '/' + p.creado.slice(5, 7) + '/' + p.creado.slice(0, 4) + ' ' + p.creado.slice(11))}${ver ? ' · ' + esc(p.comercial) : ''}${p.cod_cliente ? ' · Cód. ' + esc(p.cod_cliente) : ''}</div>
-      ${p.maquina ? `<div class="t-small">Para: ${esc(p.maquina)}</div>` : ''}
-      ${p.lineas.map(l => `<div class="t-txt">${esc(String(l.cantidad).replace('.', ','))} × ${esc(l.descripcion || l.referencia)}${l.referencia && l.descripcion ? ` <span class="t-small">ref. ${esc(l.referencia)}</span>` : ''}${l.nota ? ` <span class="t-small">— ${esc(l.nota)}</span>` : ''}${l.foto ? ' <span class="t-small">&#128247;</span>' : ''}</div>`).join('')}
+      ${p.lineas.map(l => `<div class="t-txt">${esc(String(l.cantidad).replace('.', ','))} × ${esc(l.descripcion || l.referencia || (l.foto ? 'Por foto' : ''))}${l.referencia && l.descripcion ? ` <span class="t-small">ref. ${esc(l.referencia)}</span>` : ''}${l.nota ? ` <span class="t-small">— ${esc(l.nota)}</span>` : ''}${l.foto ? ' <span class="t-small">&#128247;</span>' : ''}</div>`).join('')}
       ${p.observaciones ? `<div class="t-small" style="margin-top:6px;">Comentarios: ${esc(p.observaciones)}</div>` : ''}
       ${p.contacto ? `<div class="t-small">Contacto: ${esc(p.contacto)}</div>` : ''}
       <div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" onclick="repetirPedido('${esc(p.id)}')">Repetir pedido</button></div>
@@ -856,8 +867,8 @@ async function cargarPedidos() {
 }
 function repetirPedido(id) {
   const p = (window._pedidosEnviados || []).find(x => x.id === id); if (!p) return;
-  PED = {...pedidoVacio({codigo: p.cod_cliente, nombre: p.cliente, poblacion: ''}), tipo: p.tipo, maquina: p.maquina || '',
-         contacto: p.contacto || '', lineas: p.lineas.map(l => ({...l, foto: ''}))};
+  PED = {...pedidoVacio({codigo: p.cod_cliente, nombre: p.cliente, poblacion: ''}), tipo: p.tipo,
+         contacto: p.contacto || '', lineas: p.lineas.filter(l => l.referencia || l.descripcion).map(l => ({...l, foto: ''}))};
   pestanaPedidos('nuevo');
 }
 

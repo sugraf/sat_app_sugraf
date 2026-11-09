@@ -355,15 +355,16 @@ def _foto_pedido(dato, n, ref, desc):
     import re
     if not dato:
         return None
+    que = desc or ref or f'línea {n}'
     m = re.match(r'^data:(image/(jpeg|png|webp));base64,(.+)$', dato, re.S)
     if not m:
-        raise HTTPException(status_code=400, detail=f'La foto de «{desc or ref}» no es una imagen válida.')
+        raise HTTPException(status_code=400, detail=f'La foto de «{que}» no es una imagen válida.')
     try:
         datos = base64.b64decode(m.group(3), validate=True)
     except Exception:
-        raise HTTPException(status_code=400, detail=f'La foto de «{desc or ref}» está dañada; hazla otra vez.')
+        raise HTTPException(status_code=400, detail=f'La foto de «{que}» está dañada; hazla otra vez.')
     if len(datos) > MAX_FOTO_BYTES:
-        raise HTTPException(status_code=400, detail=f'La foto de «{desc or ref}» es demasiado grande.')
+        raise HTTPException(status_code=400, detail=f'La foto de «{que}» es demasiado grande.')
     base = ''.join(c if c.isalnum() else '_' for c in (ref or desc))[:30].strip('_') or 'pieza'
     return f"foto_{n}_{base}.{'jpg' if m.group(2) == 'jpeg' else m.group(2)}", datos, m.group(1)
 
@@ -373,7 +374,6 @@ class Pedido(BaseModel):
     cliente: str
     tipo: str
     lineas: list[LineaPedido]
-    maquina: str = ''         # piezas: para qué máquina (modelo / nº de serie)
     observaciones: str = ''   # «Comentarios» en la app
     contacto: str = ''        # persona de contacto''
 
@@ -400,10 +400,11 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
             raise HTTPException(status_code=400, detail=f'Como mucho {MAX_FOTOS_PEDIDO} fotos por pedido.')
         for l in p.lineas:
             ref, desc = _limpio(l.referencia, 40), _limpio(l.descripcion, 300)
-            if not ref and not desc:
+            if not ref and not desc and not l.foto:
                 continue
+            que = desc or ref or f'línea {len(lineas) + 1} (por foto)'
             if not l.cantidad or l.cantidad <= 0:
-                raise HTTPException(status_code=400, detail=f'Cantidad no válida en «{desc or ref}».')
+                raise HTTPException(status_code=400, detail=f'Cantidad no válida en «{que}».')
             foto = _foto_pedido(l.foto, len(lineas) + 1, ref, desc)
             if foto:
                 fotos.append(foto)
@@ -415,7 +416,7 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
             raise HTTPException(status_code=400, detail='Demasiadas líneas en un pedido (máximo 60).')
         momento = actividad.ahora()
         pedido = {'id': pedidos.nuevo_id(momento), 'comercial': s.nombre, 'cod_cliente': _limpio(p.cod_cliente, 20), 'cliente': cliente,
-                  'tipo': tipo, 'lineas': lineas, 'maquina': _limpio(p.maquina, 200),
+                  'tipo': tipo, 'lineas': lineas,
                   'observaciones': str(p.observaciones or '').strip()[:3000], 'contacto': _limpio(p.contacto, 200),
                   'creado': momento.strftime('%Y-%m-%d %H:%M'), 'creado_txt': momento.strftime('%d/%m/%Y %H:%M')}
         from comercial import correo
