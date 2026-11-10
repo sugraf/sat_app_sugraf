@@ -87,7 +87,8 @@ def _cantidad(n):
 
 def pedido(p, fotos=None):
     """Correo a la oficina con un pedido de la app comercial (p: el pedido ya validado). fotos: adjuntos
-    [(nombre, bytes, tipo)] hechos con el móvil al añadir las piezas (etiquetas, referencias...)."""
+    [(nombre, bytes, tipo)] hechos con el móvil al añadir los artículos (etiquetas, referencias...).
+    Los artículos van con guiones, no numerados, para que no se confundan con las cantidades."""
     n = len(p['lineas'])
     asunto = f"Pedido de {p['tipo'].lower()} · {p['cliente']} · {n} línea{'s' if n != 1 else ''} ({p['comercial']})"
     lineas = [
@@ -96,20 +97,56 @@ def pedido(p, fotos=None):
         f"Cliente:       {p['cliente']}" + (f" (código {p['cod_cliente']})" if p.get('cod_cliente') else ' (sin código: no está en Pirineos)'),
         f"Tipo:          {p['tipo']}",
     ]
-    lineas += ['', f"{'PIEZAS' if p['tipo'] == 'Piezas' else 'MÁQUINAS'}:"]
-    for i, l in enumerate(p['lineas'], 1):
+    lineas += _detalle_pedido(p)
+    lineas += ['', f"Enviado: {p['creado_txt']} · Nº {p['id']}"]
+    return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas), fotos)
+
+
+def _detalle_pedido(p):
+    """Artículos (con guiones), comentarios y contacto de un pedido, para los correos."""
+    lineas = ['', f"{p['tipo'].upper()}:"]
+    for l in p['lineas']:
         art = ' · '.join(x for x in (l.get('referencia'), l.get('descripcion')) if x)
         if not art:
-            lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × (sin referencia: ver la foto {l.get('foto', '')})")
+            lineas.append(f"  - {_cantidad(l['cantidad'])} × (sin referencia: ver la foto {l.get('foto', '')})")
         else:
-            lineas.append(f"  {i}. {_cantidad(l['cantidad'])} × {art}" + ('' if l.get('referencia') else '   (sin referencia de Pirineos)'))
+            lineas.append(f"  - {_cantidad(l['cantidad'])} × {art}" + ('' if l.get('referencia') else '   (sin referencia de Pirineos)'))
         if l.get('nota'):
-            lineas.append(f"     Nota: {l['nota']}")
+            lineas.append(f"      Nota: {l['nota']}")
         if l.get('foto') and art:
-            lineas.append(f"     Foto adjunta: {l['foto']}")
+            lineas.append(f"      Foto adjunta: {l['foto']}")
     if p.get('observaciones'):
         lineas += ['', 'Comentarios:', p['observaciones']]
     if p.get('contacto'):
         lineas += ['', f"Persona de contacto: {p['contacto']}"]
-    lineas += ['', f"Enviado: {p['creado_txt']} · Nº {p['id']}"]
-    return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas), fotos)
+    return lineas
+
+
+def recordatorio_pedido(p):
+    """Segundo correo a la oficina cuando, pasadas 24 h, en Pirineos no aparece ninguna venta ni pedido de cliente
+    que demuestre que el pedido se ha tramitado."""
+    refs = sorted({l['referencia'] for l in p['lineas'] if l.get('referencia')})
+    asunto = f"Revisar pedido sin tramitar · {p['cliente']} · enviado el {p['creado_txt'][:10]} ({p['comercial']})"
+    if not p.get('cod_cliente'):
+        motivo = ('El cliente no tiene código de Pirineos, así que la app no puede comprobar sola si se ha tramitado.')
+    elif refs:
+        motivo = (f"Desde el {p['creado_txt'][:10]} no aparece en Pirineos ninguna venta ni pedido de cliente de "
+                  f"{'esa referencia' if len(refs) == 1 else 'esas referencias'} ({', '.join(refs)}) para este cliente.")
+    else:
+        motivo = (f"El pedido no lleva referencias de Pirineos y desde el {p['creado_txt'][:10]} no aparece ninguna venta "
+                  "ni pedido de cliente de ningún producto para este cliente.")
+    lineas = [
+        'Hola:',
+        '',
+        f"Hace más de 24 horas que {p['comercial']} envió este pedido desde la app comercial y parece que todavía "
+        'no está tramitado. ' + motivo,
+        '',
+        'Por favor, compruébalo.',
+        '',
+        f"Cliente:       {p['cliente']}" + (f" (código {p['cod_cliente']})" if p.get('cod_cliente') else ' (sin código: no está en Pirineos)'),
+        f"Tipo:          {p['tipo']}",
+        f"Enviado:       {p['creado_txt']}",
+    ]
+    lineas += _detalle_pedido(p)
+    lineas += ['', f"Nº {p['id']}. Es un aviso automático: solo se manda una vez por pedido."]
+    return enviar(DESTINOS_PEDIDOS, asunto, '\n'.join(lineas))

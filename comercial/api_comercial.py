@@ -14,7 +14,7 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -365,7 +365,7 @@ def _foto_pedido(dato, n, ref, desc):
         raise HTTPException(status_code=400, detail=f'La foto de «{que}» está dañada; hazla otra vez.')
     if len(datos) > MAX_FOTO_BYTES:
         raise HTTPException(status_code=400, detail=f'La foto de «{que}» es demasiado grande.')
-    base = ''.join(c if c.isalnum() else '_' for c in (ref or desc))[:30].strip('_') or 'pieza'
+    base = ''.join(c if c.isalnum() else '_' for c in (ref or desc))[:30].strip('_') or 'articulo'
     return f"foto_{n}_{base}.{'jpg' if m.group(2) == 'jpeg' else m.group(2)}", datos, m.group(1)
 
 
@@ -392,9 +392,9 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
         cliente = _limpio(p.cliente, 200)
         if not cliente:
             raise HTTPException(status_code=400, detail='Elige el cliente.')
-        tipo = next((t for t in pedidos.TIPOS if normalizar(t) == normalizar(p.tipo)), '')
+        tipo = next((t for t in pedidos.TIPOS if normalizar(t) == normalizar(pedidos.tipo_actual(p.tipo))), '')
         if not tipo:
-            raise HTTPException(status_code=400, detail='Indica si el pedido es de piezas o de máquinas.')
+            raise HTTPException(status_code=400, detail='Indica si el pedido es de consumibles o de maquinaria.')
         lineas, fotos = [], []
         if sum(1 for l in p.lineas if l.foto) > MAX_FOTOS_PEDIDO:
             raise HTTPException(status_code=400, detail=f'Como mucho {MAX_FOTOS_PEDIDO} fotos por pedido.')
@@ -411,7 +411,7 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
             lineas.append({'referencia': ref, 'descripcion': desc, 'cantidad': round(float(l.cantidad), 3), 'nota': _limpio(l.nota, 300),
                            'foto': foto[0] if foto else ''})
         if not lineas:
-            raise HTTPException(status_code=400, detail='Añade al menos una pieza o máquina al pedido.')
+            raise HTTPException(status_code=400, detail='Añade al menos un artículo al pedido.')
         if len(lineas) > 60:
             raise HTTPException(status_code=400, detail='Demasiadas líneas en un pedido (máximo 60).')
         momento = actividad.ahora()
@@ -430,6 +430,20 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
         except Exception:
             guardado = False
         return {'pedido': pedido, 'guardado': guardado, 'destinos': correo.DESTINOS_PEDIDOS}
+    except Exception as e:
+        _error(e)
+
+
+@router.get('/pedidos/revisar')
+def revisar_pedidos(authorization: str = Header('')):
+    """Recordatorio de pedidos sin tramitar (lo llama Vercel tres veces al día, ver vercel.json). Si en Vercel está
+    la variable CRON_SECRET, solo responde a quien la mande (Vercel la manda sola). Se puede llamar las veces que
+    sea: cada pedido se avisa como mucho una vez."""
+    secreto = os.environ.get('CRON_SECRET')
+    if secreto and authorization != f'Bearer {secreto}':
+        raise HTTPException(status_code=401, detail='No autorizado.')
+    try:
+        return pedidos.revisar(actividad.ahora())
     except Exception as e:
         _error(e)
 
@@ -1449,11 +1463,13 @@ def estado_precio(id_registro: str, e: EstadoPrecio, s: Sesion = Depends(sesion_
 
 
 # Ofertas pedidas en una visita o llamada («¿Se ha conseguido una oferta?» = Sí). Estado en ESTADO_OPERACION:
-#   (vacío) pendiente de la oficina -> ENVIADA (la oficina ya la ha hecho: se detecta sola en los Excel de ofertas,
-#   o se marca a mano) -> GANADA / PERDIDA; o CANCELADA si ya no hace falta.
-ESTADOS_PEDIDA = {'NUEVA': 'Nueva', 'ENVIADA': 'Oferta enviada', 'GANADA': 'Ganada', 'PERDIDA': 'Perdida',
-                  'DESCARTADA': 'Descartada'}
-PEDIDA_ANTIGUOS = {'PENDIENTE': 'NUEVA', 'CANCELADA': 'DESCARTADA'}
+#   (vacío) ELABORAR: pendiente de que la oficina la haga -> ENVIADA en cuanto aparece en los Excel de Generación de
+#   ofertas (sola) o si se marca a mano -> COMPRA / PERDIDA; o ANULADA si se pidió por error.
+# Volver a «Pendiente de elaborar» deja el campo vacío, para que pase sola a ENVIADA cuando la oficina la haga.
+ESTADOS_PEDIDA = {'ELABORAR': 'Pendiente de elaborar', 'ENVIADA': 'Enviada', 'COMPRA': 'Compra', 'PERDIDA': 'Perdida',
+                  'ANULADA': 'Anulada'}
+PEDIDA_ANTIGUOS = {'PENDIENTE': '', 'NUEVA': '', 'ELABORAR': '', 'CANCELADA': 'ANULADA', 'DESCARTADA': 'ANULADA',
+                   'GANADA': 'COMPRA'}
 
 
 def _ofertas_pedidas(regs, lista_ofertas):
@@ -1465,20 +1481,21 @@ def _ofertas_pedidas(regs, lista_ofertas):
     usadas, salida = set(), []
     for r in sorted(regs, key=lambda r: r['FECHA']):
         r = dict(r)
+        manual = PEDIDA_ANTIGUOS.get(r['ESTADO_OPERACION'], r['ESTADO_OPERACION'])
+        manual = manual if manual in ESTADOS_PEDIDA else ''
+        # Una pedida por error (anulada) no se queda con la oferta que la oficina haga después a ese cliente.
         candidatas = [o for o in por_codigo.get(pirineos.principal(r['COD_CLIENTE']), []) if r['COD_CLIENTE']
-                      and o['fecha'] >= r['FECHA'] and o['id'] not in usadas]
+                      and o['fecha'] >= r['FECHA'] and o['id'] not in usadas] if manual != 'ANULADA' else []
         o = min(candidatas, key=lambda o: o['fecha']) if candidatas else None
         if o:
             usadas.add(o['id'])
             o.setdefault('pedida', {'id': r['ID'], 'fecha': r['FECHA'], 'comercial': r['COMERCIAL'], 'tipo': r['TIPO'],
                                     'que': ' — '.join(x for x in (r['PRODUCTOS'], r['NECESIDADES']) if x)})
-        manual = PEDIDA_ANTIGUOS.get(r['ESTADO_OPERACION'], r['ESTADO_OPERACION'])
-        manual = manual if manual in ESTADOS_PEDIDA else ''
         r['oferta_oficina'] = o['id'] if o else ''
         # La que dijo el comercial al registrar la visita o, si no la hay (visitas antiguas), la de la oferta de la oficina.
         r['linea'] = r.get('LINEA_OFERTA') if r.get('LINEA_OFERTA') in LINEAS_OFERTA else (o['tipo'] if o else '')
-        # Lo marcado a mano manda siempre; si no hay nada, «Oferta enviada» cuando la oficina ya la ha hecho y «Nueva» si no.
-        r['estado_pedida'] = manual or ('ENVIADA' if o else 'NUEVA')
+        # Lo marcado a mano manda siempre; si no hay nada, «Enviada» cuando la oficina ya la ha hecho y «Pendiente de elaborar» si no.
+        r['estado_pedida'] = manual or ('ENVIADA' if o else 'ELABORAR')
         r['dias'] = (date.today() - date.fromisoformat(r['FECHA'])).days
         salida.append(r)
     return sorted(salida, key=lambda r: r['FECHA'], reverse=True)
@@ -1537,17 +1554,20 @@ class EstadoPedida(BaseModel):
 
 @router.post('/actividad/{id_registro}/oferta_pedida')
 def estado_oferta_pedida(id_registro: str, e: EstadoPedida, s: Sesion = Depends(sesion_actual)):
-    """Estado de una oferta pedida en una visita (NUEVA, ENVIADA, GANADA, PERDIDA o DESCARTADA), siempre a mano."""
+    """Estado de una oferta pedida en una visita (ELABORAR, ENVIADA, COMPRA, PERDIDA o ANULADA), siempre a mano.
+    ELABORAR se guarda vacío: es lo automático (pasa sola a ENVIADA cuando la oficina hace la oferta)."""
     try:
         clave, r = _dueno(s, id_registro)
         if clave != s.clave and not s.puede('editar_otros'):
             raise HTTPException(status_code=403, detail='No puedes modificar la actividad de otra persona.')
         if r.get('OFERTA') != OFERTA_SI:
             raise HTTPException(status_code=400, detail='Esta visita no tiene oferta pedida.')
-        estado = PEDIDA_ANTIGUOS.get(e.estado, e.estado)
+        estado = e.estado.upper()
         if estado not in ESTADOS_PEDIDA:
             raise HTTPException(status_code=400, detail='Estado no válido.')
-        cambios = {'ESTADO_OPERACION': estado}
+        if estado == 'ANULADA' and not e.nota.strip():
+            raise HTTPException(status_code=400, detail='Indica por qué se anula (se pidió por error...).')
+        cambios = {'ESTADO_OPERACION': '' if estado == 'ELABORAR' else estado}
         if e.nota.strip():
             cambios['OBSERVACIONES'] = (r['OBSERVACIONES'] + ' ' if r['OBSERVACIONES'] else '') + f'[Oferta: {ESTADOS_PEDIDA[estado]}. {e.nota.strip()}]'
         return {'registro': actividad.actualizar(clave, s.nombre, id_registro, cambios, accion='SEGUIMIENTO OFERTA')}
@@ -1564,7 +1584,25 @@ class SeguimientoOferta(BaseModel):
 @router.post('/ofertas/{id_oferta}/seguimiento')
 def seguir_oferta(id_oferta: str, d: SeguimientoOferta, s: Sesion = Depends(sesion_actual)):
     try:
+        if d.estado == 'ANULADA' and not d.nota.strip():
+            raise ValueError('Indica por qué se anula (se pidió por error...).')
         return {'seguimiento': ofertas.fijar_seguimiento(id_oferta, d.estado, d.nota.strip(), d.proximo, s.nombre, actividad.ahora())}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _error(e)
+
+
+class ProductosOferta(BaseModel):
+    claves: list[str]
+    estado: str          # COMPRA (comprado), NO (no comprado) o '' (lo que diga Pirineos)
+
+
+@router.post('/ofertas/{id_oferta}/productos')
+def marcar_productos_oferta(id_oferta: str, d: ProductosOferta, s: Sesion = Depends(sesion_actual)):
+    """Marca a mano qué productos de una oferta de la oficina ha comprado el cliente (solo esos pasan a «Compra»)."""
+    try:
+        return {'seguimiento': ofertas.marcar_lineas(id_oferta, [k[:300] for k in d.claves][:80], d.estado.upper(), s.nombre, actividad.ahora())}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

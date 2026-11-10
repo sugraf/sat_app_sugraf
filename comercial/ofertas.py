@@ -21,10 +21,18 @@ FICHERO_SEGUIMIENTO = 'Seguimiento_ofertas.json'
 FICHERO_MAQUINARIA = 'Datos_maquinas.xlsx'
 FICHEROS_CONSUMIBLES = {'Ofertas_offset.xlsx': 'Offset', 'Ofertas_flex.xlsx': 'Flexibles', 'Ofertas_rigidos.xlsx': 'Rígidos',
                         'Ofertas_vin_corte.xlsx': 'Vinilo de corte'}
-# Estados de una oferta en Seguimiento (los mismos para las pedidas en visita). Se pueden cambiar siempre a mano.
-ESTADOS = ['NUEVA', 'ENVIADA', 'GANADA', 'PERDIDA', 'DESCARTADA']
-ABIERTOS = ('NUEVA', 'ENVIADA')
-ANTIGUOS = {'ABIERTA': 'ENVIADA'}     # estados guardados antes del cambio
+# Estados de una oferta de la oficina en Seguimiento (se pueden cambiar siempre a mano):
+#   ENVIADA (la oficina la ha hecho) · PERDIDA · ANULADA (pedida por error).
+# «Compra» no es un estado de toda la oferta sino de cada producto: un producto está comprado si en las ventas de
+# Pirineos aparece después de la oferta (solo) o si se marca a mano (también se puede desmarcar una detección).
+# Si se compran todos los productos, la oferta entera queda en COMPRA; si solo algunos, esos van a «Compra» y el
+# resto sigue con el estado de la oferta.
+ESTADOS = ['ENVIADA', 'PERDIDA', 'ANULADA']
+ABIERTOS = ('ENVIADA',)
+# Estados guardados antes del cambio. GANADA se trata aparte: marca como comprados los productos detectados en
+# Pirineos o, si no se detecta ninguno, todos.
+ANTIGUOS = {'ABIERTA': 'ENVIADA', 'NUEVA': 'ENVIADA', 'DESCARTADA': 'ANULADA', 'GANADA': 'ENVIADA'}
+COMPRA, NO_COMPRA = 'COMPRA', 'NO'
 VALIDEZ_DIAS = 30
 
 _lock = threading.Lock()
@@ -149,50 +157,87 @@ def _encaja(producto, linea_venta, refs_diccionario):
     return len(toks) >= 2 and sum(w in venta for w in toks) >= max(2, -(-len(toks) * 3 // 4))
 
 
-def compra_de_oferta(o, ventas):
-    """Primera compra del cliente, desde la fecha de la oferta, de algo ofertado; o None."""
+def _lineas_venta(o, ventas):
+    """Ventas del cliente desde la fecha de la oferta que pueden ser de lo ofertado."""
     if not o.get('codigo'):
-        return None
+        return []
     lineas = [l for l in ventas.get(o['codigo'], []) if l['fecha'] >= o['fecha'] and l['cantidad'] > 0]
-    if not lineas:
-        return None
-    try:
-        from comercial import diccionario
-    except Exception:
-        diccionario = None
     if o.get('tipo') == 'Maquinaria':
         # Que compre tóner o consumibles de esa máquina no es comprar la máquina: tiene que ser una venta de
         # maquinaria (por grupo o familia) o de un importe parecido al ofertado.
         total = o.get('total') or 0
         lineas = [l for l in lineas if 'MAQUIN' in (l.get('grupo', '') + ' ' + l.get('familia', '')).upper()
                   or (total and abs(l.get('importe') or 0) >= 0.3 * total)]
-    for l in sorted(lineas, key=lambda l: l['fecha']):
-        for ofertado in o['lineas']:
-            try:
-                refs = diccionario.referencias(ofertado['producto']) if diccionario and ofertado.get('producto') else {}
-            except Exception:
-                refs = {}
-            if _encaja(ofertado.get('producto') or ofertado['texto'], l, refs):
-                return {'fecha': l['fecha'], 'documento': l['documento'], 'referencia': l['referencia'], 'descripcion': l['descripcion'],
-                        'cantidad': l['cantidad'], 'precio': l['precio'], 'ofertado': ofertado.get('producto') or ofertado['texto']}
-    return None
+    return sorted(lineas, key=lambda l: l['fecha'])
+
+
+def compras_por_linea(o, ventas):
+    """Para cada producto ofertado (en el orden de o['lineas']), su primera compra en Pirineos o None."""
+    lineas = _lineas_venta(o, ventas)
+    if not lineas:
+        return [None] * len(o['lineas'])
+    try:
+        from comercial import diccionario
+    except Exception:
+        diccionario = None
+    salida = []
+    for ofertado in o['lineas']:
+        try:
+            refs = diccionario.referencias(ofertado['producto']) if diccionario and ofertado.get('producto') else {}
+        except Exception:
+            refs = {}
+        l = next((l for l in lineas if _encaja(ofertado.get('producto') or ofertado['texto'], l, refs)), None)
+        salida.append({'fecha': l['fecha'], 'documento': l['documento'], 'referencia': l['referencia'], 'descripcion': l['descripcion'],
+                       'cantidad': l['cantidad'], 'precio': l['precio'], 'ofertado': ofertado.get('producto') or ofertado['texto']} if l else None)
+    return salida
+
+
+def compra_de_oferta(o, ventas):
+    """Primera compra del cliente, desde la fecha de la oferta, de algo ofertado; o None."""
+    compras = [c for c in compras_por_linea(o, ventas) if c]
+    return min(compras, key=lambda c: c['fecha']) if compras else None
+
+
+def clave_linea(linea):
+    """Clave de un producto de la oferta para guardar su marca a mano (el nombre, sin tildes ni mayúsculas)."""
+    from comercial.usuarios import normalizar
+    return ' '.join(normalizar(linea.get('producto') or linea.get('texto') or '').upper().split())
 
 
 def con_estado(lista):
-    """Añade a cada oferta su seguimiento y su estado: el marcado a mano o, si no hay, GANADA cuando el cliente
-    ya ha comprado lo ofertado (compra_pirineos) y ENVIADA si no (si la oficina la ha hecho, se ha enviado)."""
+    """Añade a cada oferta su seguimiento, si cada producto está comprado (detectado en Pirineos o marcado a mano)
+    y su estado: COMPRA si están comprados todos; si no, el marcado a mano para el resto (ENVIADA, PERDIDA o
+    ANULADA) o ENVIADA (si la oficina la ha hecho, se ha enviado)."""
     seg = seguimiento()
     try:
         ventas, _ = pirineos.todas_las_ventas()
     except Exception:
         ventas = {}
     for o in lista:
-        o['seguimiento'] = seg.get(o['id'], {})
-        o['compra_pirineos'] = compra_de_oferta(o, ventas)
-        manual = o['seguimiento'].get('estado')
-        manual = ANTIGUOS.get(manual, manual) if manual in ESTADOS or manual in ANTIGUOS else ''
-        o['estado'] = manual or ('GANADA' if o['compra_pirineos'] else 'ENVIADA')
-        o['ganada_sola'] = not manual and bool(o['compra_pirineos'])
+        sg = seg.get(o['id'], {})
+        o['seguimiento'] = sg
+        guardado = sg.get('estado') or ''
+        manual = ANTIGUOS.get(guardado, guardado) if guardado in ESTADOS or guardado in ANTIGUOS else ''
+        autos = compras_por_linea(o, ventas)
+        marcas = sg.get('lineas') if isinstance(sg.get('lineas'), dict) else {}
+        ganada_antes = guardado == 'GANADA' and not any(autos)
+        for l, auto in zip(o['lineas'], autos):
+            l['clave'] = clave_linea(l)
+            marca = marcas.get(l['clave']) or {}
+            l['compra_pirineos'] = auto
+            l['marca'] = marca                      # {'estado': COMPRA | NO, 'por', 'fecha'} si se ha tocado a mano
+            if marca.get('estado') == COMPRA:
+                l['comprada'] = True
+            elif marca.get('estado') == NO_COMPRA:
+                l['comprada'] = False
+            else:
+                l['comprada'] = bool(auto) or ganada_antes
+            l['comprada_sola'] = l['comprada'] and not marca.get('estado') and bool(auto)
+        o['n_compradas'] = sum(1 for l in o['lineas'] if l['comprada'])
+        o['estado_resto'] = manual or 'ENVIADA'
+        o['estado'] = COMPRA if o['lineas'] and o['n_compradas'] == len(o['lineas']) else o['estado_resto']
+        o['compra_pirineos'] = min((a for a in autos if a), key=lambda c: c['fecha'], default=None)
+        o['ganada_sola'] = o['estado'] == COMPRA and all(l['comprada_sola'] for l in o['lineas'])
     return lista
 
 
@@ -212,7 +257,36 @@ def fijar_seguimiento(id_oferta, estado, nota, proximo, usuario, momento):
         anterior = d.get(id_oferta, {})
         historial = anterior.get('historial', [])
         historial.append({'fecha': momento.strftime('%Y-%m-%d %H:%M'), 'por': usuario, 'estado': estado, 'nota': nota})
-        d[id_oferta] = {'estado': estado, 'nota': nota, 'proximo': proximo, 'por': usuario,
-                        'fecha': momento.strftime('%Y-%m-%d %H:%M'), 'historial': historial[-20:]}
+        d[id_oferta] = dict(anterior, estado=estado, nota=nota, proximo=proximo, por=usuario,
+                            fecha=momento.strftime('%Y-%m-%d %H:%M'), historial=historial[-30:])
         almacen.guardar_json_propio(FICHERO_SEGUIMIENTO, d, meta)
         return d[id_oferta]
+
+
+def marcar_lineas(id_oferta, claves, estado, usuario, momento):
+    """Marca a mano productos de una oferta: estado COMPRA (comprado), NO (no comprado, aunque Pirineos parezca
+    decir que sí) o '' (quitar la marca: vuelve a mandar lo detectado en Pirineos)."""
+    if estado not in (COMPRA, NO_COMPRA, ''):
+        raise ValueError('Estado de producto no válido.')
+    if not claves:
+        raise ValueError('Indica qué productos.')
+    with _lock:
+        meta, d = almacen.leer_json_propio(FICHERO_SEGUIMIENTO, {})
+        if meta is None:
+            raise RuntimeError(f'Falta el fichero {FICHERO_SEGUIMIENTO} en SAT-App/Comerciales.')
+        d = d if isinstance(d, dict) else {}
+        o = dict(d.get(id_oferta, {}))
+        marcas = dict(o.get('lineas') or {})
+        sello = momento.strftime('%Y-%m-%d %H:%M')
+        for k in claves:
+            if estado:
+                marcas[k] = {'estado': estado, 'por': usuario, 'fecha': sello}
+            else:
+                marcas.pop(k, None)
+        o['lineas'] = marcas
+        historial = o.get('historial', [])
+        historial.append({'fecha': sello, 'por': usuario, 'estado': f"PRODUCTOS {estado or 'AUTOMÁTICO'}", 'nota': ', '.join(claves)[:300]})
+        o['historial'] = historial[-30:]
+        d[id_oferta] = o
+        almacen.guardar_json_propio(FICHERO_SEGUIMIENTO, d, meta)
+        return o
