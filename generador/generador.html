@@ -230,6 +230,11 @@
         <label>Explicar la Incidencia</label>
         <textarea id="ni_desc" rows="3" required data-dictado placeholder="Detalla el problema o anomalía reportada..."></textarea>
 
+        <div id="zona-asignado" style="display:none;">
+          <label>Asignado a</label>
+          <select id="ni_asignado"></select>
+        </div>
+
         <label>Etiquetas</label>
         <div class="checkbox-group">
           <label class="checkbox-item"><input type="checkbox" id="ni_nuevo" checked> Nuevo</label>
@@ -257,6 +262,16 @@
     }
 
     document.getElementById("user-name-text").innerText = currentUser;
+
+    // «Asignado a»: Master puede asignar el aviso a cualquier técnico; un técnico, a sí mismo. Si se deja en
+    // «Sin asignar», el aviso queda sin asignar como siempre (para repartirlo en el organizador).
+    const TECNICOS_ASIGNABLES = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Técnico 4"];
+    const opcionesAsignado = currentUser === "Master" ? TECNICOS_ASIGNABLES : TECNICOS_ASIGNABLES.includes(currentUser) ? [currentUser] : [];
+    if (opcionesAsignado.length) {
+      document.getElementById("ni_asignado").innerHTML = '<option value="">Sin asignar</option>' +
+        opcionesAsignado.map(t => `<option value="${t}">${t}${t === currentUser ? ' (yo)' : ''}</option>`).join('');
+      document.getElementById("zona-asignado").style.display = "";
+    }
     document.getElementById("zona-usuario").style.display = "flex";
 
     function toggleUserMenu() {
@@ -565,7 +580,9 @@
         parado: document.getElementById('ni_parado').checked,
         reclama: document.getElementById('ni_reclama').checked,
         presupuesto: document.getElementById('ni_pre').checked,
-        piezas: document.getElementById('ni_piezas').checked
+        piezas: document.getElementById('ni_piezas').checked,
+        asignado: document.getElementById('ni_asignado').value || '',
+        creado_por: currentUser
       };
 
       try {
@@ -581,7 +598,7 @@
         }
 
         hideLoading();
-        await appAlert("Aviso guardado correctamente.", {type: 'success'});
+        await appAlert(payload.asignado ? `Aviso guardado y asignado a ${payload.asignado}.` : "Aviso guardado correctamente.", {type: 'success'});
         window.location.href = "/sat";
       } catch (err) {
         console.error(err);
@@ -606,6 +623,8 @@
           maquinas: maquinasSel.slice(),
           descripcion: document.getElementById('ni_desc').value.trim(),
           etiquetas: Object.entries(etiquetas).filter(([id]) => document.getElementById(id).checked).map(([, n]) => n),
+          asignado_a: document.getElementById('ni_asignado').value || 'Sin asignar',
+          puede_asignar_a: opcionesAsignado,
         },
         etiqueta: cliente,
       };
@@ -647,12 +666,19 @@
                 desmarcar: {type: 'array', items: {type: 'string', enum: Object.keys(ETIQUETAS_BOT)}},
                 fecha: {type: 'string', description: 'AAAA-MM-DD'},
                 hora: {type: 'string', description: 'HH:MM'},
+                asignado: {type: 'string', description: 'Técnico al que se asigna al crearlo ("Sin asignar" para dejarlo sin asignar). Master puede asignar a cualquiera; un técnico solo a sí mismo.'},
             }},
             etiqueta: a => a.cliente ? `Rellenando el aviso de ${a.cliente}` : 'Rellenando el aviso',
             ejecutar: async (a) => {
                 if (!Object.keys(dbEquipos).length) return {ok: false, error: 'La lista de clientes aún no ha cargado.'};
                 if (a.fecha) await SugrafBot.escribir(document.getElementById('ni_fecha'), a.fecha);
                 if (a.hora) await SugrafBot.escribir(document.getElementById('ni_hora'), a.hora);
+                if (a.asignado != null) {
+                    const sel = document.getElementById('ni_asignado');
+                    const valor = /^sin asignar$/i.test(a.asignado.trim()) ? '' : a.asignado.trim();
+                    if (valor && !opcionesAsignado.includes(valor)) return {ok: false, error: `No puedes asignar el aviso a «${a.asignado}». Opciones: ${opcionesAsignado.join(', ') || 'ninguna'}.`};
+                    sel.value = valor;
+                }
                 if (a.cliente) {
                     const cliente = clienteBot(a.cliente);
                     const input = document.getElementById('ni_cliente');

@@ -36,7 +36,17 @@ def get_drive_service():
     )
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
+# Técnicos a los que se puede asignar un aviso (los mismos que en el organizador de avisos).
+TECNICOS = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo", "Técnico 4"]
+# Columnas de «Avisos Tratados.xlsx» (las mismas que usa el organizador al asignar un aviso).
+COLS_TRATADOS = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'TIPO ASISTENCIA', 'FECHA REALIZACIÓN', 'HORA ENTRADA', 'HORA SALIDA', 'HORAS TOTALES', 'RESUELTO O PENDIENTE', 'PIEZAS NECESARIAS', 'SOLUCIÓN', 'ESTADO', 'OPCIÓN A VENTA', 'DETALLE VENTA', 'ESTADO PIEZAS', 'OBSERVACIONES', 'EMAIL CLIENTE']
+
 class NuevoAviso(BaseModel):
+    # Asignado a: vacío = sin asignar (va a «Avisos Sin Tratar», como siempre). Con un técnico, el aviso se crea ya
+    # asignado (va a «Avisos Tratados» en estado «Vacío», igual que al asignarlo desde el organizador).
+    # Master puede asignar a cualquiera; un técnico solo a sí mismo.
+    asignado: str = ''
+    creado_por: str = ''
     fecha_entrada: str
     cliente: str
     poblacion: str
@@ -218,13 +228,22 @@ def crear_aviso(aviso: NuevoAviso):
         drive = get_drive_service()
 
         cols = ['F. ENTR.', 'CLIENTE', 'POBLACIÓN', 'MÁQUINA', 'EQUIPO', 'MARCA', 'MODELO', 'Nº SERIE', 'F. GARANTÍA', 'F. INSTALACIÓN', 'DESCRIPCIÓN', 'ASIGNADO A', 'URGENTE', 'PIRINEOS', 'GARANTÍA', 'MANTENIMIENTO', 'INSTALACIÓN', 'REVISAR', 'NUEVO', 'PARADO', 'RECLAMA', 'PRESUPUESTO', 'PIEZAS', 'ESTADO PIEZAS', 'OBSERVACIONES', 'EMAIL CLIENTE']
+        asignado = (aviso.asignado or '').strip()
+        if asignado in ('Pendiente', 'Sin asignar'):
+            asignado = ''
+        if asignado:
+            if asignado not in TECNICOS:
+                raise HTTPException(status_code=400, detail=f"«{asignado}» no es un técnico al que se pueda asignar el aviso.")
+            if aviso.creado_por != 'Master' and aviso.creado_por != asignado:
+                raise HTTPException(status_code=403, detail="Solo puedes asignarte el aviso a ti mismo (Master puede asignarlo a cualquiera).")
+
         file_id, df = _descargar_excel_por_nombre(drive, 'Avisos Sin Tratar.xlsx')
 
         for col in cols:
             if col not in df.columns:
                 df[col] = ''
 
-        _, df_tratados = _descargar_excel_por_nombre(drive, 'Avisos Tratados.xlsx')
+        file_id_tratados, df_tratados = _descargar_excel_por_nombre(drive, 'Avisos Tratados.xlsx')
         if existe_aviso_duplicado([df, df_tratados], aviso.cliente, aviso.maquina, aviso.descripcion, aviso.fecha_entrada):
             raise HTTPException(
                 status_code=400,
@@ -250,6 +269,24 @@ def crear_aviso(aviso: NuevoAviso):
             'ESTADO PIEZAS': 'Pendiente' if aviso.piezas else ''
         }
         
+        if asignado:
+            # Ya asignado: directamente a «Avisos Tratados», pendiente de empezar por el técnico.
+            if not file_id_tratados:
+                raise HTTPException(status_code=500, detail="No se encuentra «Avisos Tratados.xlsx» en Drive.")
+            fila = {c: '' for c in COLS_TRATADOS}
+            fila.update(fila_excel)
+            fila.update({'ASIGNADO A': asignado, 'ESTADO': 'Vacío'})
+            for col in COLS_TRATADOS:
+                if col not in df_tratados.columns:
+                    df_tratados[col] = ''
+            df_tratados = pd.concat([df_tratados, pd.DataFrame([fila])], ignore_index=True)
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer: df_tratados.to_excel(writer, index=False)
+            media = MediaIoBaseUpload(io.BytesIO(output.getvalue()), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            drive.files().update(fileId=file_id_tratados, media_body=media).execute()
+            registrar_movimiento("creacion", fila)
+            return {"status": "ok", "asignado": asignado}
+
         df = pd.concat([df, pd.DataFrame([fila_excel])], ignore_index=True)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
