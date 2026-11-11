@@ -32,7 +32,7 @@ OPCIONES = {
     'temas': ['Reposición de consumibles', 'Revisión de precios', 'Presentación de productos',
               'Demostración de maquinaria', 'Venta de maquinaria', 'Servicio técnico', 'Incidencia o reclamación',
               'Negociación comercial', 'Seguimiento de oferta', 'Prospección', 'Recuperación de cliente', 'Otros'],
-    # Pocas opciones a propósito; la oferta va aparte («¿Se ha conseguido una oferta?»).
+    # Pocas opciones a propósito; el presupuesto va aparte («¿Presupuesto solicitado?»).
     'resultados': ['Pedido conseguido', 'Seguimiento pendiente', 'Sin necesidades ahora', 'Incidencia detectada'],
     'tipos_llamada': ['Prospección', 'Seguimiento de oferta', 'Negociación de precios', 'Reposición de consumibles',
                       'Venta de maquinaria', 'Recuperación de cliente', 'Incidencia', 'Coordinación de visita', 'Otro'],
@@ -154,8 +154,9 @@ class Registro(BaseModel):
 # Lo que tiene que estar relleno para poder cerrar una visita (darla por bien hecha).
 CAMPOS_PARA_CERRAR = [('CLIENTE', 'cliente'), ('FECHA', 'fecha'), ('HORA_INICIO', 'hora de entrada'),
                       ('HORA_FIN', 'hora de salida'), ('DESCRIPCION', 'qué se ha hablado'),
-                      ('RESULTADO', 'resultado'), ('OFERTA', 'si se ha conseguido una oferta')]
-# «¿Se ha conseguido una oferta?» (OFERTA = SI / NO). Si es SI: LINEA_OFERTA = Maquinaria o Consumibles,
+                      ('RESULTADO', 'resultado'), ('OFERTA', 'si se ha solicitado presupuesto')]
+# «¿Presupuesto solicitado?» (antes «¿Se ha conseguido una oferta?»; OFERTA = SI / NO). En consumibles PRODUCTOS
+# puede llevar varios productos separados por « | »; en maquinaria, uno. Si es SI: LINEA_OFERTA = Maquinaria o Consumibles,
 # PRODUCTOS = «referencia · artículo» elegido del buscador o un nombre escrito a mano, y NECESIDADES = descripción
 # libre (opcional). Avisa a la oficina en Generación de ofertas (de maquinaria o de consumibles, según la línea).
 OFERTA_SI, OFERTA_NO = 'SI', 'NO'
@@ -172,7 +173,7 @@ def _comprobar_oferta(d):
     if d['OFERTA'] not in ('', OFERTA_SI, OFERTA_NO):
         raise HTTPException(status_code=400, detail='Oferta: indica Sí o No.')
     if d['OFERTA'] == OFERTA_SI and not d.get('PRODUCTOS') and not d.get('NECESIDADES'):
-        raise HTTPException(status_code=400, detail='Has marcado que se ha conseguido una oferta: indica qué (artículo) o escribe una breve descripción.')
+        raise HTTPException(status_code=400, detail='Has marcado que se ha solicitado presupuesto: indica qué producto o escribe una breve descripción.')
     linea = (d.get('LINEA_OFERTA') or '').strip().lower()
     d['LINEA_OFERTA'] = next((l for l in LINEAS_OFERTA if l.lower() == linea), '')
     if d['OFERTA'] != OFERTA_SI and d['TIPO'] in ('VISITA', 'LLAMADA'):
@@ -222,15 +223,17 @@ def _avisar_oferta(s, d, registro, previo=None):
     modulo = ''
     try:
         modulo = _modulo_oferta(d)
-        que = ' — '.join(x for x in (d.get('PRODUCTOS'), d.get('NECESIDADES')) if x)
+        productos = [p.strip() for p in (d.get('PRODUCTOS') or '').split(' | ') if p.strip()]
+        que = ' — '.join(x for x in ('; '.join(productos), d.get('NECESIDADES')) if x)
         tipo = 'la visita' if d['TIPO'] == 'VISITA' else 'la llamada'
         if d.get('LINEA_OFERTA'):
             que = f"{d['LINEA_OFERTA']}: {que}"
         linea = d.get('LINEA_OFERTA') or ('Maquinaria' if modulo == 'ofertas_maquinaria' else 'Consumibles')
-        notificaciones.crear('OFERTA_CONSEGUIDA', modulo, f'Oferta de {linea.lower()} conseguida: {d["CLIENTE"]}',
-                             f'{s.nombre} ha conseguido una oferta en {tipo} a {d["CLIENTE"]} del {d["FECHA"][8:10]}/{d["FECHA"][5:7]}: '
-                             f'{que}. ¿Preparar la oferta?',
-                             {'cliente': d['CLIENTE'], 'codigo': d.get('COD_CLIENTE', ''), 'articulo': d.get('PRODUCTOS', ''),
+        varios = f' ({len(productos)} productos)' if len(productos) > 1 else ''
+        notificaciones.crear('OFERTA_CONSEGUIDA', modulo, f'Presupuesto de {linea.lower()} solicitado{varios}: {d["CLIENTE"]}',
+                             f'{s.nombre} ha recibido una solicitud de presupuesto en {tipo} a {d["CLIENTE"]} del {d["FECHA"][8:10]}/{d["FECHA"][5:7]}: '
+                             f'{que}. ¿Preparar el presupuesto?',
+                             {'cliente': d['CLIENTE'], 'codigo': d.get('COD_CLIENTE', ''), 'articulo': d.get('PRODUCTOS', ''), 'articulos': productos,
                               'descripcion': d.get('NECESIDADES', ''), 'linea': linea, 'comercial': s.nombre,
                               'tipo_actividad': d.get('TIPO', ''), 'fecha': d.get('FECHA', ''), 'registro': id_registro},
                              actividad.ahora(), sustituir=bool(previo.get('OFERTA') == OFERTA_SI))
