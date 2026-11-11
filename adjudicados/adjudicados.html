@@ -130,6 +130,8 @@
     .inc-title{ font-weight:700; color:#fff; font-size:1.02rem; display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
     .inc-sub{ color:var(--muted); font-size:0.85rem; margin-top:8px; }
     .inc-sub strong{ color:#d7e2ef; }
+    .inc-desc{ margin-top:6px; font-size:0.85rem; color:#d7e2ef; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .inc-desc strong{ color:var(--muted); font-weight:600; }
 
     .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid transparent; }
     .bg-urg{ background:rgba(239,68,68,0.18); color:#fca5a5; border-color:rgba(239,68,68,0.4); }
@@ -811,6 +813,14 @@
         }
     }
 
+    // Una línea con la incidencia / motivo del aviso (completa al pasar el ratón).
+    function htmlDescAviso(av) {
+        const t = String(av['DESCRIPCIÓN'] || '').replace(/\s+/g, ' ').trim();
+        if (!t) return '';
+        const e = t.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        return `<div class="inc-desc" title="${e}"><strong>Incidencia:</strong> ${e}</div>`;
+    }
+
     function generateCard(av) {
         let badgesHtml = "";
         if(av['URGENTE'] === 'SI') badgesHtml += `<span class="badge bg-urg">Urgente</span>`;
@@ -854,6 +864,7 @@
                 <span style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">${badgesHtml}</span>
             </div>
             <div class="inc-sub"><strong>Máquina:</strong> ${av['MÁQUINA']} &nbsp;|&nbsp; <strong>Fecha:</strong> ${fechasDisplay} &nbsp;|&nbsp; <strong>Total Horas:</strong> ${horasTotales} &nbsp;|&nbsp; <strong>Técnico:</strong> ${av['ASIGNADO A']}</div>
+            ${htmlDescAviso(av)}
             ${av['ESTADO'] !== 'Cerrado' ? htmlAlertaCliente(av['CLIENTE']) : ''}
         </div>
         `;

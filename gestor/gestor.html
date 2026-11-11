@@ -147,6 +147,8 @@
         gap:10px;
     }
     .inc-sub { color:var(--muted); font-size:0.85rem; margin-top:8px; }
+    .inc-desc{ margin-top:6px; font-size:0.85rem; color:#d7e2ef; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .inc-desc strong{ color:var(--muted); font-weight:600; }
 
     .badge-container { display:inline-flex; gap:6px; flex-wrap:wrap; margin-left:10px; }
     .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; border:1px solid transparent; }
@@ -406,6 +408,14 @@
       finally { hideLoading(); }
     }
 
+    // Una línea con la incidencia / motivo del aviso (completa al pasar el ratón).
+    function htmlDescAviso(av) {
+        const t = String(av['DESCRIPCIÓN'] || '').replace(/\s+/g, ' ').trim();
+        if (!t) return '';
+        const e = t.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        return `<div class="inc-desc" title="${e}"><strong>Incidencia:</strong> ${e}</div>`;
+    }
+
     function renderGestionAvisos() {
       const box = document.getElementById('contenedor-gestionar');
       const filtroTec = document.getElementById('filtro-tecnico').value;
@@ -522,6 +532,7 @@
               </div>
             </div>
             <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}</div>
+            ${htmlDescAviso(av)}
             ${estadoAviso !== 'Cerrado' ? htmlAlertaCliente(av['CLIENTE']) : ''}
           </div>
         `;
