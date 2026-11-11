@@ -1,7 +1,5 @@
 {
   "crons": [
-    { "path": "/api/comercial/pedidos/revisar?turno=manana", "schedule": "0 8 * * *" },
-    { "path": "/api/comercial/pedidos/revisar?turno=mediodia", "schedule": "0 12 * * *" },
-    { "path": "/api/comercial/pedidos/revisar?turno=tarde", "schedule": "0 16 * * *" }
+    { "path": "/api/comercial/pedidos/revisar", "schedule": "0 7 * * *" }
   ]
 }

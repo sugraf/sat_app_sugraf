@@ -436,7 +436,7 @@ def enviar_pedido(p: Pedido, s: Sesion = Depends(sesion_actual)):
 
 @router.get('/pedidos/revisar')
 def revisar_pedidos(authorization: str = Header('')):
-    """Recordatorio de pedidos sin tramitar (lo llama Vercel tres veces al día, ver vercel.json). Si en Vercel está
+    """Recordatorio de pedidos sin tramitar (lo llama Vercel una vez al día, hacia las 8:00, ver vercel.json). Si en Vercel está
     la variable CRON_SECRET, solo responde a quien la mande (Vercel la manda sola). Se puede llamar las veces que
     sea: cada pedido se avisa como mucho una vez."""
     secreto = os.environ.get('CRON_SECRET')
