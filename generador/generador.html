@@ -134,10 +134,13 @@
     .custom-select-list.show { display: block; }
     .custom-select-item { padding: 12px 16px; font-size: 0.95rem; color: var(--navy); cursor: pointer; border-bottom: 1px solid #e6ebef; }
     .custom-select-item:hover { background: var(--green-soft); color: var(--green); }
+    .custom-select-item .item-sub { display: block; margin-top: 2px; font-size: 0.78rem; color: #64748b; }
+    .custom-select-item:hover .item-sub { color: var(--green); }
 
     .pill { background: #e6ebef; color: var(--navy); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; border: 1px solid var(--grey);}
     .pill b { cursor: pointer; color: #c0392b; font-size: 1rem; transition: color 0.2s;}
     .pill b:hover { color: #922b21; }
+    .pill .pill-serie { font-size: 0.75rem; font-weight: 400; color: #64748b; }
 
     @media (max-width: 900px) {
       .container { max-width: 100%; }
@@ -360,12 +363,13 @@
           }
         );
 
+        // Debajo del nombre se ve el nº de serie, para distinguir máquinas con el mismo nombre.
         setupCustomDropdown('ni_maquina', 'dropdown-maquinas', () => {
-          const cliente = buscarCliente(document.getElementById('ni_cliente').value);
-          if (!cliente) return [];
-          return cliente.maquinas.map(m => m.nombre).sort();
+          return maquinasDelCliente()
+            .map(m => ({texto: m.nombre, sub: m.n_serie ? `Nº serie: ${m.n_serie}` : 'Sin nº de serie', maquina: m}))
+            .sort((a, b) => a.texto.localeCompare(b.texto, 'es') || (a.maquina.n_serie || '').localeCompare(b.maquina.n_serie || '', 'es'));
         }, (sel, isClick) => {
-          if (isClick) addMaquina(sel);
+          if (isClick) addMaquina(sel.maquina);
         });
 
       } catch (err) {
@@ -381,15 +385,17 @@
 
     window.sugrafBotListo = cargarData();
 
+    // Las opciones pueden ser textos o {texto, sub}: sub sale en pequeño debajo y también se busca por él.
     function setupCustomDropdown(inputId, dropdownId, getOptionsCallback, onSelectCallback) {
         const input = document.getElementById(inputId);
         const dropdown = document.getElementById(dropdownId);
+        const textoDe = o => typeof o === 'string' ? o : o.texto;
 
         const renderOptions = (filterText = "") => {
             const options = getOptionsCallback();
             const filtro = normalizarCliente(filterText);
             const filtered = options.filter(o =>
-                normalizarCliente(o).includes(filtro)
+                normalizarCliente(typeof o === 'string' ? o : `${o.texto} ${o.sub || ''}`).includes(filtro)
             );
 
             dropdown.innerHTML = '';
@@ -407,11 +413,17 @@
             filtered.forEach(opt => {
                 const item = document.createElement('div');
                 item.className = 'custom-select-item';
-                item.textContent = opt;
+                item.textContent = textoDe(opt);
+                if (typeof opt !== 'string' && opt.sub) {
+                    const sub = document.createElement('span');
+                    sub.className = 'item-sub';
+                    sub.textContent = opt.sub;
+                    item.appendChild(sub);
+                }
 
                 item.addEventListener('mousedown', (e) => {
                     e.preventDefault();
-                    input.value = opt;
+                    input.value = textoDe(opt);
                     dropdown.classList.remove('show');
                     if (onSelectCallback) {
                         onSelectCallback(opt, true);
@@ -435,31 +447,70 @@
         input.addEventListener('blur', () => {
             setTimeout(() => {
                 dropdown.classList.remove('show');
-                const options = getOptionsCallback();
-                const exactMatch = options.find(o => normalizarCliente(o) === normalizarCliente(input.value));
-                if (exactMatch && onSelectCallback) {
-                    onSelectCallback(exactMatch, true);
+                // Solo se elige sola si el texto coincide con una única opción (puede haber nombres repetidos).
+                const exactas = getOptionsCallback().filter(o => normalizarCliente(textoDe(o)) === normalizarCliente(input.value));
+                if (exactas.length === 1 && onSelectCallback) {
+                    onSelectCallback(exactas[0], true);
                 }
             }, 150);
         });
     }
 
-    function addMaquinaManual() {
-        const v = document.getElementById('ni_maquina').value.trim();
-        if(v) addMaquina(v);
+    // maquinasSel guarda las máquinas del Excel (nombre, n_serie, marca...) o {nombre, manual: true} si se escribe a mano.
+    function maquinasDelCliente() {
+        const cliente = buscarCliente(document.getElementById('ni_cliente').value);
+        return cliente ? cliente.maquinas : [];
     }
 
-    function addMaquina(nombre) {
-        if (!maquinasSel.includes(nombre)) {
-            maquinasSel.push(nombre);
+    function mismaMaquina(a, b) {
+        return a.nombre === b.nombre && (a.n_serie || '') === (b.n_serie || '');
+    }
+
+    function etiquetaMaquina(m) {
+        return m.n_serie ? `${m.nombre} (nº serie ${m.n_serie})` : m.nombre;
+    }
+
+    // Máquina del cliente por lo escrito: nº de serie exacto o nombre exacto si no se repite.
+    function maquinaEscrita(texto) {
+        const buscado = normalizarCliente(texto);
+        if (!buscado) return null;
+        const lista = maquinasDelCliente();
+        const porSerie = lista.filter(m => m.n_serie && normalizarCliente(m.n_serie) === buscado);
+        if (porSerie.length === 1) return porSerie[0];
+        const porNombre = lista.filter(m => normalizarCliente(m.nombre) === buscado);
+        return porNombre.length === 1 ? porNombre[0] : null;
+    }
+
+    // Añade lo escrito en el campo. Devuelve false si es un nombre repetido y hay que elegir por nº de serie.
+    async function addMaquinaManual() {
+        const input = document.getElementById('ni_maquina');
+        const v = input.value.trim();
+        if (!v) return true;
+
+        const m = maquinaEscrita(v);
+        if (m) { addMaquina(m); return true; }
+
+        if (maquinasDelCliente().filter(x => normalizarCliente(x.nombre) === normalizarCliente(v)).length > 1) {
+            await appAlert(`Este cliente tiene varias máquinas llamadas «${v}». Elige en la lista la que corresponda por su nº de serie.`, {type: 'error'});
+            input.focus();
+            return false;
+        }
+
+        addMaquina({nombre: v, n_serie: '', manual: true});
+        return true;
+    }
+
+    function addMaquina(maquina) {
+        if (!maquinasSel.some(m => mismaMaquina(m, maquina))) {
+            maquinasSel.push(maquina);
             renderMaquinas();
             checkGarantiaGlobal();
         }
         document.getElementById('ni_maquina').value = '';
     }
 
-    function removeMaquina(nombre) {
-        maquinasSel = maquinasSel.filter(m => m !== nombre);
+    function removeMaquina(maquina) {
+        maquinasSel = maquinasSel.filter(m => !mismaMaquina(m, maquina));
         renderMaquinas();
         checkGarantiaGlobal();
     }
@@ -471,7 +522,15 @@
         maquinasSel.forEach(m => {
             const pill = document.createElement('span');
             pill.className = 'pill';
-            pill.appendChild(document.createTextNode(m + ' '));
+            const texto = document.createElement('span');
+            texto.textContent = m.nombre;
+            if (m.n_serie) {
+                const serie = document.createElement('span');
+                serie.className = 'pill-serie';
+                serie.textContent = ` · Nº ${m.n_serie}`;
+                texto.appendChild(serie);
+            }
+            pill.appendChild(texto);
 
             const btn = document.createElement('b');
             btn.textContent = '×';
@@ -483,25 +542,18 @@
     }
 
     function checkGarantiaGlobal() {
-        const c = document.getElementById('ni_cliente').value;
         let isWarranty = false;
 
-        const cliente = buscarCliente(c);
+        for (const m of maquinasSel) {
+            if (m.f_garan) {
+                const garanDate = new Date(m.f_garan);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                garanDate.setHours(0,0,0,0);
 
-        if (cliente) {
-            for (let m of maquinasSel) {
-                const found = cliente.maquinas.find(x => x.nombre === m);
-
-                if (found && found.f_garan) {
-                    const garanDate = new Date(found.f_garan);
-                    const today = new Date();
-                    today.setHours(0,0,0,0);
-                    garanDate.setHours(0,0,0,0);
-
-                    if (!isNaN(garanDate.getTime()) && garanDate >= today) {
-                        isWarranty = true;
-                        break;
-                    }
+                if (!isNaN(garanDate.getTime()) && garanDate >= today) {
+                    isWarranty = true;
+                    break;
                 }
             }
         }
@@ -512,8 +564,7 @@
     document.getElementById('form-nuevo-aviso').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const v = document.getElementById('ni_maquina').value.trim();
-      if(v && !maquinasSel.includes(v)) addMaquina(v);
+      if (!(await addMaquinaManual())) return;
 
       if (maquinasSel.length === 0) {
         await appAlert("Debes seleccionar al menos una máquina.", {type: 'error'});
@@ -542,26 +593,22 @@
       btn.innerText = "Guardando en Excel..."; btn.disabled = true;
       showLoading();
 
-      let maquinaData = {
-        equipo: "",
-        marca: "",
-        modelo: "",
-        n_serie: "",
-        f_garan: "",
-        f_instal: ""
+      // Los datos de la máquina (y su nº de serie) son los de la primera elegida.
+      const primera = maquinasSel[0];
+      const maquinaData = {
+        equipo: primera.equipo || "",
+        marca: primera.marca || "",
+        modelo: primera.modelo || "",
+        n_serie: primera.n_serie || "",
+        f_garan: primera.f_garan || "",
+        f_instal: primera.f_instal || ""
       };
-
-      const found = cliente.maquinas.find(
-        m => m.nombre === maquinasSel[0]
-      );
-
-      if (found) maquinaData = found;
 
       const payload = {
         fecha_entrada: document.getElementById('ni_fecha').value,
         cliente: cliente.nombre,
         poblacion: poblacion,
-        maquina: maquinasSel.join(" y "),
+        maquina: maquinasSel.map(m => m.nombre).join(" y "),
         equipo: maquinaData.equipo,
         marca: maquinaData.marca,
         modelo: maquinaData.modelo,
@@ -620,7 +667,7 @@
         formulario: {
           cliente,
           poblacion: document.getElementById('ni_poblacion').value.trim(),
-          maquinas: maquinasSel.slice(),
+          maquinas: maquinasSel.map(etiquetaMaquina),
           descripcion: document.getElementById('ni_desc').value.trim(),
           etiquetas: Object.entries(etiquetas).filter(([id]) => document.getElementById(id).checked).map(([, n]) => n),
           asignado_a: document.getElementById('ni_asignado').value || 'Sin asignar',
@@ -645,12 +692,21 @@
         throw new Error(`Hay varios clientes que coinciden con "${texto}": ${candidatos.slice(0, 8).map(c => c.nombre).join('; ')}. Pregunta cuál es.`);
     }
 
+    // Máquina del cliente por nº de serie (solo o junto al nombre), nombre exacto o parte del nombre.
     function maquinaBot(cliente, texto) {
         const buscado = normalizarCliente(texto);
         const lista = cliente ? cliente.maquinas : [];
-        return (lista.find(m => normalizarCliente(m.nombre) === buscado)
-            || lista.find(m => normalizarCliente(m.nombre).includes(buscado))
-            || {nombre: texto}).nombre;
+        const n = s => normalizarCliente(s);
+        const candidatos = [
+            lista.filter(m => m.n_serie && (n(m.n_serie) === buscado || (n(m.n_serie).length >= 4 && buscado.includes(n(m.n_serie))))),
+            lista.filter(m => n(m.nombre) === buscado),
+            lista.filter(m => n(m.nombre).includes(buscado)),
+        ].find(c => c.length);
+        if (!candidatos) return {nombre: texto, n_serie: '', manual: true};
+        if (candidatos.length > 1) {
+            throw new Error(`El cliente tiene varias máquinas que coinciden con "${texto}": ${candidatos.slice(0, 8).map(etiquetaMaquina).join('; ')}. Pregunta cuál es por su nº de serie.`);
+        }
+        return candidatos[0];
     }
 
     window.sugrafBotAcciones = {
@@ -660,7 +716,7 @@
             parametros: {type: 'object', additionalProperties: false, properties: {
                 cliente: {type: 'string', description: 'Nombre (o parte) del cliente de la lista'},
                 poblacion: {type: 'string'},
-                maquinas: {type: 'array', items: {type: 'string'}, description: 'Máquinas del cliente; sustituyen a las elegidas'},
+                maquinas: {type: 'array', items: {type: 'string'}, description: 'Máquinas del cliente (nombre o nº de serie); sustituyen a las elegidas'},
                 descripcion: {type: 'string', description: 'Explicación de la incidencia'},
                 marcar: {type: 'array', items: {type: 'string', enum: Object.keys(ETIQUETAS_BOT)}},
                 desmarcar: {type: 'array', items: {type: 'string', enum: Object.keys(ETIQUETAS_BOT)}},
@@ -690,11 +746,12 @@
                 const cliente = buscarCliente(document.getElementById('ni_cliente').value);
                 if (a.poblacion !== undefined) await SugrafBot.escribir(document.getElementById('ni_poblacion'), a.poblacion);
                 if (Array.isArray(a.maquinas)) {
+                    const elegidas = a.maquinas.map(m => maquinaBot(cliente, m));
                     maquinasSel = [];
                     renderMaquinas();
-                    for (const m of a.maquinas) {
+                    for (const m of elegidas) {
                         await SugrafBot.resaltar(document.getElementById('ni_maquina'));
-                        addMaquina(maquinaBot(cliente, m));
+                        addMaquina(m);
                     }
                 }
                 if (a.descripcion !== undefined) await SugrafBot.escribir(document.getElementById('ni_desc'), a.descripcion);
@@ -708,7 +765,7 @@
                 }
                 return {
                     ok: true, formulario: window.sugrafBotContexto().formulario,
-                    maquinas_del_cliente: cliente ? cliente.maquinas.slice(0, 30).map(m => m.nombre) : [],
+                    maquinas_del_cliente: cliente ? cliente.maquinas.slice(0, 30).map(etiquetaMaquina) : [],
                     aviso: 'El aviso no está creado todavía.',
                 };
             },

@@ -191,14 +191,16 @@ def construir_clientes_maquinas(fichero):
         marca = _clean(col(row, "marca"))
         modelo = _clean(col(row, "modelo"))
         n = _clean(col(row, "nombremaquina")) or f"{equipo} {marca} {modelo}".strip()
+        n_serie = _clean(col(row, "nserie"))
 
-        if n and not any(m["nombre"] == n for m in cliente["maquinas"]):
+        # Un cliente puede tener varias máquinas con el mismo nombre: se distinguen por el nº de serie.
+        if n and not any(m["nombre"] == n and m["n_serie"] == n_serie for m in cliente["maquinas"]):
             cliente["maquinas"].append({
                 "nombre": n,
                 "equipo": equipo,
                 "marca": marca,
                 "modelo": modelo,
-                "n_serie": _clean(col(row, "nserie")),
+                "n_serie": n_serie,
                 "f_garan": _fecha(col(row, "fechagarantia")),
                 "f_instal": _fecha(col(row, "fechainstalacion"))
             })
