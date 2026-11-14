@@ -40,6 +40,26 @@ MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 MAX_REGISTROS = 1000
 MAX_POR_PAGINA = 200
 
+# Filtro de técnico: los técnicos de la plantilla (con su nombre de la app), los externos y «Otros»
+# para el resto (técnicos antiguos, oficina...). Un técnico de la plantilla se reconoce en Pirineos
+# ("VOLOG VRANCEANU, ION") porque contiene todas las palabras de su nombre en la app.
+TECNICOS_PLANTILLA = ["Ion Volog", "Francisco Antúnez", "Daniel Gargallo"]
+# Empresas y técnicos externos que salen como técnico en Pirineos (nombre ya limpio -> nombre a mostrar).
+# Uno nuevo que no esté aquí aparece en «Otros» hasta que se añada.
+TECNICOS_EXTERNOS = {
+    'CALVET (S3RTEC), JESUS': 'Jesús Calvet (S3RTEC)',
+    'CLD': 'CLD',
+    'CYAN': 'Cyan',
+    'DISTRIBUCIONES, L.I': 'Distribuciones L.I.',
+    'ESI, ESI SOLUCIONES': 'ESI Soluciones',
+    'FISALIS, FISALIS (COMPRESORES JOSE LOREN)': 'Fisalis (Compresores José Loren)',
+    'INGALATURRE LQS, JOSE LUIS': 'José Luis Ingalaturre (LQS)',
+    'INTEGRAL, MEG': 'MEG Integral',
+    'SUGRAF': 'Sugraf',
+    'YOTTA, YOTTA': 'Yotta',
+}
+GRUPO_OTROS = 'Otros'
+
 FORMAS_JURIDICAS = {
     'SA', 'SL', 'SLU', 'SAU', 'SLL', 'SLNE', 'SC', 'SCP', 'SCOOP', 'SCL', 'CB', 'COOP',
 }
@@ -93,6 +113,44 @@ def _fecha(valor):
     return _texto(valor)[:10]
 
 
+def _nombre_tecnico(valor):
+    """Pirineos guarda "APELLIDOS, NOMBRE" con espacios y comas sobrantes:
+    'SORIA , JOSE MIGUEL' -> 'SORIA, JOSE MIGUEL'; 'CYAN , ' -> 'CYAN';
+    'SANCHEZ -PAULETE GOMEZ  CALCERRADA,, JESUS' -> 'SANCHEZ-PAULETE GOMEZ CALCERRADA, JESUS'."""
+    texto = ' '.join(_texto(valor).split())
+    texto = re.sub(r'\s*-\s*', '-', texto)
+    texto = re.sub(r'\s*,[\s,]*', ', ', texto)
+    return texto.strip(' ,.')
+
+
+def _palabras(texto):
+    return set(re.findall(r'[A-Z0-9]+', _sin_acentos(texto)))
+
+
+def _nombre_primero(nombre):
+    """'ANTUNEZ IRANZO, FRANCISCO' -> 'Francisco Antunez Iranzo'."""
+    apellidos, _, de_pila = nombre.partition(', ')
+    palabras = f'{de_pila} {apellidos}'.split()
+    return ' '.join(
+        p if p.startswith('(') else '-'.join(s[:1].upper() + s[1:].lower() for s in p.split('-'))
+        for p in palabras
+    )
+
+
+def clasificar_tecnico(nombre):
+    """Nombre limpio de Pirineos -> (nombre a mostrar, grupo del filtro de técnico)."""
+    if not nombre:
+        return '', ''
+    palabras = _palabras(nombre)
+    for tecnico in TECNICOS_PLANTILLA:
+        if _palabras(tecnico) <= palabras:
+            return tecnico, tecnico
+    externo = _EXTERNOS_NORMALIZADOS.get(_sin_acentos(nombre))
+    if externo:
+        return externo, externo
+    return _nombre_primero(nombre), GRUPO_OTROS
+
+
 def _leer_registros(contenido):
     wb = load_workbook(io.BytesIO(contenido), read_only=True, data_only=True)
     filas = wb.worksheets[0].iter_rows(values_only=True)
@@ -103,6 +161,8 @@ def _leer_registros(contenido):
         n_parte = _texto(d.get('N_Parte'))
         if not n_parte:
             continue
+        tecnico_pirineos = _nombre_tecnico(d.get('Tecnico'))
+        tecnico, grupo_tecnico = clasificar_tecnico(tecnico_pirineos)
         registros.append({
             'n_parte': n_parte,
             'fecha_entrada': _fecha(d.get('Fecha_Entrada')),
@@ -113,7 +173,9 @@ def _leer_registros(contenido):
             'marca': _texto(d.get('Marca')),
             'modelo': _texto(d.get('Modelo')),
             'n_serie': _texto(d.get('N_Serie')),
-            'tecnico': _texto(d.get('Tecnico')),
+            'tecnico': tecnico,
+            'tecnico_pirineos': tecnico_pirineos,
+            'grupo_tecnico': grupo_tecnico,
             'anomalia': _texto(d.get('Anomalia')),
             'solucion': _texto(d.get('Solucion')),
         })
@@ -182,6 +244,9 @@ def _alfanum(texto):
     return re.sub(r'[^A-Z0-9]', '', _sin_acentos(texto))
 
 
+_EXTERNOS_NORMALIZADOS = {_sin_acentos(k): v for k, v in TECNICOS_EXTERNOS.items()}
+
+
 def clave_cliente(nombre):
     """'GISTEL, S.L. INDUSTRIAS GRAFICAS' -> 'GISTEL INDUSTRIAS GRAFICAS'."""
     texto = _sin_acentos(nombre)
@@ -218,6 +283,8 @@ class IndiceHistorico:
                 'txt_cliente': _sin_acentos(f"{r['cliente']} {r['nombre_comercial']}"),
                 'alf_modelo': _alfanum(r['modelo']),
                 'alf_serie': _alfanum(r['n_serie']),
+                'txt_tecnico': _sin_acentos(f"{r['tecnico']} {r['tecnico_pirineos']}"),
+                'grupo_tecnico': _sin_acentos(r['grupo_tecnico']),
             }
             for r in registros
         ]
@@ -239,9 +306,16 @@ def opciones(indice):
                 'modelo': r['modelo'], 'n_serie': r['n_serie'],
             }
     fechas = sorted(r['fecha'] for r in indice.registros if r['fecha'])
+    # Plantilla (siempre, en su orden), externos con partes (alfabético) y «Otros» al final.
+    grupos = {r['grupo_tecnico'] for r in indice.registros} - {''}
+    externos = sorted(grupos - set(TECNICOS_PLANTILLA) - {GRUPO_OTROS}, key=_sin_acentos)
+    tecnicos = ([{'valor': t, 'grupo': 'tecnico'} for t in TECNICOS_PLANTILLA]
+                + [{'valor': e, 'grupo': 'externo'} for e in externos]
+                + ([{'valor': GRUPO_OTROS, 'grupo': 'otros'}] if GRUPO_OTROS in grupos else []))
     return {
         'total': len(indice.registros),
         'combinaciones': list(combinaciones.values()),
+        'tecnicos': tecnicos,
         'fecha_min': fechas[0] if fechas else '',
         'fecha_max': fechas[-1] if fechas else '',
     }
@@ -253,7 +327,7 @@ def _coincide(valor, buscado, conocidos):
     return valor == buscado if buscado in conocidos else buscado in valor
 
 
-def filtrar(indice, cliente='', modelo='', n_serie='', desde='', hasta='', orden='desc'):
+def filtrar(indice, cliente='', modelo='', n_serie='', desde='', hasta='', orden='desc', tecnico=''):
     """Filtro de la vista de Históricos. Devuelve las posiciones que cumplen todos
     los filtros, ordenadas por fecha. Ignora acentos, mayúsculas y signos
     ("VG3-640" = "VG3640"); el cliente exige que aparezcan todas sus palabras."""
@@ -261,6 +335,10 @@ def filtrar(indice, cliente='', modelo='', n_serie='', desde='', hasta='', orden
     modelo_a, serie_a = _alfanum(modelo), _alfanum(n_serie)
     modelos = {k['alf_modelo'] for k in indice.claves} if modelo_a else set()
     series = {k['alf_serie'] for k in indice.claves} if serie_a else set()
+    # Técnico: un valor del desplegable (técnico, externo u «Otros») filtra por su grupo;
+    # lo escrito a mano se busca dentro del nombre ("serrano" encuentra a Agustín Serrano, de «Otros»).
+    tecnico_a = _sin_acentos(tecnico)
+    grupos = {k['grupo_tecnico'] for k in indice.claves} if tecnico_a else set()
 
     posiciones = []
     for i, (r, k) in enumerate(zip(indice.registros, indice.claves)):
@@ -273,6 +351,8 @@ def filtrar(indice, cliente='', modelo='', n_serie='', desde='', hasta='', orden
         if modelo_a and not _coincide(k['alf_modelo'], modelo_a, modelos):
             continue
         if serie_a and not _coincide(k['alf_serie'], serie_a, series):
+            continue
+        if tecnico_a and not (k['grupo_tecnico'] == tecnico_a if tecnico_a in grupos else tecnico_a in k['txt_tecnico']):
             continue
         posiciones.append(i)
 
@@ -384,15 +464,15 @@ def buscar_por_aviso(indice, cliente='', maquina='', marca='', modelo='', n_seri
 COLUMNAS_EXPORTAR = [
     ('n_parte', 'Nº Parte'), ('fecha_entrada', 'Fecha Entrada'), ('fecha', 'Fecha Realizado'),
     ('cliente', 'Cliente'), ('nombre_comercial', 'Nombre Comercial'), ('equipo', 'Equipo'),
-    ('marca', 'Marca'), ('modelo', 'Modelo'), ('n_serie', 'Nº Serie'), ('tecnico', 'Técnico'),
+    ('marca', 'Marca'), ('modelo', 'Modelo'), ('n_serie', 'Nº Serie'), ('tecnico_pirineos', 'Técnico'),
     ('anomalia', 'Anomalía'), ('solucion', 'Solución'),
 ]
 
 
-def _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden):
+def _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden, tecnico=''):
     indice, _ = cargar_historico()
     posiciones = filtrar(indice, cliente=cliente, modelo=modelo, n_serie=n_serie,
-                         desde=desde, hasta=hasta, orden=orden)
+                         desde=desde, hasta=hasta, orden=orden, tecnico=tecnico)
     return indice, posiciones
 
 
@@ -409,9 +489,9 @@ def get_opciones():
 
 @router.get("/buscar")
 def get_buscar(cliente: str = '', modelo: str = '', n_serie: str = '', desde: str = '', hasta: str = '',
-               orden: str = 'desc', pagina: int = 1, por_pagina: int = 50):
+               orden: str = 'desc', pagina: int = 1, por_pagina: int = 50, tecnico: str = ''):
     try:
-        indice, posiciones = _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden)
+        indice, posiciones = _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden, tecnico)
         por_pagina = max(1, min(por_pagina, MAX_POR_PAGINA))
         pagina = max(1, pagina)
         inicio = (pagina - 1) * por_pagina
@@ -429,9 +509,9 @@ def get_buscar(cliente: str = '', modelo: str = '', n_serie: str = '', desde: st
 
 @router.get("/exportar")
 def get_exportar(cliente: str = '', modelo: str = '', n_serie: str = '', desde: str = '', hasta: str = '',
-                  orden: str = 'desc'):
+                  orden: str = 'desc', tecnico: str = ''):
     try:
-        indice, posiciones = _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden)
+        indice, posiciones = _cargar_y_filtrar(cliente, modelo, n_serie, desde, hasta, orden, tecnico)
         df = pd.DataFrame(
             [[indice.registros[i][campo] for campo, _ in COLUMNAS_EXPORTAR] for i in posiciones],
             columns=[titulo for _, titulo in COLUMNAS_EXPORTAR],

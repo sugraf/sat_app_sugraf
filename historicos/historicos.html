@@ -87,7 +87,15 @@
     .custom-select-item.vacio:hover { background:#fff; color:#94a3b8; }
 
     /* Desde y Hasta en la misma fila; si no caben (móviles muy estrechos), una debajo de otra. */
-    .fechas{ display:flex; flex-wrap:wrap; gap:8px; grid-column:1 / -1; }
+    .fechas{ display:flex; flex-wrap:wrap; gap:8px; grid-column:span 2; }
+    /* Misma altura que una etiqueta normal: el botón sobresale sin descuadrar la fila. */
+    .label-fila{ display:flex; justify-content:space-between; align-items:center; gap:8px; height:12px; margin-bottom:6px; }
+    .label-fila label{ margin-bottom:0; }
+    .btn-mios{
+      border:1px solid var(--green); background:#fff; color:var(--green); border-radius:20px; padding:1px 10px;
+      font-size:0.68rem; font-weight:700; font-family:'Montserrat', sans-serif; cursor:pointer; white-space:nowrap;
+    }
+    .btn-mios.activo{ background:var(--green); color:#fff; }
     .fechas > div{ flex:1 1 130px; min-width:0; }
     .filtros-acciones{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
     .btn {
@@ -137,6 +145,7 @@
       .header-title h2 { font-size:1.5rem; }
       .filtros{ padding:16px; border-radius:14px; }
       .filtros-grid{ grid-template-columns:minmax(0, 1fr); }
+      .fechas{ grid-column:1 / -1; }
       .filtros-acciones .btn{ flex:1; }
       .custom-select-item { padding: 11px 14px; }
       .item{ padding:14px; }
@@ -160,7 +169,7 @@
   <div class="container">
     <div class="header-title">
       <h2>Históricos SAT</h2>
-      <p>Consulta los partes realizados por cliente y por máquina.</p>
+      <p>Consulta los partes realizados por cliente, máquina y técnico.</p>
     </div>
 
     <div class="filtros">
@@ -184,6 +193,17 @@
           <div class="custom-select-wrapper">
             <input type="text" id="f_n_serie" autocomplete="off" placeholder="Elige antes una máquina" disabled>
             <div id="lista-series" class="custom-select-list"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="label-fila">
+            <label for="f_tecnico">Técnico</label>
+            <button type="button" class="btn-mios" id="btn-mios" style="display:none;" onclick="alternarMios()">Mis partes</button>
+          </div>
+          <div class="custom-select-wrapper">
+            <input type="text" id="f_tecnico" autocomplete="off" placeholder="Todos (escribe para buscar)">
+            <div id="lista-tecnicos" class="custom-select-list"></div>
           </div>
         </div>
         <div class="fechas">
@@ -228,8 +248,10 @@
     document.getElementById("zona-usuario").style.display = "flex";
 
     const POR_PAGINA = 50;
-    const CAMPOS = ['cliente', 'modelo', 'n_serie', 'desde', 'hasta', 'orden'];
+    const CAMPOS = ['cliente', 'modelo', 'n_serie', 'tecnico', 'desde', 'hasta', 'orden'];
     let combinaciones = [];   // [{cliente, comercial, modelo, n_serie}]
+    let tecnicos = [];        // [{valor, grupo: 'tecnico' | 'externo' | 'otros'}], en el orden del servidor
+    let miTecnico = null;     // el del usuario conectado, si se encuentra entre ellos
     let pagina = 1;
     let totalResultados = 0;
     let cargados = 0;
@@ -286,6 +308,33 @@
         const cliente = clienteElegido();
         const lista = combinaciones.filter(c => c.modelo === modelo && (!cliente || c.cliente === cliente));
         return distintos(lista, 'n_serie').map(v => ({valor: v}));
+    }
+
+    // ---- Técnico: cualquiera puede ver los partes de todos o filtrar por uno ----
+    // El desplegable trae los técnicos de la plantilla (con su nombre de la app), los externos y «Otros».
+    // El servidor ya traduce los nombres de Pirineos ("VOLOG VRANCEANU, ION" -> "Ion Volog").
+    function buscarMiTecnico() {
+        const mio = tecnicos.find(t => t.grupo === 'tecnico' && normalizar(t.valor) === normalizar(currentUser));
+        return mio ? mio.valor : null;
+    }
+
+    const EXTRA_GRUPO_TECNICO = {externo: 'Externo', otros: 'Técnicos antiguos y resto de nombres'};
+
+    function opcionesTecnicos() {
+        return tecnicos.map(t => ({valor: t.valor, extra: t.valor === miTecnico ? 'Tú' : (EXTRA_GRUPO_TECNICO[t.grupo] || '')}))
+            .sort((a, b) => (b.valor === miTecnico) - (a.valor === miTecnico));
+    }
+
+    function pintarBotonMios() {
+        const btn = document.getElementById('btn-mios');
+        btn.style.display = miTecnico ? '' : 'none';
+        btn.classList.toggle('activo', !!miTecnico && valor('tecnico') === miTecnico);
+    }
+
+    function alternarMios() {
+        const input = document.getElementById('f_tecnico');
+        input.value = input.value === miTecnico ? '' : miTecnico;
+        alCambiarFiltro();
     }
 
     function actualizarDependientes() {
@@ -366,6 +415,7 @@
     let dropdowns = [];
     function alCambiarFiltro() {
         actualizarDependientes();
+        pintarBotonMios();
         dropdowns.forEach(d => d.sincronizar());
         buscar();
     }
@@ -428,7 +478,7 @@
                 ${r.modelo
                     ? `<button type="button" class="link" data-modelo="${escHtml(r.modelo)}" data-serie="${escHtml(r.n_serie)}">${escHtml(maquina)}${r.n_serie ? ` (S/N ${escHtml(r.n_serie)})` : ''}</button>`
                     : `<span>${escHtml(maquina) || 'Sin máquina indicada'}${r.n_serie ? ` (S/N ${escHtml(r.n_serie)})` : ''}</span>`}
-                <span>${escHtml(r.tecnico)}</span>
+                ${r.tecnico ? `<button type="button" class="link" data-tecnico="${escHtml(r.tecnico)}">${escHtml(r.tecnico)}</button>` : ''}
                 <span>Parte ${escHtml(r.n_parte)}</span>
             </div>
             <div class="item-txt"><b>Anomalía:</b> ${escHtml(r.anomalia)}</div>
@@ -436,11 +486,13 @@
         </div>`;
     }
 
-    // Pulsar en un cliente o en una máquina de un parte filtra por ese valor.
+    // Pulsar en un cliente, una máquina o un técnico de un parte filtra por ese valor.
     document.getElementById('lista').addEventListener('click', e => {
         const el = e.target.closest('.link');
         if (!el) return;
-        if (el.dataset.cliente !== undefined) {
+        if (el.dataset.tecnico !== undefined) {
+            document.getElementById('f_tecnico').value = el.dataset.tecnico;
+        } else if (el.dataset.cliente !== undefined) {
             document.getElementById('f_cliente').value = el.dataset.cliente;
         } else {
             document.getElementById('f_modelo').value = el.dataset.modelo;
@@ -473,6 +525,9 @@
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || `Error HTTP: ${res.status}`);
             combinaciones = data.combinaciones;
+            tecnicos = data.tecnicos || [];
+            miTecnico = buscarMiTecnico();
+            pintarBotonMios();
             document.getElementById('fuentes').innerText =
                 `${data.total.toLocaleString('es-ES')} partes · datos hasta ${fechaCorta(data.fecha_max)}`;
 
@@ -480,6 +535,7 @@
                 setupCustomDropdown('f_cliente', 'lista-clientes', opcionesClientes, alCambiarFiltro),
                 setupCustomDropdown('f_modelo', 'lista-modelos', opcionesModelos, alCambiarFiltro),
                 setupCustomDropdown('f_n_serie', 'lista-series', opcionesSeries, alCambiarFiltro),
+                setupCustomDropdown('f_tecnico', 'lista-tecnicos', opcionesTecnicos, alCambiarFiltro),
             ];
             await buscar();
         } catch (e) {
@@ -499,7 +555,8 @@
         return {
             filtros,
             total: totalResultados,
-            etiqueta: [filtros.cliente, filtros.modelo, filtros.n_serie].filter(Boolean).join(' · '),
+            etiqueta: [filtros.cliente, filtros.modelo, filtros.n_serie, filtros.tecnico].filter(Boolean).join(' · '),
+            tecnico_del_usuario: miTecnico || '',
         };
     };
 
@@ -511,6 +568,7 @@
 
     async function buscarBot() {
         actualizarDependientes();
+        pintarBotonMios();
         dropdowns.forEach(d => d.sincronizar());
         await buscar();
         return {ok: true, total: totalResultados, resumen: document.getElementById('resumen-txt').innerText, primeros: partesVisiblesBot()};
@@ -524,6 +582,7 @@
                 cliente: {type: 'string'},
                 modelo: {type: 'string', description: 'Modelo de la máquina'},
                 n_serie: {type: 'string', description: 'Solo junto con un modelo'},
+                tecnico: {type: 'string', description: 'Técnico de la plantilla, un externo u "Otros" (resto de nombres); también vale parte de un nombre. Para "mis partes" usa tecnico_del_usuario del contexto.'},
                 desde: {type: 'string', description: 'AAAA-MM-DD'},
                 hasta: {type: 'string', description: 'AAAA-MM-DD'},
                 orden: {type: 'string', enum: ['desc', 'asc'], description: 'desc = más recientes primero'},
@@ -537,6 +596,7 @@
                     actualizarDependientes();
                 }
                 if (a.n_serie !== undefined) await SugrafBot.escribir(document.getElementById('f_n_serie'), a.n_serie, {eventos: false});
+                if (a.tecnico !== undefined) await SugrafBot.escribir(document.getElementById('f_tecnico'), exacto(opcionesTecnicos(), a.tecnico), {eventos: false});
                 for (const campo of ['desde', 'hasta', 'orden']) {
                     if (a[campo] !== undefined) await SugrafBot.escribir(document.getElementById(`f_${campo}`), a[campo], {eventos: false});
                 }
