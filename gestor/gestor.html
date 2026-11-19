@@ -144,6 +144,18 @@
     .btn-resumen:hover{ background:var(--green-soft); border-color:var(--green); }
     .contador-avisos{ color:var(--muted); font-size:0.8rem; margin:-12px 0 12px; }
     .tipo-cli{ color:#7fd9c7; font-weight:600; }
+    /* Filtro por tipo de cliente (orden por importancia y resumen por cliente) */
+    .chips-tipo{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:-12px 0 18px; }
+    .chips-tipo .chips-lbl{ color:var(--muted); font-size:0.75rem; margin-right:2px; }
+    .chip-tipo{ background:transparent; color:#7f93ad; border:1px solid rgba(182,190,196,0.3); padding:5px 10px; border-radius:999px;
+        cursor:pointer; font-weight:600; font-size:0.72rem; font-family:'Montserrat', sans-serif; white-space:nowrap; }
+    .chip-tipo small{ opacity:0.75; font-weight:500; }
+    .chip-tipo.on{ background:var(--green-soft); color:#7fd9c7; border-color:var(--green); }
+    .chip-tipo.todos{ border-style:dashed; }
+    #resumen-cuerpo .chips-tipo{ margin:10px 0 0; }
+    #resumen-cuerpo .chips-tipo .chips-lbl{ color:#7a8798; }
+    #resumen-cuerpo .chip-tipo{ color:#5c6b7d; border-color:#cfd8df; }
+    #resumen-cuerpo .chip-tipo.on{ background:#e8f5f2; color:var(--green); border-color:var(--green); }
     .tipo-cli.vip{ color:#fcd34d; }
     .resumen-tabla{ width:100%; border-collapse:collapse; margin-top:14px; font-size:0.88rem; }
     .resumen-tabla th{ text-align:left; padding:9px 10px; background:#f1f5f8; color:#5c6b7d; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; }
@@ -412,6 +424,7 @@
       <button type="button" class="btn-resumen" onclick="abrirResumen('maquina')" title="Cuántos avisos tiene cada máquina">Avisos por máquina</button>
       <button type="button" class="btn-resumen" onclick="abrirResumen('cliente')" title="Cuántos avisos tiene cada cliente">Avisos por cliente</button>
     </div>
+    <div id="filtro-tipos" class="chips-tipo" style="display:none"></div>
     <p class="contador-avisos" id="contador-avisos"></p>
 
     <div id="contenedor-gestionar">
@@ -507,6 +520,46 @@
         const t = TIPOS_CLIENTE[nombre];
         return t && t.tipo ? t.tipo : '';
     }
+
+    // ---------------- Filtro por tipo de cliente (VIP, digitales...) ----------------
+    // Un estado para la lista (solo con «Orden: Importancia de cliente») y otro para el resumen por cliente.
+    const FILTRO_TIPOS = {lista: {ocultos: new Set(), todos: []}, resumen: {ocultos: new Set(), todos: []}};
+    const claveTipo = nombre => tipoClienteTexto(nombre) || '';
+    function etiquetaTipo(t) {
+        if (!t) return 'Sin tipo';
+        const x = t.replace(/^CLIENTES\s+/i, '').trim() || t;
+        return x.length <= 4 ? x : x.charAt(0).toUpperCase() + x.slice(1).toLowerCase();
+    }
+    // Tipos que hay en la lista, de más a menos importante, con cuántos avisos tiene cada uno.
+    function tiposPresentes(lista) {
+        const m = new Map();
+        lista.forEach(av => {
+            const t = claveTipo(av['CLIENTE']);
+            if (!m.has(t)) m.set(t, {n: 0, rango: rangoCliente(av['CLIENTE'])});
+            m.get(t).n++;
+        });
+        return [...m.entries()].sort((a, b) => (a[1].rango - b[1].rango) || a[0].localeCompare(b[0], 'es'));
+    }
+    function htmlChipsTipo(cual, lista) {
+        const f = FILTRO_TIPOS[cual];
+        const tipos = tiposPresentes(lista);
+        f.todos = tipos.map(([t]) => t);
+        if (tipos.length < 2 && !f.ocultos.size) return '';
+        return `<span class="chips-lbl">Tipo de cliente:</span>`
+            + tipos.map(([t, x]) => `<button type="button" class="chip-tipo${f.ocultos.has(t) ? '' : ' on'}" data-t="${esc(t)}"
+                 onclick="clicTipo('${cual}', this.dataset.t)" title="${f.ocultos.size ? 'Mostrar u ocultar este tipo' : 'Ver solo este tipo'}">${esc(etiquetaTipo(t))} <small>${x.n}</small></button>`).join('')
+            + (f.ocultos.size ? `<button type="button" class="chip-tipo todos" onclick="clicTipo('${cual}', null)" title="Quitar el filtro de tipo">Todos</button>` : '');
+    }
+    // Con todos a la vista, un clic deja solo ese tipo; después cada clic añade o quita tipos.
+    function clicTipo(cual, t) {
+        const f = FILTRO_TIPOS[cual];
+        if (t === null) f.ocultos.clear();
+        else if (!f.ocultos.size) f.todos.forEach(x => { if (x !== t) f.ocultos.add(x); });
+        else if (f.ocultos.has(t)) f.ocultos.delete(t);
+        else { f.ocultos.add(t); if (f.todos.every(x => f.ocultos.has(x))) f.ocultos.clear(); }
+        if (cual === 'lista') renderGestionAvisos(); else pintarResumen();
+    }
+    const tipoVisible = (cual, av) => !FILTRO_TIPOS[cual].ocultos.has(claveTipo(av['CLIENTE']));
 
     // ---------------- Utilidades de orden ----------------
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -627,21 +680,24 @@
                 </table>
                 <p class="resumen-nota">${filas.length} máquinas · ${lista.length} avisos (con los filtros actuales). Toca una fila para ver los avisos de ese cliente.</p>`;
         } else {
+            const chips = htmlChipsTipo('resumen', lista);
+            const listaTipo = lista.filter(av => tipoVisible('resumen', av));
             const g = new Map();
-            lista.forEach(av => {
+            listaTipo.forEach(av => {
                 const k = av['CLIENTE'] || '';
                 if (!g.has(k)) g.set(k, {cliente: k || '(sin cliente)', n: 0, ab: 0, maquinas: new Set()});
                 const x = g.get(k); x.n++; if (abiertos(av)) x.ab++; x.maquinas.add(claveMaquina(av));
             });
             filas = [...g.values()].sort((a, b) => b.n - a.n || norm(a.cliente).localeCompare(norm(b.cliente), 'es'));
             document.getElementById('resumen-titulo').innerText = 'Avisos por cliente';
-            document.getElementById('resumen-cuerpo').innerHTML = !filas.length ? '<p class="resumen-nota">No hay avisos con los filtros actuales.</p>' : `
+            document.getElementById('resumen-cuerpo').innerHTML = (chips ? `<div class="chips-tipo">${chips}</div>` : '')
+                + (!filas.length ? '<p class="resumen-nota">No hay avisos con los filtros actuales.</p>' : `
                 <table class="resumen-tabla"><tr><th>Cliente</th><th class="num">Máquinas</th><th class="num">Avisos</th></tr>
                 ${filas.map(f => { const tipo = tipoClienteTexto(f.cliente); return `<tr class="clic" data-n="${esc(f.cliente)}" onclick="elegirCliente(this.dataset.n); cerrarResumen();" title="Ver los avisos de este cliente">
                     <td>${esc(f.cliente)}${tipo ? `<br><small>${esc(tipo)}</small>` : ''}</td><td class="num">${f.maquinas.size}</td>
                     <td class="num"><strong>${f.n}</strong>${f.ab !== f.n ? `<br><small>${f.ab} abiertos</small>` : ''}</td></tr>`; }).join('')}
                 </table>
-                <p class="resumen-nota">${filas.length} clientes · ${lista.length} avisos (con los filtros actuales). Toca una fila para ver solo ese cliente.</p>`;
+                <p class="resumen-nota">${filas.length} clientes · ${listaTipo.length} avisos (con los filtros actuales${FILTRO_TIPOS.resumen.ocultos.size ? ' y el tipo de cliente elegido' : ''}). Toca una fila para ver solo ese cliente.</p>`);
         }
     }
 
@@ -673,6 +729,13 @@
 
         return matchTec && matchPir && matchEtiqueta;
       });
+
+      // Con «Orden: Importancia de cliente» se puede elegir qué tipos de cliente enseñar.
+      const chipsTipos = document.getElementById('filtro-tipos');
+      const chipsHtml = orden === 'importancia' ? htmlChipsTipo('lista', filtrados) : '';
+      chipsTipos.innerHTML = chipsHtml;
+      chipsTipos.style.display = chipsHtml ? 'flex' : 'none';
+      if (orden === 'importancia') filtrados = filtrados.filter(av => tipoVisible('lista', av));
 
       // Recuentos con los filtros actuales (para ordenar y para la tarjeta).
       const nPorMaquina = contar(filtrados, claveMaquina);
@@ -1055,18 +1118,34 @@
         return [...document.getElementById(id).options].map(o => o.value);
     }
 
+    // El asistente indica qué tipos enseñar; se ocultan los demás que haya en los avisos.
+    function fijarTiposBot(cual, tipos) {
+        const quiero = new Set(tipos.map(t => norm(t)));
+        const f = FILTRO_TIPOS[cual];
+        f.ocultos.clear();
+        if (!quiero.size) return;
+        new Set(avisosGlobales.map(av => claveTipo(av['CLIENTE']))).forEach(t => {
+            if (!quiero.has(norm(t)) && !quiero.has(norm(etiquetaTipo(t)))) f.ocultos.add(t);
+        });
+    }
+
     const ID_AVISO_BOT = {type: 'string', description: 'id del aviso en el CONTEXTO (p. ej. "sin_tratar-3")'};
 
     window.sugrafBotAcciones = {
         ver_resumen: {
-            descripcion: 'Abre el resumen de cuántos avisos tiene cada máquina o cada cliente (con los filtros actuales).',
-            parametros: {type: 'object', additionalProperties: false, required: ['tipo'], properties: {tipo: {type: 'string', enum: ['maquina', 'cliente']}}},
+            descripcion: 'Abre el resumen de cuántos avisos tiene cada máquina o cada cliente (con los filtros actuales). En el de cliente se puede limitar a unos tipos de cliente.',
+            parametros: {type: 'object', additionalProperties: false, required: ['tipo'], properties: {
+                tipo: {type: 'string', enum: ['maquina', 'cliente']},
+                tipos_cliente: {type: 'array', items: {type: 'string'}, description: 'solo con tipo "cliente": tipos de cliente de Pirineos a enseñar (p. ej. ["CLIENTES VIP"], "" = sin tipo); [] = todos'},
+            }},
             etiqueta: a => a.tipo === 'maquina' ? 'Abriendo avisos por máquina' : 'Abriendo avisos por cliente',
-            ejecutar: async ({tipo}) => {
+            ejecutar: async ({tipo, tipos_cliente}) => {
+                if (tipo === 'cliente' && Array.isArray(tipos_cliente)) fijarTiposBot('resumen', tipos_cliente);
                 abrirResumen(tipo);
-                const c = tipo === 'maquina' ? contar(avisosVisibles, claveMaquina) : contar(avisosVisibles, av => av['CLIENTE'] || '');
+                const base = tipo === 'cliente' ? avisosVisibles.filter(av => tipoVisible('resumen', av)) : avisosVisibles;
+                const c = tipo === 'maquina' ? contar(base, claveMaquina) : contar(base, av => av['CLIENTE'] || '');
                 const top = [...c.entries()].sort((x, y) => y[1] - x[1]).slice(0, 30).map(([k, n]) => ({[tipo]: tipo === 'maquina' ? k.split('|').reverse().join(' · ') : k, avisos: n}));
-                return {ok: true, total_avisos: avisosVisibles.length, filas: top};
+                return {ok: true, total_avisos: base.length, filas: top};
             },
         },
         filtrar_avisos: {
@@ -1077,6 +1156,7 @@
                 etiqueta: {type: 'string', enum: opcionesDe('filtro-etiqueta')},
                 cliente: {type: 'string', description: 'nombre (o parte) del cliente; "" quita el filtro'},
                 orden: {type: 'string', enum: opcionesDe('filtro-orden'), description: 'defecto = sin asignar primero; importancia = tipo de cliente de Pirineos (VIP primero)'},
+                tipos_cliente: {type: 'array', items: {type: 'string'}, description: 'solo con orden "importancia": tipos de cliente de Pirineos a enseñar (p. ej. ["CLIENTES VIP", "CLIENTES DIGITALES"], "" = sin tipo); [] = todos'},
             }},
             etiqueta: () => 'Filtrando los avisos',
             ejecutar: async (a) => {
@@ -1090,6 +1170,7 @@
                     await SugrafBot.escribir(document.getElementById('filtro-cliente'), exacto || a.cliente, {eventos: false});
                     ocultarListaClientes();
                 }
+                if (Array.isArray(a.tipos_cliente)) fijarTiposBot('lista', a.tipos_cliente);
                 renderGestionAvisos();
                 return {ok: true, visibles: avisosVisibles.length};
             },
