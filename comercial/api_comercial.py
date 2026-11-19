@@ -1316,6 +1316,42 @@ def sat_alertas(d: ClientesSAT):
         _error(e)
 
 
+# Importancia del tipo de cliente (GrupoCliente de Pirineos) para ordenar el Organizador de Avisos del SAT.
+# Cuanto más arriba en la lista, más importante. Los grupos que no están aquí van después (todos al mismo nivel),
+# luego CLIENTES VARIOS y al final los clientes que no se encuentran en Pirineos.
+ORDEN_TIPOS_CLIENTE = ['CLIENTES VIP', 'CLIENTES A.F.', 'CLIENTES FINANCIEROS', 'CLIENTES DIGITALES']
+TIPOS_CLIENTE_AL_FINAL = ['CLIENTES VARIOS']
+
+
+def _rango_tipo_cliente(grupo):
+    g = ' '.join(str(grupo or '').upper().split())
+    if not g:
+        return len(ORDEN_TIPOS_CLIENTE) + len(TIPOS_CLIENTE_AL_FINAL) + 1
+    if g in ORDEN_TIPOS_CLIENTE:
+        return ORDEN_TIPOS_CLIENTE.index(g)
+    if g in TIPOS_CLIENTE_AL_FINAL:
+        return len(ORDEN_TIPOS_CLIENTE) + 1 + TIPOS_CLIENTE_AL_FINAL.index(g)
+    return len(ORDEN_TIPOS_CLIENTE)
+
+
+@router.post('/sat/tipos-cliente')
+def sat_tipos_cliente(d: ClientesSAT):
+    """Tipo de cliente (GrupoCliente de Pirineos) de cada nombre de cliente de los avisos del SAT, con su
+    rango de importancia (0 = más importante). Lo usa el Organizador de Avisos para ordenar."""
+    try:
+        if not d.usuario.strip():
+            raise HTTPException(status_code=401, detail='Falta el usuario.')
+        cl = pirineos.clientes()
+        res = {}
+        for nombre in list(dict.fromkeys(x for x in d.clientes if x))[:600]:
+            cod = pirineos.codigo_por_nombre(nombre)
+            grupo = (cl.get(cod) or {}).get('grupo', '') if cod else ''
+            res[nombre] = {'codigo': cod, 'tipo': grupo, 'rango': _rango_tipo_cliente(grupo)}
+        return {'tipos': res, 'sin_tipo': _rango_tipo_cliente('')}
+    except Exception as e:
+        _error(e)
+
+
 @router.get('/sat/incidencias')
 def sat_incidencias(usuario: str = '', estado: str = ''):
     try:

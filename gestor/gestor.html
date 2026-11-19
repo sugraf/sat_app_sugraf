@@ -118,6 +118,42 @@
     }
     select.filter-sel:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
 
+    /* Buscador de cliente (como en Facturación de la app de escritorio) y botones de resumen */
+    .tools-row{ display:flex; gap:10px; margin:-8px 0 22px; flex-wrap:wrap; align-items:center; }
+    .cliente-box{ position:relative; flex:1; min-width:220px; }
+    input.filter-inp{
+        width:100%; padding:10px 34px 10px 14px; border:1px solid rgba(182,190,196,0.3); border-radius:10px;
+        font-size:0.88rem; background:var(--navy-dark); color:var(--ink); font-family:'Montserrat', sans-serif; font-weight:500;
+    }
+    input.filter-inp::placeholder{ color:#7f93ad; }
+    input.filter-inp:focus{ outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green-soft); }
+    .btn-limpiar-cli{ position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#7f93ad;
+        font-size:1.1rem; cursor:pointer; display:none; padding:2px 6px; }
+    .btn-limpiar-cli:hover{ color:#fff; }
+    .lista-clientes{ display:none; position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:50; max-height:260px; overflow-y:auto;
+        background:#fff; border-radius:10px; box-shadow:0 12px 28px rgba(0,0,0,0.35); }
+    .lista-clientes.show{ display:block; }
+    .lista-clientes div{ padding:9px 12px; color:var(--navy); font-size:0.85rem; cursor:pointer; display:flex; justify-content:space-between; gap:10px; }
+    .lista-clientes div:hover, .lista-clientes div.activo{ background:#e8f5f2; }
+    .lista-clientes div small{ color:#7a8798; white-space:nowrap; }
+    .btn-resumen{
+        background:transparent; color:#7fd9c7; border:1px solid rgba(0,104,88,0.5); padding:8px 12px; border-radius:10px;
+        cursor:pointer; font-weight:700; font-size:0.74rem; font-family:'Montserrat', sans-serif; white-space:nowrap;
+        transition:background 0.15s, border-color 0.15s;
+    }
+    .btn-resumen:hover{ background:var(--green-soft); border-color:var(--green); }
+    .contador-avisos{ color:var(--muted); font-size:0.8rem; margin:-12px 0 12px; }
+    .tipo-cli{ color:#7fd9c7; font-weight:600; }
+    .tipo-cli.vip{ color:#fcd34d; }
+    .resumen-tabla{ width:100%; border-collapse:collapse; margin-top:14px; font-size:0.88rem; }
+    .resumen-tabla th{ text-align:left; padding:9px 10px; background:#f1f5f8; color:#5c6b7d; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; }
+    .resumen-tabla th.num, .resumen-tabla td.num{ text-align:right; width:70px; }
+    .resumen-tabla td{ padding:9px 10px; border-bottom:1px solid #e6ebef; color:var(--navy); }
+    .resumen-tabla tr.clic{ cursor:pointer; }
+    .resumen-tabla tr.clic:hover td{ background:#e8f5f2; }
+    .resumen-tabla td small{ color:#7a8798; }
+    .resumen-nota{ font-size:0.78rem; color:#7a8798; margin-top:8px; }
+
     .inc-item {
         position:relative; overflow:hidden;
         background:linear-gradient(160deg, var(--navy-light) 0%, var(--navy) 100%);
@@ -281,6 +317,9 @@
       .header-title h2 { font-size: 1.5rem; }
       .filters-row{ flex-direction:column; }
       select.filter-sel{ min-width:100%; }
+      .tools-row{ margin-top:-10px; }
+      .cliente-box{ min-width:100%; }
+      .btn-resumen{ flex:1; }
       .inc-item { padding: 14px 16px; border-radius: 14px; }
       .inc-title { font-size: 0.92rem; }
       .badge{ font-size: 0.62rem; padding: 2px 8px; }
@@ -354,7 +393,28 @@
         <option value="INSTALACIÓN">Instalación</option>
         <option value="REVISAR">Revisar</option>
       </select>
+      <select id="filtro-orden" class="filter-sel" onchange="cambiarOrden()" title="Cómo se ordenan los avisos">
+        <option value="defecto">Orden: Sin asignar primero</option>
+        <option value="importancia">Orden: Importancia de cliente</option>
+        <option value="alfabetico">Orden: Cliente (A-Z)</option>
+        <option value="recientes">Orden: Más recientes</option>
+        <option value="antiguos">Orden: Más antiguos</option>
+        <option value="avisos_maquina">Orden: Nº avisos por máquina</option>
+        <option value="avisos_cliente">Orden: Nº avisos por cliente</option>
+      </select>
     </div>
+
+    <div class="tools-row">
+      <div class="cliente-box">
+        <input id="filtro-cliente" class="filter-inp" type="text" autocomplete="off" placeholder="Cliente: Todos (escribe para buscar...)"
+               oninput="onBuscarCliente()" onfocus="mostrarListaClientes()" onkeydown="teclaListaClientes(event)">
+        <button type="button" class="btn-limpiar-cli" id="btn-limpiar-cli" onclick="elegirCliente('')" title="Quitar filtro de cliente">&times;</button>
+        <div id="lista-clientes" class="lista-clientes"></div>
+      </div>
+      <button type="button" class="btn-resumen" onclick="abrirResumen('maquina')" title="Cuántos avisos tiene cada máquina">&#9881; Avisos por máquina</button>
+      <button type="button" class="btn-resumen" onclick="abrirResumen('cliente')" title="Cuántos avisos tiene cada cliente">&#128101; Avisos por cliente</button>
+    </div>
+    <p class="contador-avisos" id="contador-avisos"></p>
 
     <div id="contenedor-gestionar">
       <p class="empty-msg">Cargando avisos del sistema...</p>
@@ -366,6 +426,14 @@
       <span class="close-btn" onclick="cerrarModal()">&times;</span>
       <h3>Detalles del Aviso</h3>
       <table class="vertical-table" id="tabla-detalles"></table>
+    </div>
+  </div>
+
+  <div id="resumen-modal" class="modal" onclick="if (event.target === this) cerrarResumen()">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarResumen()">&times;</span>
+      <h3 id="resumen-titulo">Resumen</h3>
+      <div id="resumen-cuerpo"></div>
     </div>
   </div>
 
@@ -404,6 +472,8 @@
         renderGestionAvisos();
         // Avisos antes de ir: incidencias abiertas de esos clientes (pagos, quejas...) para decidir si se va.
         cargarAlertasClientes(avisosGlobales.filter(a => a['ESTADO'] !== 'Cerrado').map(a => a['CLIENTE']), currentUser).then(renderGestionAvisos);
+        // Tipo de cliente de Pirineos (VIP, A.F., digitales...) para ordenar por importancia.
+        cargarTiposClientes(avisosGlobales.map(a => a['CLIENTE'])).then(renderGestionAvisos);
       } catch (e) { document.getElementById('contenedor-gestionar').innerHTML = "<p class='empty-msg' style='color:#fca5a5;'>Error al cargar los avisos.</p>"; }
       finally { hideLoading(); }
     }
@@ -416,15 +486,179 @@
         return `<div class="inc-desc" title="${e}"><strong>Incidencia:</strong> ${e}</div>`;
     }
 
+    // ---------------- Tipo / importancia de cliente (GrupoCliente de Pirineos) ----------------
+    const TIPOS_CLIENTE = {};       // nombre del aviso -> {tipo, rango}  (rango 0 = más importante)
+    let RANGO_SIN_TIPO = 99;
+    async function cargarTiposClientes(nombres) {
+        const lista = [...new Set((nombres || []).filter(Boolean))].filter(n => !(n in TIPOS_CLIENTE));
+        if (!lista.length) return;
+        try {
+            const r = await fetch('/api/comercial/sat/tipos-cliente', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                                      body: JSON.stringify({usuario: currentUser, clientes: lista})});
+            if (!r.ok) return;
+            const d = await r.json();
+            if (typeof d.sin_tipo === 'number') RANGO_SIN_TIPO = d.sin_tipo;
+            Object.assign(TIPOS_CLIENTE, d.tipos || {});
+        } catch (e) { /* sin conexión: se ordena igual, sin la importancia */ }
+    }
+    function rangoCliente(nombre) {
+        const t = TIPOS_CLIENTE[nombre];
+        return t && typeof t.rango === 'number' ? t.rango : RANGO_SIN_TIPO;
+    }
+    function tipoClienteTexto(nombre) {
+        const t = TIPOS_CLIENTE[nombre];
+        return t && t.tipo ? t.tipo : '';
+    }
+
+    // ---------------- Utilidades de orden ----------------
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+    // Fecha de entrada como número (admite 2026-11-08, 2026-11-08T10:30:00 y 08/11/2026).
+    function fechaEntrada(av) {
+        const t = String(av['F. ENTR.'] || '').trim();
+        let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?/);
+        if (m) return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime();
+        m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
+        if (m) { const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; return new Date(y, +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime(); }
+        return 0;
+    }
+    // Orden de creación: por fecha; con la misma fecha, el que se metió antes en el Excel.
+    function ordenCreacion(a, b) {
+        return (fechaEntrada(a) - fechaEntrada(b))
+            || ((a.fuente === b.fuente) ? a.original_index - b.original_index : 0);
+    }
+    const ordenCliente = (a, b) => norm(a['CLIENTE']).localeCompare(norm(b['CLIENTE']), 'es');
+
+    // Una máquina = mismo cliente + máquina + nº de serie (si lo hay).
+    function claveMaquina(av) {
+        const serie = norm(av['Nº SERIE']);
+        return serie ? `${norm(av['CLIENTE'])}|${serie}` : `${norm(av['CLIENTE'])}|${norm(av['MÁQUINA'] || av['MODELO'])}`;
+    }
+    function contar(lista, clave) {
+        const m = new Map();
+        lista.forEach(av => { const k = clave(av); m.set(k, (m.get(k) || 0) + 1); });
+        return m;
+    }
+
+    function cambiarOrden() {
+        try { localStorage.setItem('sugraf_orden_gestor', document.getElementById('filtro-orden').value); } catch (e) {}
+        renderGestionAvisos();
+    }
+
+    // ---------------- Filtro por cliente (buscador con lista, como en Facturación) ----------------
+    let clienteElegido = '';
+    function clientesDisponibles() {
+        return contar(avisosGlobales, av => av['CLIENTE'] || '');
+    }
+    function pintarListaClientes() {
+        const q = norm(document.getElementById('filtro-cliente').value);
+        const cont = clientesDisponibles();
+        const nombres = [...cont.keys()].filter(n => n && (!q || norm(n).includes(q)))
+            .sort((a, b) => norm(a).localeCompare(norm(b), 'es')).slice(0, 80);
+        const box = document.getElementById('lista-clientes');
+        box.innerHTML = (clienteElegido ? `<div data-n="" onmousedown="event.preventDefault(); elegirCliente('')"><em>Todos los clientes</em></div>` : '')
+            + nombres.map(n => `<div data-n="${esc(n)}" onmousedown="event.preventDefault(); elegirCliente(this.dataset.n)">${esc(n)}<small>${cont.get(n)} aviso${cont.get(n) === 1 ? '' : 's'}</small></div>`).join('')
+            || '<div style="cursor:default; color:#7a8798;">Ningún cliente coincide</div>';
+    }
+    function mostrarListaClientes() { pintarListaClientes(); document.getElementById('lista-clientes').classList.add('show'); }
+    function ocultarListaClientes() { document.getElementById('lista-clientes').classList.remove('show'); }
+    function onBuscarCliente() {
+        // Mientras se escribe se filtra por lo escrito; al elegir de la lista, por ese cliente exacto.
+        clienteElegido = '';
+        mostrarListaClientes();
+        renderGestionAvisos();
+    }
+    function elegirCliente(nombre) {
+        clienteElegido = nombre || '';
+        document.getElementById('filtro-cliente').value = clienteElegido;
+        ocultarListaClientes();
+        renderGestionAvisos();
+    }
+    function teclaListaClientes(e) {
+        const box = document.getElementById('lista-clientes');
+        const items = [...box.querySelectorAll('div[data-n]')];
+        let i = items.findIndex(x => x.classList.contains('activo'));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!box.classList.contains('show')) mostrarListaClientes();
+            items.forEach(x => x.classList.remove('activo'));
+            i = e.key === 'ArrowDown' ? Math.min(items.length - 1, i + 1) : Math.max(0, i - 1);
+            if (items[i]) { items[i].classList.add('activo'); items[i].scrollIntoView({block: 'nearest'}); }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const el = items[i] || (items.length === 1 ? items[0] : null);
+            if (el) elegirCliente(el.dataset.n); else ocultarListaClientes();
+        } else if (e.key === 'Escape') {
+            ocultarListaClientes();
+        }
+    }
+    function coincideCliente(av) {
+        if (clienteElegido) return (av['CLIENTE'] || '') === clienteElegido;
+        const q = norm(document.getElementById('filtro-cliente').value);
+        return !q || norm(av['CLIENTE']).includes(q);
+    }
+
+    // ---------------- Resúmenes: avisos por máquina y por cliente ----------------
+    let resumenAbierto = '';
+    function abrirResumen(tipo) {
+        resumenAbierto = tipo;
+        pintarResumen();
+        document.getElementById('resumen-modal').style.display = 'flex';
+    }
+    function cerrarResumen() { resumenAbierto = ''; document.getElementById('resumen-modal').style.display = 'none'; }
+    function pintarResumen() {
+        if (!resumenAbierto) return;
+        const lista = avisosVisibles;
+        const abiertos = av => (av['ESTADO'] || '') !== 'Cerrado';
+        let filas = [];
+        if (resumenAbierto === 'maquina') {
+            const g = new Map();
+            lista.forEach(av => {
+                const k = claveMaquina(av);
+                if (!g.has(k)) g.set(k, {maquina: av['MÁQUINA'] || av['MODELO'] || '(sin máquina)', serie: av['Nº SERIE'] || '', cliente: av['CLIENTE'] || '', n: 0, ab: 0});
+                const x = g.get(k); x.n++; if (abiertos(av)) x.ab++;
+            });
+            filas = [...g.values()].sort((a, b) => b.n - a.n || norm(a.cliente).localeCompare(norm(b.cliente), 'es') || norm(a.maquina).localeCompare(norm(b.maquina), 'es'));
+            document.getElementById('resumen-titulo').innerText = 'Avisos por máquina';
+            document.getElementById('resumen-cuerpo').innerHTML = !filas.length ? '<p class="resumen-nota">No hay avisos con los filtros actuales.</p>' : `
+                <table class="resumen-tabla"><tr><th>Máquina</th><th>Cliente</th><th class="num">Avisos</th></tr>
+                ${filas.map(f => `<tr class="clic" data-n="${esc(f.cliente)}" onclick="elegirCliente(this.dataset.n); cerrarResumen();" title="Ver los avisos de este cliente">
+                    <td>${esc(f.maquina)}${f.serie ? `<br><small>Nº serie: ${esc(f.serie)}</small>` : ''}</td><td>${esc(f.cliente)}</td>
+                    <td class="num"><strong>${f.n}</strong>${f.ab !== f.n ? `<br><small>${f.ab} abiertos</small>` : ''}</td></tr>`).join('')}
+                </table>
+                <p class="resumen-nota">${filas.length} máquinas · ${lista.length} avisos (con los filtros actuales). Toca una fila para ver los avisos de ese cliente.</p>`;
+        } else {
+            const g = new Map();
+            lista.forEach(av => {
+                const k = av['CLIENTE'] || '';
+                if (!g.has(k)) g.set(k, {cliente: k || '(sin cliente)', n: 0, ab: 0, maquinas: new Set()});
+                const x = g.get(k); x.n++; if (abiertos(av)) x.ab++; x.maquinas.add(claveMaquina(av));
+            });
+            filas = [...g.values()].sort((a, b) => b.n - a.n || norm(a.cliente).localeCompare(norm(b.cliente), 'es'));
+            document.getElementById('resumen-titulo').innerText = 'Avisos por cliente';
+            document.getElementById('resumen-cuerpo').innerHTML = !filas.length ? '<p class="resumen-nota">No hay avisos con los filtros actuales.</p>' : `
+                <table class="resumen-tabla"><tr><th>Cliente</th><th class="num">Máquinas</th><th class="num">Avisos</th></tr>
+                ${filas.map(f => { const tipo = tipoClienteTexto(f.cliente); return `<tr class="clic" data-n="${esc(f.cliente)}" onclick="elegirCliente(this.dataset.n); cerrarResumen();" title="Ver los avisos de este cliente">
+                    <td>${esc(f.cliente)}${tipo ? `<br><small>${esc(tipo)}</small>` : ''}</td><td class="num">${f.maquinas.size}</td>
+                    <td class="num"><strong>${f.n}</strong>${f.ab !== f.n ? `<br><small>${f.ab} abiertos</small>` : ''}</td></tr>`; }).join('')}
+                </table>
+                <p class="resumen-nota">${filas.length} clientes · ${lista.length} avisos (con los filtros actuales). Toca una fila para ver solo ese cliente.</p>`;
+        }
+    }
+
     function renderGestionAvisos() {
       const box = document.getElementById('contenedor-gestionar');
       const filtroTec = document.getElementById('filtro-tecnico').value;
       const filtroPir = document.getElementById('filtro-pirineos').value;
       const filtroEtiqueta = document.getElementById('filtro-etiqueta').value;
+      const orden = document.getElementById('filtro-orden').value;
+      document.getElementById('btn-limpiar-cli').style.display = document.getElementById('filtro-cliente').value ? 'block' : 'none';
       
       const isTecnico = TECNICOS_PERMITIDOS.includes(currentUser);
 
       let filtrados = avisosGlobales.filter(av => {
+        if (!coincideCliente(av)) return false;
         const matchTec = filtroTec === "Todos" || (av['ASIGNADO A'] || 'Pendiente') === filtroTec;
         const matchPir = filtroPir === "Todos" || av['PIRINEOS'] === filtroPir;
         
@@ -442,18 +676,34 @@
         return matchTec && matchPir && matchEtiqueta;
       });
 
+      // Recuentos con los filtros actuales (para ordenar y para la tarjeta).
+      const nPorMaquina = contar(filtrados, claveMaquina);
+      const nPorCliente = contar(filtrados, av => av['CLIENTE'] || '');
+      const pendiente = av => (av['ASIGNADO A'] === 'Pendiente' || !av['ASIGNADO A']) ? 0 : 1;
+
       filtrados.sort((a, b) => {
-          const aPendiente = (a['ASIGNADO A'] === 'Pendiente' || !a['ASIGNADO A']) ? 0 : 1;
-          const bPendiente = (b['ASIGNADO A'] === 'Pendiente' || !b['ASIGNADO A']) ? 0 : 1;
-          
-          if (aPendiente !== bPendiente) {
-              return aPendiente - bPendiente;
+          switch (orden) {
+              case 'importancia':     // más importante primero; dentro, cliente A-Z y el aviso más antiguo antes
+                  return (rangoCliente(a['CLIENTE']) - rangoCliente(b['CLIENTE'])) || ordenCliente(a, b) || ordenCreacion(a, b);
+              case 'alfabetico':
+                  return ordenCliente(a, b) || ordenCreacion(a, b);
+              case 'recientes':
+                  return ordenCreacion(b, a);
+              case 'antiguos':
+                  return ordenCreacion(a, b);
+              case 'avisos_maquina':  // máquinas con más avisos arriba, sus avisos juntos
+                  return (nPorMaquina.get(claveMaquina(b)) - nPorMaquina.get(claveMaquina(a)))
+                      || claveMaquina(a).localeCompare(claveMaquina(b), 'es') || ordenCreacion(a, b);
+              case 'avisos_cliente':  // clientes con más avisos arriba, sus avisos juntos
+                  return (nPorCliente.get(b['CLIENTE'] || '') - nPorCliente.get(a['CLIENTE'] || ''))
+                      || ordenCliente(a, b) || ordenCreacion(a, b);
+              default:                // como siempre: sin asignar primero y luego cliente A-Z
+                  return (pendiente(a) - pendiente(b)) || ordenCliente(a, b);
           }
-          const clientA = (a['CLIENTE'] || '').toLowerCase();
-          const clientB = (b['CLIENTE'] || '').toLowerCase();
-          return clientA.localeCompare(clientB);
       });
       avisosVisibles = filtrados;
+      document.getElementById('contador-avisos').innerText = avisosGlobales.length
+          ? `${filtrados.length} aviso${filtrados.length === 1 ? '' : 's'} de ${avisosGlobales.length}` : '';
 
       let html = "";
       filtrados.forEach((av) => {
@@ -531,7 +781,7 @@
                 </span>
               </div>
             </div>
-            <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}</div>
+            <div class="inc-sub">Fecha: ${av['F. ENTR.']} | Máquina: ${av['MÁQUINA']}${nPorMaquina.get(claveMaquina(av)) > 1 ? ` <span title="Avisos de esta máquina con los filtros actuales">(${nPorMaquina.get(claveMaquina(av))} avisos)</span>` : ''}${tipoClienteTexto(av['CLIENTE']) ? ` | <span class="tipo-cli${rangoCliente(av['CLIENTE']) === 0 ? ' vip' : ''}">${esc(tipoClienteTexto(av['CLIENTE']))}</span>` : ''}${nPorCliente.get(av['CLIENTE'] || '') > 1 ? ` | ${nPorCliente.get(av['CLIENTE'] || '')} avisos del cliente` : ''}</div>
             ${htmlDescAviso(av)}
             ${estadoAviso !== 'Cerrado' ? htmlAlertaCliente(av['CLIENTE']) : ''}
           </div>
@@ -539,6 +789,7 @@
       });
 
       box.innerHTML = html || "<p class='empty-msg'>No hay avisos que coincidan con los filtros.</p>";
+      if (resumenAbierto) pintarResumen();
     }
 
     function abrirDetalles(index, fuente) {
@@ -669,6 +920,8 @@
         var dropdowns = document.getElementsByClassName("dropdown-content");
         for (var i = 0; i < dropdowns.length; i++) dropdowns[i].classList.remove("show");
     }, {passive: true});
+    document.addEventListener('mousedown', e => { if (!e.target.closest('.cliente-box')) ocultarListaClientes(); });
+    document.addEventListener('touchstart', e => { if (!e.target.closest('.cliente-box')) ocultarListaClientes(); }, {passive: true});
     window.onclick = function(event) {
         if (event.target === document.getElementById('aviso-modal')) cerrarModal();
         if (!event.target.closest(".dropdown")) {
@@ -751,6 +1004,12 @@
         }
     }
 
+    // Recordar el último orden elegido en este dispositivo.
+    try {
+        const o = localStorage.getItem('sugraf_orden_gestor');
+        if (o && [...document.getElementById('filtro-orden').options].some(x => x.value === o)) document.getElementById('filtro-orden').value = o;
+    } catch (e) {}
+
     window.sugrafBotListo = cargarGestionAvisos();
 
     // Avisos visibles con los filtros actuales, para el asistente IA (chatbot.js).
@@ -761,6 +1020,8 @@
                 tecnico: document.getElementById('filtro-tecnico').value,
                 pirineos: document.getElementById('filtro-pirineos').value,
                 etiqueta: document.getElementById('filtro-etiqueta').value,
+                cliente: document.getElementById('filtro-cliente').value,
+                orden: document.getElementById('filtro-orden').value,
             },
             avisos: avisosVisibles.map(av => {
                 const marcas = etiquetas.filter(e => av[e] === 'SI').map(e => e.charAt(0) + e.slice(1).toLowerCase());
@@ -771,6 +1032,7 @@
                     tecnico: av['ASIGNADO A'] || 'Pendiente',
                     estado: av['ESTADO'] || (av.fuente === 'sin_tratar' ? 'Sin tratar' : 'Asignado'),
                     pirineos: av['PIRINEOS'] || 'NO', etiquetas: marcas, descripcion: av['DESCRIPCIÓN'] || '',
+                    tipo_cliente: tipoClienteTexto(av['CLIENTE']), n_serie: av['Nº SERIE'] || '',
                 };
             }),
         };
@@ -804,17 +1066,37 @@
     const ID_AVISO_BOT = {type: 'string', description: 'id del aviso en el CONTEXTO (p. ej. "sin_tratar-3")'};
 
     window.sugrafBotAcciones = {
+        ver_resumen: {
+            descripcion: 'Abre el resumen de cuántos avisos tiene cada máquina o cada cliente (con los filtros actuales).',
+            parametros: {type: 'object', additionalProperties: false, required: ['tipo'], properties: {tipo: {type: 'string', enum: ['maquina', 'cliente']}}},
+            etiqueta: a => a.tipo === 'maquina' ? 'Abriendo avisos por máquina' : 'Abriendo avisos por cliente',
+            ejecutar: async ({tipo}) => {
+                abrirResumen(tipo);
+                const c = tipo === 'maquina' ? contar(avisosVisibles, claveMaquina) : contar(avisosVisibles, av => av['CLIENTE'] || '');
+                const top = [...c.entries()].sort((x, y) => y[1] - x[1]).slice(0, 30).map(([k, n]) => ({[tipo]: tipo === 'maquina' ? k.split('|').reverse().join(' · ') : k, avisos: n}));
+                return {ok: true, total_avisos: avisosVisibles.length, filas: top};
+            },
+        },
         filtrar_avisos: {
-            descripcion: 'Aplica los filtros del organizador. Solo cambia los que se indiquen.',
+            descripcion: 'Aplica los filtros y el orden del organizador. Solo cambia los que se indiquen (cliente "" = todos).',
             parametros: {type: 'object', additionalProperties: false, properties: {
                 tecnico: {type: 'string', enum: opcionesDe('filtro-tecnico'), description: '"Pendiente" = sin asignar'},
                 pirineos: {type: 'string', enum: opcionesDe('filtro-pirineos')},
                 etiqueta: {type: 'string', enum: opcionesDe('filtro-etiqueta')},
+                cliente: {type: 'string', description: 'nombre (o parte) del cliente; "" quita el filtro'},
+                orden: {type: 'string', enum: opcionesDe('filtro-orden'), description: 'defecto = sin asignar primero; importancia = tipo de cliente de Pirineos (VIP primero)'},
             }},
             etiqueta: () => 'Filtrando los avisos',
             ejecutar: async (a) => {
-                for (const [clave, id] of [['tecnico', 'filtro-tecnico'], ['pirineos', 'filtro-pirineos'], ['etiqueta', 'filtro-etiqueta']]) {
+                for (const [clave, id] of [['tecnico', 'filtro-tecnico'], ['pirineos', 'filtro-pirineos'], ['etiqueta', 'filtro-etiqueta'], ['orden', 'filtro-orden']]) {
                     if (a[clave]) await SugrafBot.escribir(document.getElementById(id), a[clave], {eventos: false});
+                }
+                if (a.orden) { try { localStorage.setItem('sugraf_orden_gestor', a.orden); } catch (e) {} }
+                if (typeof a.cliente === 'string') {
+                    const exacto = [...clientesDisponibles().keys()].find(n => norm(n) === norm(a.cliente));
+                    clienteElegido = exacto || '';
+                    await SugrafBot.escribir(document.getElementById('filtro-cliente'), exacto || a.cliente, {eventos: false});
+                    ocultarListaClientes();
                 }
                 renderGestionAvisos();
                 return {ok: true, visibles: avisosVisibles.length};
