@@ -399,8 +399,6 @@
         <option value="alfabetico">Orden: Cliente (A-Z)</option>
         <option value="recientes">Orden: Más recientes</option>
         <option value="antiguos">Orden: Más antiguos</option>
-        <option value="avisos_maquina">Orden: Nº avisos por máquina</option>
-        <option value="avisos_cliente">Orden: Nº avisos por cliente</option>
       </select>
     </div>
 
@@ -411,8 +409,8 @@
         <button type="button" class="btn-limpiar-cli" id="btn-limpiar-cli" onclick="elegirCliente('')" title="Quitar filtro de cliente">&times;</button>
         <div id="lista-clientes" class="lista-clientes"></div>
       </div>
-      <button type="button" class="btn-resumen" onclick="abrirResumen('maquina')" title="Cuántos avisos tiene cada máquina">&#9881; Avisos por máquina</button>
-      <button type="button" class="btn-resumen" onclick="abrirResumen('cliente')" title="Cuántos avisos tiene cada cliente">&#128101; Avisos por cliente</button>
+      <button type="button" class="btn-resumen" onclick="abrirResumen('maquina')" title="Cuántos avisos tiene cada máquina">Avisos por máquina</button>
+      <button type="button" class="btn-resumen" onclick="abrirResumen('cliente')" title="Cuántos avisos tiene cada cliente">Avisos por cliente</button>
     </div>
     <p class="contador-avisos" id="contador-avisos"></p>
 
@@ -691,12 +689,6 @@
                   return ordenCreacion(b, a);
               case 'antiguos':
                   return ordenCreacion(a, b);
-              case 'avisos_maquina':  // máquinas con más avisos arriba, sus avisos juntos
-                  return (nPorMaquina.get(claveMaquina(b)) - nPorMaquina.get(claveMaquina(a)))
-                      || claveMaquina(a).localeCompare(claveMaquina(b), 'es') || ordenCreacion(a, b);
-              case 'avisos_cliente':  // clientes con más avisos arriba, sus avisos juntos
-                  return (nPorCliente.get(b['CLIENTE'] || '') - nPorCliente.get(a['CLIENTE'] || ''))
-                      || ordenCliente(a, b) || ordenCreacion(a, b);
               default:                // como siempre: sin asignar primero y luego cliente A-Z
                   return (pendiente(a) - pendiente(b)) || ordenCliente(a, b);
           }
